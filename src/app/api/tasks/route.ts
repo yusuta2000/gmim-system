@@ -20,7 +20,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { description, hoursWorked, date, assistantId, categoryId, points, source, notes } = body;
+    const { description, hoursWorked, date, assistantId, categoryId, points, source, notes, assignedBy } = body;
 
     // Get the max task number for this assistant
     const maxTask = await db.task.findFirst({
@@ -37,9 +37,10 @@ export async function POST(request: Request) {
         hoursWorked: hoursWorked || null,
         date: new Date(date),
         points: points || 0,
-        status: 'pending',
+        status: points > 0 ? 'approved' : 'pending',
         source: source || 'external',
         notes: notes || null,
+        assignedBy: assignedBy || null,
         assistantId,
         categoryId: categoryId || null,
       },
@@ -56,6 +57,17 @@ export async function POST(request: Request) {
         data: { totalPoints: { increment: points } },
       });
     }
+
+    // Create notification for the assigned assistant
+    await db.notification.create({
+      data: {
+        title: 'Yeni Görev Atandı',
+        message: `"${description}" görevi size atandı. Puan: ${points || 'Beklemede'}`,
+        type: 'task_assigned',
+        assistantId,
+        relatedId: task.id,
+      },
+    });
 
     return NextResponse.json(task, { status: 201 });
   } catch (error) {

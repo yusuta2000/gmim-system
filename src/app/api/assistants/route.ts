@@ -15,7 +15,9 @@ export async function GET() {
         },
       },
     });
-    return NextResponse.json(assistants);
+    // Strip passwords from response for security
+    const sanitized = assistants.map(({ password: _, ...rest }) => rest);
+    return NextResponse.json(sanitized);
   } catch (error) {
     console.error('Error fetching assistants:', error);
     return NextResponse.json({ error: 'Failed to fetch assistants' }, { status: 500 });

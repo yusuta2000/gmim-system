@@ -1,0 +1,1048 @@
+     1→     1→'use client'
+     2→     2→
+     3→     3→import { useState, useEffect, useCallback } from 'react'
+     4→     4→import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+     5→     5→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+     6→     6→import { Badge } from '@/components/ui/badge'
+     7→     7→import { Button } from '@/components/ui/button'
+     8→     8→import { Input } from '@/components/ui/input'
+     9→     9→import { Label } from '@/components/ui/label'
+    10→    10→import { Textarea } from '@/components/ui/textarea'
+    11→    11→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+    12→    12→import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+    13→    13→import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog'
+    14→    14→import { Progress } from '@/components/ui/progress'
+    15→    15→import { ScrollArea } from '@/components/ui/scroll-area'
+    16→    16→import { Separator } from '@/components/ui/separator'
+    17→    17→import { toast } from 'sonner'
+    18→    18→import {
+    19→    19→  Users, ListChecks, GraduationCap, Brain, BarChart3, Plus, CheckCircle2,
+    20→    20→  Clock, AlertCircle, UserCheck, Award, TrendingDown, Zap, Ship,
+    21→    21→  CalendarDays, ChevronRight, Sparkles, Send, ArrowUpRight, Target,
+    22→    22→  Bell, BellRing, Upload, FileSpreadsheet, LogIn, LogOut, Shield,
+    23→    23→  X, Info, Trash2, Schedule, Conflict
+    24→    24→} from 'lucide-react'
+    25→    25→
+    26→    26→// Types
+    27→    27→interface ResearchAssistant {
+    28→    28→  id: string
+    29→    29→  name: string
+    30→    30→  email: string
+    31→    31→  phone: string | null
+    32→    32→  faculty: string
+    33→    33→  department: string
+    34→    34→  totalPoints: number
+    35→    35→  order: number
+    36→    36→  isActive: boolean
+    37→    37→  role: string
+    38→    38→  password?: string
+    39→    39→  tasks: Task[]
+    40→    40→  permanentDuties: PermanentDuty[]
+    41→    41→}
+    42→    42→
+    43→    43→interface Task {
+    44→    44→  id: string
+    45→    45→  number: number
+    46→    46→  description: string
+    47→    47→  hoursWorked: string | null
+    48→    48→  date: string
+    49→    49→  points: number
+    50→    50→  status: string
+    51→    51→  source: string
+    52→    52→  notes: string | null
+    53→    53→  assistantId: string
+    54→    54→  categoryId: string | null
+    55→    55→  assistant?: ResearchAssistant
+    56→    56→  category?: PointCategory
+    57→    57→}
+    58→    58→
+    59→    59→interface PointCategory {
+    60→    60→  id: string
+    61→    61→  name: string
+    62→    62→  points: number
+    63→    63→  description: string | null
+    64→    64→  isActive: boolean
+    65→    65→}
+    66→    66→
+    67→    67→interface Exam {
+    68→    68→  id: string
+    69→    69→  courseCode: string
+    70→    70→  courseName: string
+    71→    71→  instructor: string
+    72→    72→  date: string
+    73→    73→  day: string
+    74→    74→  timeSlot: string
+    75→    75→  classroom: string | null
+    76→    76→  requiredSupervisors: number
+    77→    77→  notes: string | null
+    78→    78→  supervisors: ExamSupervisor[]
+    79→    79→}
+    80→    80→
+    81→    81→interface ExamSupervisor {
+    82→    82→  id: string
+    83→    83→  examId: string
+    84→    84→  assistantId: string
+    85→    85→  assistant: ResearchAssistant
+    86→    86→}
+    87→    87→
+    88→    88→interface NotificationItem {
+    89→    89→  id: string
+    90→    90→  title: string
+    91→    91→  message: string
+    92→    92→  type: string
+    93→    93→  isRead: boolean
+    94→    94→  relatedId: string | null
+    95→    95→  createdAt: string
+    96→    96→  assistantId: string
+    97→    97→  assistant?: ResearchAssistant
+    98→    98→}
+    99→    99→
+   100→   100→interface WeeklyScheduleItem {
+   101→   101→  id: string
+   102→   102→  dayOfWeek: number
+   103→   103→  timeSlot: string
+   104→   104→  description: string
+   105→   105→  assistantId: string
+   106→   106→  assistant: ResearchAssistant
+   107→   107→}
+   108→   108→
+   109→   109→interface AIClassifyResult {
+   110→   110→  matched: boolean
+   111→   111→  category: PointCategory | null
+   112→   112→  confidence: number
+   113→   113→  suggestedPoints: number
+   114→   114→  reasoning?: string
+   115→   115→  message?: string
+   116→   116→  allCategories: { id: string; name: string; points: number }[]
+   117→   117→}
+   118→   118→
+   119→   119→const DAY_NAMES: Record<number, string> = {
+   120→   120→  1: 'Pazartesi', 2: 'Salı', 3: 'Çarşamba', 4: 'Perşembe', 5: 'Cuma', 6: 'Cumartesi', 7: 'Pazar'
+   121→   121→}
+   122→   122→
+   123→   123→export default function Home() {
+   124→   124→  const [assistants, setAssistants] = useState<ResearchAssistant[]>([])
+   125→   125→  const [tasks, setTasks] = useState<Task[]>([])
+   126→   126→  const [categories, setCategories] = useState<PointCategory[]>([])
+   127→   127→  const [exams, setExams] = useState<Exam[]>([])
+   128→   128→  const [notifications, setNotifications] = useState<NotificationItem[]>([])
+   129→   129→  const [weeklySchedules, setWeeklySchedules] = useState<WeeklyScheduleItem[]>([])
+   130→   130→  const [unreadCount, setUnreadCount] = useState(0)
+   131→   131→  const [loading, setLoading] = useState(true)
+   132→   132→  const [activeTab, setActiveTab] = useState('dashboard')
+   133→   133→
+   134→   134→  // Auth state
+   135→   135→  const [currentUser, setCurrentUser] = useState<ResearchAssistant | null>(null)
+   136→   136→  const [loginEmail, setLoginEmail] = useState('')
+   137→   137→  const [loginPassword, setLoginPassword] = useState('')
+   138→   138→  const [showLoginDialog, setShowLoginDialog] = useState(false)
+   139→   139→
+   140→   140→  // Task form state
+   141→   141→  const [taskDesc, setTaskDesc] = useState('')
+   142→   142→  const [taskDate, setTaskDate] = useState('')
+   143→   143→  const [taskHours, setTaskHours] = useState('')
+   144→   144→  const [taskAssistantId, setTaskAssistantId] = useState('')
+   145→   145→  const [taskCategoryId, setTaskCategoryId] = useState('')
+   146→   146→  const [taskPoints, setTaskPoints] = useState(0)
+   147→   147→  const [taskNotes, setTaskNotes] = useState('')
+   148→   148→  const [isClassifying, setIsClassifying] = useState(false)
+   149→   149→  const [classifyResult, setClassifyResult] = useState<AIClassifyResult | null>(null)
+   150→   150→
+   151→   151→  // Exam form state
+   152→   152→  const [examCourseCode, setExamCourseCode] = useState('')
+   153→   153→  const [examCourseName, setExamCourseName] = useState('')
+   154→   154→  const [examInstructor, setExamInstructor] = useState('')
+   155→   155→  const [examDate, setExamDate] = useState('')
+   156→   156→  const [examDay, setExamDay] = useState('')
+   157→   157→  const [examTime, setExamTime] = useState('')
+   158→   158→  const [examSupervisors, setExamSupervisors] = useState('1')
+   159→   159→  const [examNotes, setExamNotes] = useState('')
+   160→   160→
+   161→   161→  // Schedule form state
+   162→   162→  const [schedAssistantId, setSchedAssistantId] = useState('')
+   163→   163→  const [schedDay, setSchedDay] = useState('1')
+   164→   164→  const [schedTime, setSchedTime] = useState('')
+   165→   165→  const [schedDesc, setSchedDesc] = useState('')
+   166→   166→
+   167→   167→  // Import state
+   168→   168→  const [importFile, setImportFile] = useState<File | null>(null)
+   169→   169→  const [importType, setImportType] = useState('tasks')
+   170→   170→  const [isImporting, setIsImporting] = useState(false)
+   171→   171→
+   172→   172→  // Notification dialog
+   173→   173→  const [showNotifDialog, setShowNotifDialog] = useState(false)
+   174→   174→
+   175→   175→  const fetchData = useCallback(async () => {
+   176→   176→    setLoading(true)
+   177→   177→    try {
+   178→   178→      const [assRes, taskRes, catRes, examRes, notifRes, schedRes] = await Promise.all([
+   179→   179→        fetch('/api/assistants'),
+   180→   180→        fetch('/api/tasks'),
+   181→   181→        fetch('/api/categories'),
+   182→   182→        fetch('/api/exams'),
+   183→   183→        fetch('/api/notifications'),
+   184→   184→        fetch('/api/weekly-schedule'),
+   185→   185→      ])
+   186→   186→      setAssistants(await assRes.json())
+   187→   187→      setTasks(await taskRes.json())
+   188→   188→      setCategories(await catRes.json())
+   189→   189→      setExams(await examRes.json())
+   190→   190→      const notifData = await notifRes.json()
+   191→   191→      setNotifications(notifData.notifications || [])
+   192→   192→      setUnreadCount(notifData.unreadCount || 0)
+   193→   193→      setWeeklySchedules(await schedRes.json())
+   194→   194→    } catch (err) {
+   195→   195→      console.error('Error fetching data:', err)
+   196→   196→      toast.error('Veriler yüklenirken hata oluştu')
+   197→   197→    } finally {
+   198→   198→      setLoading(false)
+   199→   199→    }
+   200→   200→  }, [])
+   201→   201→
+   202→   202→  useEffect(() => { fetchData() }, [fetchData])
+   203→   203→
+   204→   204→  // Auth
+   205→   205→  const handleLogin = async () => {
+   206→   206→    if (!loginEmail || !loginPassword) { toast.error('E-posta ve şifre gerekli'); return }
+   207→   207→    try {
+   208→   208→      const res = await fetch('/api/login', {
+   209→   209→        method: 'POST',
+   210→   210→        headers: { 'Content-Type': 'application/json' },
+   211→   211→        body: JSON.stringify({ email: loginEmail, password: loginPassword }),
+   212→   212→      })
+   213→   213→      const data = await res.json()
+   214→   214→      if (res.ok) {
+   215→   215→        setCurrentUser(data.user)
+   216→   216→        setShowLoginDialog(false)
+   217→   217→        setLoginEmail('')
+   218→   218→        setLoginPassword('')
+   219→   219→        toast.success(`Hoş geldiniz, ${data.user.name}!`, { description: `Rol: ${data.user.role === 'admin' ? 'Temsilci (Admin)' : 'Araş Gör'}` })
+   220→   220→      } else {
+   221→   221→        toast.error(data.error || 'Giriş başarısız')
+   222→   222→      }
+   223→   223→    } catch { toast.error('Bağlantı hatası') }
+   224→   224→  }
+   225→   225→
+   226→   226→  const handleLogout = () => {
+   227→   227→    setCurrentUser(null)
+   228→   228→    toast.info('Çıkış yapıldı')
+   229→   229→  }
+   230→   230→
+   231→   231→  // AI Classify
+   232→   232→  const handleClassifyTask = async () => {
+   233→   233→    if (!taskDesc.trim()) { toast.error('Lütfen görev açıklaması girin'); return }
+   234→   234→    setIsClassifying(true)
+   235→   235→    try {
+   236→   236→      const res = await fetch('/api/ai-classify', {
+   237→   237→        method: 'POST',
+   238→   238→        headers: { 'Content-Type': 'application/json' },
+   239→   239→        body: JSON.stringify({ taskDescription: taskDesc }),
+   240→   240→      })
+   241→   241→      const data: AIClassifyResult = await res.json()
+   242→   242→      setClassifyResult(data)
+   243→   243→      if (data.matched) {
+   244→   244→        setTaskCategoryId(data.category?.id || '')
+   245→   245→        setTaskPoints(data.suggestedPoints)
+   246→   246→        toast.success(`AI Eşleşme: ${data.category?.name} (${data.suggestedPoints} puan)`, {
+   247→   247→          description: data.reasoning || `Güven: %${Math.round(data.confidence * 100)}`
+   248→   248→        })
+   249→   249→      } else {
+   250→   250→        toast.info('Otomatik eşleşme bulunamadı. Lütfen kategoriyi manuel seçin.')
+   251→   251→      }
+   252→   252→    } catch { toast.error('AI sınıflandırma hatası') }
+   253→   253→    finally { setIsClassifying(false) }
+   254→   254→  }
+   255→   255→
+   256→   256→  // Submit task
+   257→   257→  const handleSubmitTask = async () => {
+   258→   258→    if (!taskDesc || !taskDate || !taskAssistantId) { toast.error('Lütfen tüm zorunlu alanları doldurun'); return }
+   259→   259→    try {
+   260→   260→      const res = await fetch('/api/tasks', {
+   261→   261→        method: 'POST',
+   262→   262→        headers: { 'Content-Type': 'application/json' },
+   263→   263→        body: JSON.stringify({
+   264→   264→          description: taskDesc, date: taskDate, hoursWorked: taskHours || null,
+   265→   265→          assistantId: taskAssistantId, categoryId: taskCategoryId || null,
+   266→   266→          points: taskPoints, source: 'external', notes: taskNotes || null,
+   267→   267→          assignedBy: currentUser?.name || null,
+   268→   268→        }),
+   269→   269→      })
+   270→   270→      if (res.ok) {
+   271→   271→        toast.success('Görev başarıyla eklendi!', { description: 'Araş gör bilgilendirildi' })
+   272→   272→        setTaskDesc(''); setTaskDate(''); setTaskHours(''); setTaskAssistantId('')
+   273→   273→        setTaskCategoryId(''); setTaskPoints(0); setTaskNotes(''); setClassifyResult(null)
+   274→   274→        fetchData()
+   275→   275→      } else { toast.error('Görev eklenirken hata oluştu') }
+   276→   276→    } catch { toast.error('Bağlantı hatası') }
+   277→   277→  }
+   278→   278→
+   279→   279→  // Submit exam
+   280→   280→  const handleSubmitExam = async () => {
+   281→   281→    if (!examCourseCode || !examCourseName || !examDate || !examDay || !examTime) { toast.error('Lütfen tüm zorunlu alanları doldurun'); return }
+   282→   282→    try {
+   283→   283→      const res = await fetch('/api/exams', {
+   284→   284→        method: 'POST',
+   285→   285→        headers: { 'Content-Type': 'application/json' },
+   286→   286→        body: JSON.stringify({
+   287→   287→          courseCode: examCourseCode, courseName: examCourseName, instructor: examInstructor,
+   288→   288→          date: examDate, day: examDay, timeSlot: examTime,
+   289→   289→          requiredSupervisors: parseInt(examSupervisors), notes: examNotes || null,
+   290→   290→        }),
+   291→   291→      })
+   292→   292→      if (res.ok) {
+   293→   293→        toast.success('Sınav başarıyla eklendi!')
+   294→   294→        setExamCourseCode(''); setExamCourseName(''); setExamInstructor(''); setExamDate('')
+   295→   295→        setExamDay(''); setExamTime(''); setExamSupervisors('1'); setExamNotes('')
+   296→   296→        fetchData()
+   297→   297→      } else { toast.error('Sınav eklenirken hata oluştu') }
+   298→   298→    } catch { toast.error('Bağlantı hatası') }
+   299→   299→  }
+   300→   300→
+   301→   301→  // Auto-assign supervisors
+   302→   302→  const handleAutoAssign = async (examId: string) => {
+   303→   303→    try {
+   304→   304→      const res = await fetch('/api/supervisor-assign', {
+   305→   305→        method: 'POST',
+   306→   306→        headers: { 'Content-Type': 'application/json' },
+   307→   307→        body: JSON.stringify({ examId }),
+   308→   308→      })
+   309→   309→      const data = await res.json()
+   310→   310→      if (res.ok) {
+   311→   311→        toast.success(data.message, { description: data.assignments?.map((a: ExamSupervisor) => a.assistant.name).join(', ') })
+   312→   312→        fetchData()
+   313→   313→      } else { toast.error(data.message || 'Gözetmen atama hatası') }
+   314→   314→    } catch { toast.error('Bağlantı hatası') }
+   315→   315→  }
+   316→   316→
+   317→   317→  // Add schedule
+   318→   318→  const handleAddSchedule = async () => {
+   319→   319→    if (!schedAssistantId || !schedTime || !schedDesc) { toast.error('Tüm alanları doldurun'); return }
+   320→   320→    try {
+   321→   321→      const res = await fetch('/api/weekly-schedule', {
+   322→   322→        method: 'POST',
+   323→   323→        headers: { 'Content-Type': 'application/json' },
+   324→   324→        body: JSON.stringify({ assistantId: schedAssistantId, dayOfWeek: parseInt(schedDay), timeSlot: schedTime, description: schedDesc }),
+   325→   325→      })
+   326→   326→      if (res.ok) {
+   327→   327→        toast.success('Program eklendi!')
+   328→   328→        setSchedAssistantId(''); setSchedTime(''); setSchedDesc('')
+   329→   329→        fetchData()
+   330→   330→      } else {
+   331→   331→        const errData = await res.json()
+   332→   332→        if (res.status === 409) {
+   333→   333→          toast.error('Zaman çakışması!', { description: errData.conflicts?.map((c: WeeklyScheduleItem) => `${c.description} (${c.timeSlot})`).join(', ') })
+   334→   334→        } else {
+   335→   335→          toast.error(errData.error || 'Hata')
+   336→   336→        }
+   337→   337→      }
+   338→   338→    } catch { toast.error('Bağlantı hatası') }
+   339→   339→  }
+   340→   340→
+   341→   341→  // Delete schedule
+   342→   342→  const handleDeleteSchedule = async (id: string) => {
+   343→   343→    try {
+   344→   344→      const res = await fetch(`/api/weekly-schedule?id=${id}`, { method: 'DELETE' })
+   345→   345→      if (res.ok) { toast.success('Program silindi'); fetchData() }
+   346→   346→      else { toast.error('Silme hatası') }
+   347→   347→    } catch { toast.error('Bağlantı hatası') }
+   348→   348→  }
+   349→   349→
+   350→   350→  // Import Excel/CSV
+   351→   351→  const handleImport = async () => {
+   352→   352→    if (!importFile) { toast.error('Dosya seçin'); return }
+   353→   353→    setIsImporting(true)
+   354→   354→    try {
+   355→   355→      const formData = new FormData()
+   356→   356→      formData.append('file', importFile)
+   357→   357→      formData.append('type', importType)
+   358→   358→      const res = await fetch('/api/import-excel', { method: 'POST', body: formData })
+   359→   359→      const data = await res.json()
+   360→   360→      if (res.ok) {
+   361→   361→        toast.success(data.message, { description: `${data.imported}/${data.totalLines} kayıt aktarıldı` })
+   362→   362→        setImportFile(null); fetchData()
+   363→   363→      } else { toast.error(data.error || 'İçe aktarma hatası') }
+   364→   364→    } catch { toast.error('Bağlantı hatası') }
+   365→   365→    finally { setIsImporting(false) }
+   366→   366→  }
+   367→   367→
+   368→   368→  // Mark notification read
+   369→   369→  const handleMarkRead = async (notifId?: string) => {
+   370→   370→    try {
+   371→   371→      await fetch('/api/notifications', {
+   372→   372→        method: 'PUT',
+   373→   373→        headers: { 'Content-Type': 'application/json' },
+   374→   374→        body: JSON.stringify(notifId ? { notificationId: notifId } : { markAllRead: true, assistantId: currentUser?.id }),
+   375→   375→      })
+   376→   376→      fetchData()
+   377→   377→    } catch { /* silent */ }
+   378→   378→  }
+   379→   379→
+   380→   380→  // Computed
+   381→   381→  const totalTasks = tasks.length
+   382→   382→  const pendingTasks = tasks.filter(t => t.status === 'pending').length
+   383→   383→  const maxPoints = Math.max(...assistants.map(a => a.totalPoints), 1)
+   384→   384→  const minPointsAssistant = assistants.length > 0 ? [...assistants].sort((a, b) => a.totalPoints - b.totalPoints)[0] : null
+   385→   385→  const unassignedExams = exams.filter(e => e.supervisors.length < e.requiredSupervisors).length
+   386→   386→  const sortedByPoints = [...assistants].sort((a, b) => a.totalPoints - b.totalPoints)
+   387→   387→  const isAdmin = currentUser?.role === 'admin'
+   388→   388→
+   389→   389→  if (loading) {
+   390→   390→    return (
+   391→   391→      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
+   392→   392→        <div className="text-center space-y-4">
+   393→   393→          <div className="animate-spin h-12 w-12 border-4 border-emerald-500 border-t-transparent rounded-full mx-auto"></div>
+   394→   394→          <p className="text-slate-600 font-medium">GMIM Sistemi Yükleniyor...</p>
+   395→   395→        </div>
+   396→   396→      </div>
+   397→   397→    )
+   398→   398→  }
+   399→   399→
+   400→   400→  return (
+   401→   401→    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
+   402→   402→      {/* Header */}
+   403→   403→      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200">
+   404→   404→        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+   405→   405→          <div className="flex items-center gap-3">
+   406→   406→            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-200">
+   407→   407→              <Ship className="h-5 w-5 text-white" />
+   408→   408→            </div>
+   409→   409→            <div>
+   410→   410→              <h1 className="text-lg font-bold text-slate-900">GMIM Ar.Gör Yönetim</h1>
+   411→   411→              <p className="text-xs text-slate-500">İTÜ Denizcilik Fakültesi · Gemi Makineleri İşletme Müh.</p>
+   412→   412→            </div>
+   413→   413→          </div>
+   414→   414→          <div className="flex items-center gap-2">
+   415→   415→            <Badge variant="outline" className="text-xs gap-1 hidden sm:flex">
+   416→   416→              <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></div>
+   417→   417→              AI Destekli
+   418→   418→            </Badge>
+   419→   419→
+   420→   420→            {/* Notification Bell */}
+   421→   421→            <Dialog open={showNotifDialog} onOpenChange={setShowNotifDialog}>
+   422→   422→              <DialogTrigger asChild>
+   423→   423→                <Button variant="ghost" size="icon" className="relative h-9 w-9">
+   424→   424→                  {unreadCount > 0 ? (
+   425→   425→                    <BellRing className="h-4 w-4 text-amber-500 animate-pulse" />
+   426→   426→                  ) : (
+   427→   427→                    <Bell className="h-4 w-4 text-slate-500" />
+   428→   428→                  )}
+   429→   429→                  {unreadCount > 0 && (
+   430→   430→                    <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-red-500 text-[10px] text-white flex items-center justify-center font-bold">{unreadCount}</span>
+   431→   431→                  )}
+   432→   432→                </Button>
+   433→   433→              </DialogTrigger>
+   434→   434→              <DialogContent className="max-w-md">
+   435→   435→                <DialogHeader>
+   436→   436→                  <DialogTitle className="flex items-center gap-2">
+   437→   437→                    <Bell className="h-5 w-5" /> Bildirimler
+   438→   438→                  </DialogTitle>
+   439→   439→                </DialogHeader>
+   440→   440→                <ScrollArea className="h-[400px]">
+   441→   441→                  {notifications.length === 0 ? (
+   442→   442→                    <p className="text-sm text-slate-400 text-center py-8">Bildirim yok</p>
+   443→   443→                  ) : (
+   444→   444→                    <div className="space-y-2">
+   445→   445→                      {notifications.map(n => (
+   446→   446→                        <div key={n.id} className={`p-3 rounded-lg border ${n.isRead ? 'bg-white border-slate-200' : 'bg-blue-50 border-blue-200'}`}>
+   447→   447→                          <div className="flex items-start justify-between gap-2">
+   448→   448→                            <div>
+   449→   449→                              <p className="text-sm font-semibold text-slate-900 flex items-center gap-1">
+   450→   450→                                {n.type === 'task_assigned' && <ListChecks className="h-3.5 w-3.5 text-emerald-500" />}
+   451→   451→                                {n.type === 'exam_assigned' && <GraduationCap className="h-3.5 w-3.5 text-blue-500" />}
+   452→   452→                                {n.type === 'info' && <Info className="h-3.5 w-3.5 text-slate-500" />}
+   453→   453→                                {n.title}
+   454→   454→                              </p>
+   455→   455→                              <p className="text-xs text-slate-600 mt-0.5">{n.message}</p>
+   456→   456→                              <p className="text-[10px] text-slate-400 mt-1">{new Date(n.createdAt).toLocaleString('tr-TR')}</p>
+   457→   457→                            </div>
+   458→   458→                            {!n.isRead && (
+   459→   459→                              <Button variant="ghost" size="sm" className="h-6 text-[10px]" onClick={() => handleMarkRead(n.id)}>
+   460→   460→                                Okundu
+   461→   461→                              </Button>
+   462→   462→                            )}
+   463→   463→                          </div>
+   464→   464→                        </div>
+   465→   465→                      ))}
+   466→   466→                    </div>
+   467→   467→                  )}
+   468→   468→                </ScrollArea>
+   469→   469→                {unreadCount > 0 && (
+   470→   470→                  <Button variant="outline" size="sm" className="w-full" onClick={() => handleMarkRead()}>
+   471→   471→                    Tümünü Okundu İşaretle
+   472→   472→                  </Button>
+   473→   473→                )}
+   474→   474→              </DialogContent>
+   475→   475→            </Dialog>
+   476→   476→
+   477→   477→            {/* Login/User */}
+   478→   478→            {currentUser ? (
+   479→   479→              <div className="flex items-center gap-2">
+   480→   480→                <Badge className={`gap-1 text-xs ${isAdmin ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700'}`}>
+   481→   481→                  <Shield className="h-3 w-3" />
+   482→   482→                  {isAdmin ? 'Temsilci' : 'Ar.Gör'}
+   483→   483→                </Badge>
+   484→   484→                <span className="text-xs text-slate-600 hidden sm:inline">{currentUser.name}</span>
+   485→   485→                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleLogout}>
+   486→   486→                  <LogOut className="h-3.5 w-3.5" />
+   487→   487→                </Button>
+   488→   488→              </div>
+   489→   489→            ) : (
+   490→   490→              <Dialog open={showLoginDialog} onOpenChange={setShowLoginDialog}>
+   491→   491→                <DialogTrigger asChild>
+   492→   492→                  <Button variant="outline" size="sm" className="gap-1 text-xs">
+   493→   493→                    <LogIn className="h-3.5 w-3.5" /> Giriş
+   494→   494→                  </Button>
+   495→   495→                </DialogTrigger>
+   496→   496→                <DialogContent className="max-w-sm">
+   497→   497→                  <DialogHeader>
+   498→   498→                    <DialogTitle className="flex items-center gap-2">
+   499→   499→                      <LogIn className="h-5 w-5" /> Sisteme Giriş
+   500→   500→                    </DialogTitle>
+   501→   501→                  </DialogHeader>
+   502→   502→                  <div className="space-y-4">
+   503→   503→                    <div className="space-y-2">
+   504→   504→                      <Label>E-posta</Label>
+   505→   505→                      <Input placeholder="ymutlu@itu.edu.tr" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} />
+   506→   506→                    </div>
+   507→   507→                    <div className="space-y-2">
+   508→   508→                      <Label>Şifre</Label>
+   509→   509→                      <Input type="password" placeholder="••••••" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleLogin()} />
+   510→   510→                    </div>
+   511→   511→                    <Button onClick={handleLogin} className="w-full bg-emerald-600 hover:bg-emerald-700 gap-2">
+   512→   512→                      <LogIn className="h-4 w-4" /> Giriş Yap
+   513→   513→                    </Button>
+   514→   514→                    <div className="text-[11px] text-slate-400 space-y-1">
+   515→   515→                      <p><b>Admin:</b> ymutlu@itu.edu.tr / tarik2026</p>
+   516→   516→                      <p><b>Kullanıcı:</b> sbicen@itu.edu.tr / argor2026</p>
+   517→   517→                    </div>
+   518→   518→                  </div>
+   519→   519→                </DialogContent>
+   520→   520→              </Dialog>
+   521→   521→            )}
+   522→   522→          </div>
+   523→   523→        </div>
+   524→   524→      </header>
+   525→   525→
+   526→   526→      {/* Main Content */}
+   527→   527→      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+   528→   528→        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+   529→   529→          <div className="overflow-x-auto">
+   530→   530→            <TabsList className="inline-flex w-auto min-w-full grid-cols-none gap-1 bg-slate-100 p-1 rounded-xl h-auto">
+   531→   531→              {[
+   532→   532→                { v: 'dashboard', icon: BarChart3, label: 'Puan Tablosu', short: 'Puan' },
+   533→   533→                { v: 'tasks', icon: ListChecks, label: 'Görevler', short: 'Görev' },
+   534→   534→                { v: 'exams', icon: GraduationCap, label: 'Sınavlar', short: 'Sınav' },
+   535→   535→                { v: 'schedule', icon: CalendarDays, label: 'Haftalık Program', short: 'Program' },
+   536→   536→                { v: 'import', icon: Upload, label: 'Veri Aktar', short: 'Aktar' },
+   537→   537→                { v: 'categories', icon: Award, label: 'Puan Baremi', short: 'Barem' },
+   538→   538→                { v: 'personnel', icon: Users, label: 'Personel', short: 'Kişiler' },
+   539→   539→              ].map(tab => (
+   540→   540→                <TabsTrigger key={tab.v} value={tab.v} className="rounded-lg text-xs sm:text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm py-2 px-3 whitespace-nowrap">
+   541→   541→                  <tab.icon className="h-4 w-4 mr-1 sm:mr-2" />
+   542→   542→                  <span className="hidden sm:inline">{tab.label}</span>
+   543→   543→                  <span className="sm:hidden">{tab.short}</span>
+   544→   544→                </TabsTrigger>
+   545→   545→              ))}
+   546→   546→            </TabsList>
+   547→   547→          </div>
+   548→   548→
+   549→   549→          {/* ===== DASHBOARD TAB ===== */}
+   550→   550→          <TabsContent value="dashboard" className="space-y-6">
+   551→   551→            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+   552→   552→              {[
+   553→   553→                { label: 'Toplam Ar.Gör', val: assistants.length, icon: Users, from: 'from-emerald-50', to: 'to-emerald-100/50', iconBg: 'bg-emerald-500/20', iconColor: 'text-emerald-700', valColor: 'text-emerald-900' },
+   554→   554→                { label: 'Bekleyen Görev', val: pendingTasks, icon: Clock, from: 'from-amber-50', to: 'to-amber-100/50', iconBg: 'bg-amber-500/20', iconColor: 'text-amber-700', valColor: 'text-amber-900' },
+   555→   555→                { label: 'Toplam Görev', val: totalTasks, icon: ListChecks, from: 'from-blue-50', to: 'to-blue-100/50', iconBg: 'bg-blue-500/20', iconColor: 'text-blue-700', valColor: 'text-blue-900' },
+   556→   556→                { label: 'Gözetmen Bekleyen', val: unassignedExams, icon: AlertCircle, from: 'from-rose-50', to: 'to-rose-100/50', iconBg: 'bg-rose-500/20', iconColor: 'text-rose-700', valColor: 'text-rose-900' },
+   557→   557→              ].map(s => (
+   558→   558→                <Card key={s.label} className={`border-0 shadow-md bg-gradient-to-br ${s.from} ${s.to}`}>
+   559→   559→                  <CardContent className="p-4">
+   560→   560→                    <div className="flex items-center justify-between">
+   561→   561→                      <div>
+   562→   562→                        <p className={`text-xs ${s.iconColor} font-medium`}>{s.label}</p>
+   563→   563→                        <p className={`text-2xl font-bold ${s.valColor}`}>{s.val}</p>
+   564→   564→                      </div>
+   565→   565→                      <div className={`h-10 w-10 rounded-xl ${s.iconBg} flex items-center justify-center`}>
+   566→   566→                        <s.icon className={`h-5 w-5 ${s.iconColor}`} />
+   567→   567→                      </div>
+   568→   568→                    </div>
+   569→   569→                  </CardContent>
+   570→   570→                </Card>
+   571→   571→              ))}
+   572→   572→            </div>
+   573→   573→
+   574→   574→            <Card className="border-0 shadow-md">
+   575→   575→              <CardHeader className="pb-3">
+   576→   576→                <div className="flex items-center justify-between">
+   577→   577→                  <div>
+   578→   578→                    <CardTitle className="flex items-center gap-2"><TrendingDown className="h-5 w-5 text-emerald-600" /> Puan Sıralaması</CardTitle>
+   579→   579→                    <CardDescription>En az puanlı araş gör görev önceliğine sahiptir</CardDescription>
+   580→   580→                  </div>
+   581→   581→                  <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 gap-1"><Target className="h-3 w-3" /> Öncelik: Düşük Puan</Badge>
+   582→   582→                </div>
+   583→   583→              </CardHeader>
+   584→   584→              <CardContent>
+   585→   585→                <div className="space-y-3">
+   586→   586→                  {sortedByPoints.map((ra, idx) => (
+   587→   587→                    <div key={ra.id} className={`flex items-center gap-4 p-3 rounded-xl transition-all hover:bg-slate-50 ${idx === 0 ? 'bg-emerald-50 border border-emerald-200' : ''}`}>
+   588→   588→                      <div className={`flex-shrink-0 h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold ${idx === 0 ? 'bg-emerald-500 text-white' : idx === 1 ? 'bg-amber-500 text-white' : idx === 2 ? 'bg-orange-400 text-white' : 'bg-slate-200 text-slate-600'}`}>
+   589→   589→                        {idx + 1}
+   590→   590→                      </div>
+   591→   591→                      <div className="flex-1 min-w-0">
+   592→   592→                        <div className="flex items-center gap-2">
+   593→   593→                          <span className="font-semibold text-slate-900 truncate">{ra.name}</span>
+   594→   594→                          {idx === 0 && <Badge className="bg-emerald-500 text-white text-[10px] px-1.5 py-0 h-5 gap-0.5"><Zap className="h-2.5 w-2.5" /> ÖNCELİKLİ</Badge>}
+   595→   595→                          {ra.role === 'admin' && <Badge className="bg-slate-700 text-white text-[10px] px-1.5 py-0 h-5 gap-0.5"><Shield className="h-2.5 w-2.5" /> TEMSİLCİ</Badge>}
+   596→   596→                        </div>
+   597→   597→                        <Progress value={(ra.totalPoints / maxPoints) * 100} className="h-2 mt-1.5" />
+   598→   598→                      </div>
+   599→   599→                      <div className="text-right flex-shrink-0">
+   600→   600→                        <span className="text-lg font-bold text-slate-900">{ra.totalPoints}</span>
+   601→   601→                        <span className="text-xs text-slate-500 ml-1">puan</span>
+   602→   602→                      </div>
+   603→   603→                    </div>
+   604→   604→                  ))}
+   605→   605→                </div>
+   606→   606→                {minPointsAssistant && (
+   607→   607→                  <div className="mt-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center gap-3">
+   608→   608→                    <div className="h-8 w-8 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0"><ArrowUpRight className="h-4 w-4 text-white" /></div>
+   609→   609→                    <div>
+   610→   610→                      <p className="text-sm font-semibold text-emerald-800">{minPointsAssistant.name} en az puana sahip</p>
+   611→   611→                      <p className="text-xs text-emerald-600">Yeni görevler öncelikli olarak bu araş görle paylaşılmalıdır</p>
+   612→   612→                    </div>
+   613→   613→                  </div>
+   614→   614→                )}
+   615→   615→              </CardContent>
+   616→   616→            </Card>
+   617→   617→
+   618→   618→            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+   619→   619→              <Card className="border-0 shadow-md">
+   620→   620→                <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><CalendarDays className="h-4 w-4 text-blue-600" /> Yaklaşan Sınavlar</CardTitle></CardHeader>
+   621→   621→                <CardContent>
+   622→   622→                  <div className="space-y-2">
+   623→   623→                    {exams.slice(0, 4).map(exam => (
+   624→   624→                      <div key={exam.id} className="flex items-center justify-between p-2 rounded-lg bg-slate-50">
+   625→   625→                        <div><p className="text-sm font-medium text-slate-900">{exam.courseCode} - {exam.courseName}</p><p className="text-xs text-slate-500">{exam.day} · {exam.timeSlot}</p></div>
+   626→   626→                        <Badge variant={exam.supervisors.length >= exam.requiredSupervisors ? "default" : "destructive"} className="text-[10px]">{exam.supervisors.length}/{exam.requiredSupervisors} Gözetmen</Badge>
+   627→   627→                      </div>
+   628→   628→                    ))}
+   629→   629→                  </div>
+   630→   630→                </CardContent>
+   631→   631→              </Card>
+   632→   632→              <Card className="border-0 shadow-md">
+   633→   633→                <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><ListChecks className="h-4 w-4 text-amber-600" /> Son Görevler</CardTitle></CardHeader>
+   634→   634→                <CardContent>
+   635→   635→                  <div className="space-y-2">
+   636→   636→                    {tasks.slice(0, 5).map(task => (
+   637→   637→                      <div key={task.id} className="flex items-center justify-between p-2 rounded-lg bg-slate-50">
+   638→   638→                        <div className="min-w-0 flex-1"><p className="text-sm font-medium text-slate-900 truncate">{task.description}</p><p className="text-xs text-slate-500">{task.assistant?.name || '—'}</p></div>
+   639→   639→                        <Badge variant="outline" className="text-[10px] flex-shrink-0 ml-2">+{task.points} p</Badge>
+   640→   640→                      </div>
+   641→   641→                    ))}
+   642→   642→                  </div>
+   643→   643→                </CardContent>
+   644→   644→              </Card>
+   645→   645→            </div>
+   646→   646→          </TabsContent>
+   647→   647→
+   648→   648→          {/* ===== TASKS TAB ===== */}
+   649→   649→          <TabsContent value="tasks" className="space-y-6">
+   650→   650→            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+   651→   651→              <Card className="border-0 shadow-md lg:col-span-1">
+   652→   652→                <CardHeader className="pb-3">
+   653→   653→                  <CardTitle className="flex items-center gap-2"><Plus className="h-5 w-5 text-emerald-600" /> Yeni Görev Ekle</CardTitle>
+   654→   654→                  <CardDescription>AI destekli görev girişi ve puanlama</CardDescription>
+   655→   655→                </CardHeader>
+   656→   656→                <CardContent className="space-y-4">
+   657→   657→                  <div className="space-y-2">
+   658→   658→                    <Label className="text-sm font-medium">Görev Açıklaması</Label>
+   659→   659→                    <div className="flex gap-2">
+   660→   660→                      <Textarea placeholder="Örn: MÜDEK toplantısına 3 saat katıldım" value={taskDesc} onChange={e => setTaskDesc(e.target.value)} className="resize-none" rows={2} />
+   661→   661→                      <Button size="icon" variant="outline" className="flex-shrink-0 h-auto border-emerald-300 hover:bg-emerald-50 hover:border-emerald-400" onClick={handleClassifyTask} disabled={isClassifying || !taskDesc.trim()}>
+   662→   662→                        {isClassifying ? <div className="animate-spin h-4 w-4 border-2 border-emerald-500 border-t-transparent rounded-full" /> : <Sparkles className="h-4 w-4 text-emerald-600" />}
+   663→   663→                      </Button>
+   664→   664→                    </div>
+   665→   665→                    <p className="text-[11px] text-slate-400 flex items-center gap-1"><Brain className="h-3 w-3" /> AI otomatik kategori eşleştirme</p>
+   666→   666→                  </div>
+   667→   667→
+   668→   668→                  {classifyResult && (
+   669→   669→                    <div className={`p-3 rounded-xl text-sm ${classifyResult.matched ? 'bg-emerald-50 border border-emerald-200' : 'bg-amber-50 border border-amber-200'}`}>
+   670→   670→                      {classifyResult.matched ? (
+   671→   671→                        <div className="space-y-1">
+   672→   672→                          <p className="font-semibold text-emerald-800 flex items-center gap-1"><Sparkles className="h-3.5 w-3.5" /> AI: {classifyResult.category?.name}</p>
+   673→   673→                          <p className="text-xs text-emerald-600">Puan: {classifyResult.suggestedPoints} | Güven: %{Math.round(classifyResult.confidence * 100)}</p>
+   674→   674→                          {classifyResult.reasoning && <p className="text-[11px] text-emerald-500 italic">{classifyResult.reasoning}</p>}
+   675→   675→                        </div>
+   676→   676→                      ) : (
+   677→   677→                        <p className="text-amber-800 text-xs">{classifyResult.message}</p>
+   678→   678→                      )}
+   679→   679→                    </div>
+   680→   680→                  )}
+   681→   681→
+   682→   682→                  <div className="space-y-2">
+   683→   683→                    <Label className="text-sm font-medium">Araş Gör</Label>
+   684→   684→                    <Select value={taskAssistantId} onValueChange={setTaskAssistantId}>
+   685→   685→                      <SelectTrigger><SelectValue placeholder="Seçin..." /></SelectTrigger>
+   686→   686→                      <SelectContent>
+   687→   687→                        {sortedByPoints.map(ra => (
+   688→   688→                          <SelectItem key={ra.id} value={ra.id}>
+   689→   689→                            <span className="flex items-center gap-2">{ra.name}<span className="text-xs text-slate-400">({ra.totalPoints}p)</span></span>
+   690→   690→                          </SelectItem>
+   691→   691→                        ))}
+   692→   692→                      </SelectContent>
+   693→   693→                    </Select>
+   694→   694→                  </div>
+   695→   695→                  <div className="space-y-2">
+   696→   696→                    <Label className="text-sm font-medium">Kategori</Label>
+   697→   697→                    <Select value={taskCategoryId} onValueChange={v => { setTaskCategoryId(v); const cat = categories.find(c => c.id === v); if (cat) setTaskPoints(cat.points) }}>
+   698→   698→                      <SelectTrigger><SelectValue placeholder="Seçin..." /></SelectTrigger>
+   699→   699→                      <SelectContent>{categories.map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name} ({cat.points}p)</SelectItem>)}</SelectContent>
+   700→   700→                    </Select>
+   701→   701→                  </div>
+   702→   702→                  <div className="grid grid-cols-2 gap-3">
+   703→   703→                    <div className="space-y-2"><Label className="text-sm font-medium">Tarih</Label><Input type="date" value={taskDate} onChange={e => setTaskDate(e.target.value)} /></div>
+   704→   704→                    <div className="space-y-2"><Label className="text-sm font-medium">Saat</Label><Input placeholder="09:00-12:00" value={taskHours} onChange={e => setTaskHours(e.target.value)} /></div>
+   705→   705→                  </div>
+   706→   706→                  <div className="space-y-2">
+   707→   707→                    <Label className="text-sm font-medium">Puan</Label>
+   708→   708→                    <div className="flex items-center gap-3">
+   709→   709→                      <Input type="number" value={taskPoints} onChange={e => setTaskPoints(parseInt(e.target.value) || 0)} className="w-24" />
+   710→   710→                      {classifyResult?.matched && <Badge className="bg-emerald-100 text-emerald-700 gap-1 text-xs"><Sparkles className="h-3 w-3" /> AI Önerisi</Badge>}
+   711→   711→                    </div>
+   712→   712→                  </div>
+   713→   713→                  <div className="space-y-2"><Label className="text-sm font-medium">Notlar</Label><Input placeholder="Opsiyonel" value={taskNotes} onChange={e => setTaskNotes(e.target.value)} /></div>
+   714→   714→                  <Button onClick={handleSubmitTask} className="w-full bg-emerald-600 hover:bg-emerald-700 gap-2"><Send className="h-4 w-4" /> Görevi Ekle</Button>
+   715→   715→                </CardContent>
+   716→   716→              </Card>
+   717→   717→
+   718→   718→              <Card className="border-0 shadow-md lg:col-span-2">
+   719→   719→                <CardHeader className="pb-3">
+   720→   720→                  <CardTitle className="flex items-center gap-2"><ListChecks className="h-5 w-5 text-slate-700" /> Tüm Görevler</CardTitle>
+   721→   721→                  <CardDescription>{tasks.length} görev kayıtlı</CardDescription>
+   722→   722→                </CardHeader>
+   723→   723→                <CardContent>
+   724→   724→                  <ScrollArea className="h-[600px]">
+   725→   725→                    <Table>
+   726→   726→                      <TableHeader><TableRow>
+   727→   727→                        <TableHead className="w-12">#</TableHead><TableHead>Araş Gör</TableHead><TableHead>Görev</TableHead><TableHead>Tarih</TableHead><TableHead className="text-right">Puan</TableHead><TableHead>Kaynak</TableHead><TableHead>Durum</TableHead>
+   728→   728→                      </TableRow></TableHeader>
+   729→   729→                      <TableBody>
+   730→   730→                        {tasks.map(task => (
+   731→   731→                          <TableRow key={task.id}>
+   732→   732→                            <TableCell className="font-mono text-xs text-slate-400">{task.number}</TableCell>
+   733→   733→                            <TableCell><span className="text-sm font-medium">{task.assistant?.name || '—'}</span></TableCell>
+   734→   734→                            <TableCell>
+   735→   735→                              <span className="text-sm">{task.description}</span>
+   736→   736→                              {task.category && <Badge variant="outline" className="ml-2 text-[10px]">{task.category.name}</Badge>}
+   737→   737→                            </TableCell>
+   738→   738→                            <TableCell className="text-xs text-slate-500">{new Date(task.date).toLocaleDateString('tr-TR')}</TableCell>
+   739→   739→                            <TableCell className="text-right font-semibold">{task.points}</TableCell>
+   740→   740→                            <TableCell>
+   741→   741→                              <Badge variant="outline" className="text-[10px]">
+   742→   742→                                {task.source === 'auto_assigned' ? '🤖 Otomatik' : task.source === 'import' ? '📥 İçe Aktarma' : '👤 Harici'}
+   743→   743→                              </Badge>
+   744→   744→                            </TableCell>
+   745→   745→                            <TableCell>
+   746→   746→                              <Badge variant={task.status === 'approved' ? 'default' : task.status === 'pending' ? 'secondary' : 'destructive'} className="text-[10px]">
+   747→   747→                                {task.status === 'approved' ? 'Onaylı' : task.status === 'pending' ? 'Bekliyor' : 'Reddedildi'}
+   748→   748→                              </Badge>
+   749→   749→                            </TableCell>
+   750→   750→                          </TableRow>
+   751→   751→                        ))}
+   752→   752→                      </TableBody>
+   753→   753→                    </Table>
+   754→   754→                  </ScrollArea>
+   755→   755→                </CardContent>
+   756→   756→              </Card>
+   757→   757→            </div>
+   758→   758→          </TabsContent>
+   759→   759→
+   760→   760→          {/* ===== EXAMS TAB ===== */}
+   761→   761→          <TabsContent value="exams" className="space-y-6">
+   762→   762→            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+   763→   763→              <Card className="border-0 shadow-md lg:col-span-1">
+   764→   764→                <CardHeader className="pb-3">
+   765→   765→                  <CardTitle className="flex items-center gap-2"><Plus className="h-5 w-5 text-blue-600" /> Yeni Sınav Ekle</CardTitle>
+   766→   766→                  <CardDescription>Sınav takvimi ve gözetmen atama</CardDescription>
+   767→   767→                </CardHeader>
+   768→   768→                <CardContent className="space-y-4">
+   769→   769→                  <div className="grid grid-cols-2 gap-3">
+   770→   770→                    <div className="space-y-2"><Label className="text-sm font-medium">Ders Kodu</Label><Input placeholder="GMI201" value={examCourseCode} onChange={e => setExamCourseCode(e.target.value)} /></div>
+   771→   771→                    <div className="space-y-2"><Label className="text-sm font-medium">Gözetmen</Label><Select value={examSupervisors} onValueChange={setExamSupervisors}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="1">1 Gözetmen</SelectItem><SelectItem value="2">2 Gözetmen</SelectItem><SelectItem value="3">3 Gözetmen</SelectItem></SelectContent></Select></div>
+   772→   772→                  </div>
+   773→   773→                  <div className="space-y-2"><Label className="text-sm font-medium">Ders Adı</Label><Input placeholder="Gemi Makineleri" value={examCourseName} onChange={e => setExamCourseName(e.target.value)} /></div>
+   774→   774→                  <div className="space-y-2"><Label className="text-sm font-medium">Öğretim Üyesi</Label><Input placeholder="Prof. Dr. ..." value={examInstructor} onChange={e => setExamInstructor(e.target.value)} /></div>
+   775→   775→                  <div className="grid grid-cols-2 gap-3">
+   776→   776→                    <div className="space-y-2"><Label className="text-sm font-medium">Tarih</Label><Input type="date" value={examDate} onChange={e => setExamDate(e.target.value)} /></div>
+   777→   777→                    <div className="space-y-2"><Label className="text-sm font-medium">Gün</Label><Select value={examDay} onValueChange={setExamDay}><SelectTrigger><SelectValue placeholder="Gün" /></SelectTrigger><SelectContent>{Object.entries(DAY_NAMES).map(([k, v]) => <SelectItem key={k} value={v}>{v}</SelectItem>)}</SelectContent></Select></div>
+   778→   778→                  </div>
+   779→   779→                  <div className="space-y-2"><Label className="text-sm font-medium">Saat</Label><Input placeholder="09:00-11:00" value={examTime} onChange={e => setExamTime(e.target.value)} /></div>
+   780→   780→                  <div className="space-y-2"><Label className="text-sm font-medium">Notlar</Label><Input placeholder="Opsiyonel" value={examNotes} onChange={e => setExamNotes(e.target.value)} /></div>
+   781→   781→                  <Button onClick={handleSubmitExam} className="w-full bg-blue-600 hover:bg-blue-700 gap-2"><GraduationCap className="h-4 w-4" /> Sınavı Ekle</Button>
+   782→   782→                </CardContent>
+   783→   783→              </Card>
+   784→   784→              <Card className="border-0 shadow-md lg:col-span-2">
+   785→   785→                <CardHeader className="pb-3">
+   786→   786→                  <CardTitle className="flex items-center gap-2"><GraduationCap className="h-5 w-5 text-blue-600" /> Sınav Listesi ve Gözetmen Atama</CardTitle>
+   787→   787→                  <CardDescription>{exams.length} sınav · {unassignedExams} gözetmen bekliyor</CardDescription>
+   788→   788→                </CardHeader>
+   789→   789→                <CardContent>
+   790→   790→                  <ScrollArea className="h-[600px]">
+   791→   791→                    <div className="space-y-4">
+   792→   792→                      {exams.map(exam => (
+   793→   793→                        <div key={exam.id} className="p-4 rounded-xl border border-slate-200 hover:border-slate-300 transition-colors">
+   794→   794→                          <div className="flex items-start justify-between gap-4">
+   795→   795→                            <div className="space-y-1">
+   796→   796→                              <div className="flex items-center gap-2">
+   797→   797→                                <span className="font-bold text-slate-900">{exam.courseCode}</span>
+   798→   798→                                <ChevronRight className="h-3 w-3 text-slate-300" />
+   799→   799→                                <span className="text-sm text-slate-700">{exam.courseName}</span>
+   800→   800→                              </div>
+   801→   801→                              <p className="text-xs text-slate-500">{exam.instructor}</p>
+   802→   802→                              <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
+   803→   803→                                <span className="flex items-center gap-1"><CalendarDays className="h-3 w-3" />{exam.day} · {new Date(exam.date).toLocaleDateString('tr-TR')}</span>
+   804→   804→                                <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{exam.timeSlot}</span>
+   805→   805→                              </div>
+   806→   806→                              {exam.notes && <p className="text-xs text-amber-600 mt-1">Not: {exam.notes}</p>}
+   807→   807→                            </div>
+   808→   808→                            <div className="flex flex-col items-end gap-2 flex-shrink-0">
+   809→   809→                              <Badge variant={exam.supervisors.length >= exam.requiredSupervisors ? "default" : "destructive"} className="gap-1">
+   810→   810→                                <UserCheck className="h-3 w-3" />{exam.supervisors.length}/{exam.requiredSupervisors}
+   811→   811→                              </Badge>
+   812→   812→                              {exam.supervisors.length < exam.requiredSupervisors && (
+   813→   813→                                <Button size="sm" variant="outline" className="text-xs gap-1 border-emerald-300 text-emerald-700 hover:bg-emerald-50" onClick={() => handleAutoAssign(exam.id)}>
+   814→   814→                                  <Zap className="h-3 w-3" /> Otomatik Ata
+   815→   815→                                </Button>
+   816→   816→                              )}
+   817→   817→                            </div>
+   818→   818→                          </div>
+   819→   819→                          {exam.supervisors.length > 0 && (
+   820→   820→                            <div className="mt-3 pt-3 border-t border-slate-100">
+   821→   821→                              <p className="text-xs text-slate-400 mb-2">Atanan Gözetmenler:</p>
+   822→   822→                              <div className="flex flex-wrap gap-2">
+   823→   823→                                {exam.supervisors.map(s => <Badge key={s.id} variant="secondary" className="gap-1"><CheckCircle2 className="h-3 w-3 text-emerald-500" />{s.assistant.name}</Badge>)}
+   824→   824→                              </div>
+   825→   825→                            </div>
+   826→   826→                          )}
+   827→   827→                        </div>
+   828→   828→                      ))}
+   829→   829→                    </div>
+   830→   830→                  </ScrollArea>
+   831→   831→                </CardContent>
+   832→   832→              </Card>
+   833→   833→            </div>
+   834→   834→          </TabsContent>
+   835→   835→
+   836→   836→          {/* ===== WEEKLY SCHEDULE TAB ===== */}
+   837→   837→          <TabsContent value="schedule" className="space-y-6">
+   838→   838→            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+   839→   839→              <Card className="border-0 shadow-md lg:col-span-1">
+   840→   840→                <CardHeader className="pb-3">
+   841→   841→                  <CardTitle className="flex items-center gap-2"><Plus className="h-5 w-5 text-violet-600" /> Program Ekle</CardTitle>
+   842→   842→                  <CardDescription>Çakışma kontrolü ile haftalık program</CardDescription>
+   843→   843→                </CardHeader>
+   844→   844→                <CardContent className="space-y-4">
+   845→   845→                  <div className="space-y-2">
+   846→   846→                    <Label className="text-sm font-medium">Araş Gör</Label>
+   847→   847→                    <Select value={schedAssistantId} onValueChange={setSchedAssistantId}>
+   848→   848→                      <SelectTrigger><SelectValue placeholder="Seçin..." /></SelectTrigger>
+   849→   849→                      <SelectContent>{assistants.map(ra => <SelectItem key={ra.id} value={ra.id}>{ra.name}</SelectItem>)}</SelectContent>
+   850→   850→                    </Select>
+   851→   851→                  </div>
+   852→   852→                  <div className="space-y-2">
+   853→   853→                    <Label className="text-sm font-medium">Gün</Label>
+   854→   854→                    <Select value={schedDay} onValueChange={setSchedDay}>
+   855→   855→                      <SelectTrigger><SelectValue /></SelectTrigger>
+   856→   856→                      <SelectContent>{Object.entries(DAY_NAMES).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
+   857→   857→                    </Select>
+   858→   858→                  </div>
+   859→   859→                  <div className="space-y-2"><Label className="text-sm font-medium">Saat</Label><Input placeholder="09:00-12:00" value={schedTime} onChange={e => setSchedTime(e.target.value)} /></div>
+   860→   860→                  <div className="space-y-2"><Label className="text-sm font-medium">Ders/Açıklama</Label><Input placeholder="GMIM Lisansüstü" value={schedDesc} onChange={e => setSchedDesc(e.target.value)} /></div>
+   861→   861→                  <Button onClick={handleAddSchedule} className="w-full bg-violet-600 hover:bg-violet-700 gap-2"><CalendarDays className="h-4 w-4" /> Programı Ekle</Button>
+   862→   862→                </CardContent>
+   863→   863→              </Card>
+   864→   864→
+   865→   865→              <Card className="border-0 shadow-md lg:col-span-2">
+   866→   866→                <CardHeader className="pb-3">
+   867→   867→                  <CardTitle className="flex items-center gap-2"><CalendarDays className="h-5 w-5 text-violet-600" /> Haftalık Program</CardTitle>
+   868→   868→                  <CardDescription>{weeklySchedules.length} program kaydı · Çakışma kontrolü aktif</CardDescription>
+   869→   869→                </CardHeader>
+   870→   870→                <CardContent>
+   871→   871→                  <div className="overflow-x-auto">
+   872→   872→                    <Table>
+   873→   873→                      <TableHeader><TableRow>
+   874→   874→                        <TableHead>Araş Gör</TableHead><TableHead>Gün</TableHead><TableHead>Saat</TableHead><TableHead>Ders/Açıklama</TableHead><TableHead className="w-12"></TableHead>
+   875→   875→                      </TableRow></TableHeader>
+   876→   876→                      <TableBody>
+   877→   877→                        {weeklySchedules.sort((a, b) => a.dayOfWeek - b.dayOfWeek).map(sched => (
+   878→   878→                          <TableRow key={sched.id}>
+   879→   879→                            <TableCell><span className="text-sm font-medium">{sched.assistant.name}</span></TableCell>
+   880→   880→                            <TableCell><Badge variant="outline" className="text-xs">{DAY_NAMES[sched.dayOfWeek]}</Badge></TableCell>
+   881→   881→                            <TableCell className="text-sm font-mono">{sched.timeSlot}</TableCell>
+   882→   882→                            <TableCell className="text-sm">{sched.description}</TableCell>
+   883→   883→                            <TableCell>
+   884→   884→                              <Button variant="ghost" size="icon" className="h-7 w-7 text-red-400 hover:text-red-600 hover:bg-red-50" onClick={() => handleDeleteSchedule(sched.id)}>
+   885→   885→                                <Trash2 className="h-3.5 w-3.5" />
+   886→   886→                              </Button>
+   887→   887→                            </TableCell>
+   888→   888→                          </TableRow>
+   889→   889→                        ))}
+   890→   890→                      </TableBody>
+   891→   891→                    </Table>
+   892→   892→                  </div>
+   893→   893→                </CardContent>
+   894→   894→              </Card>
+   895→   895→            </div>
+   896→   896→          </TabsContent>
+   897→   897→
+   898→   898→          {/* ===== IMPORT TAB ===== */}
+   899→   899→          <TabsContent value="import" className="space-y-6">
+   900→   900→            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+   901→   901→              <Card className="border-0 shadow-md">
+   902→   902→                <CardHeader className="pb-3">
+   903→   903→                  <CardTitle className="flex items-center gap-2"><Upload className="h-5 w-5 text-orange-600" /> Veri İçe Aktarma</CardTitle>
+   904→   904→                  <CardDescription>Mevcut Excel/CSV dosyasından toplu veri aktarımı</CardDescription>
+   905→   905→                </CardHeader>
+   906→   906→                <CardContent className="space-y-6">
+   907→   907→                  <div className="space-y-2">
+   908→   908→                    <Label className="text-sm font-medium">İçe Aktarma Türü</Label>
+   909→   909→                    <Select value={importType} onValueChange={setImportType}>
+   910→   910→                      <SelectTrigger><SelectValue /></SelectTrigger>
+   911→   911→                      <SelectContent>
+   912→   912→                        <SelectItem value="tasks">Görevler</SelectItem>
+   913→   913→                        <SelectItem value="exams">Sınavlar</SelectItem>
+   914→   914→                      </SelectContent>
+   915→   915→                    </Select>
+   916→   916→                  </div>
+   917→   917→                  <div className="space-y-2">
+   918→   918→                    <Label className="text-sm font-medium">Dosya (CSV)</Label>
+   919→   919→                    <div className="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center hover:border-orange-300 transition-colors">
+   920→   920→                      <FileSpreadsheet className="h-10 w-10 text-slate-300 mx-auto mb-2" />
+   921→   921→                      <Input type="file" accept=".csv,.txt" onChange={e => setImportFile(e.target.files?.[0] || null)} className="max-w-xs mx-auto" />
+   922→   922→                      <p className="text-xs text-slate-400 mt-2">CSV formatında dosya yükleyin</p>
+   923→   923→                    </div>
+   924→   924→                  </div>
+   925→   925→                  <Button onClick={handleImport} disabled={!importFile || isImporting} className="w-full bg-orange-600 hover:bg-orange-700 gap-2">
+   926→   926→                    {isImporting ? <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" /> : <Upload className="h-4 w-4" />}
+   927→   927→                    {isImporting ? 'İçe Aktarılıyor...' : 'İçe Aktar'}
+   928→   928→                  </Button>
+   929→   929→                </CardContent>
+   930→   930→              </Card>
+   931→   931→
+   932→   932→              <Card className="border-0 shadow-md">
+   933→   933→                <CardHeader className="pb-3">
+   934→   934→                  <CardTitle className="flex items-center gap-2"><FileSpreadsheet className="h-5 w-5 text-orange-600" /> CSV Format Rehberi</CardTitle>
+   935→   935→                  <CardDescription>İçe aktarma için dosya formatı örnekleri</CardDescription>
+   936→   936→                </CardHeader>
+   937→   937→                <CardContent className="space-y-6">
+   938→   938→                  <div>
+   939→   939→                    <h4 className="font-semibold text-sm text-slate-900 mb-2">Görev İçe Aktarma</h4>
+   940→   940→                    <div className="bg-slate-900 text-slate-100 rounded-lg p-3 text-xs font-mono overflow-x-auto">
+   941→   941→                      <p className="text-emerald-400">İsim,Görev,Tarih,Puan,Saat</p>
+   942→   942→                      <p>Y.Tarık MUTLU,MÜDEK toplantısı,21.07.2025,4,5</p>
+   943→   943→                      <p>Fatih NACAR,Ders Programı İşleri,01.09.2025,3,11:00-16:00</p>
+   944→   944→                      <p>Samet BİÇEN,Not Komisyonu,25.09.2025,2,09:00-12:00</p>
+   945→   945→                    </div>
+   946→   946→                  </div>
+   947→   947→                  <Separator />
+   948→   948→                  <div>
+   949→   949→                    <h4 className="font-semibold text-sm text-slate-900 mb-2">Sınav İçe Aktarma</h4>
+   950→   950→                    <div className="bg-slate-900 text-slate-100 rounded-lg p-3 text-xs font-mono overflow-x-auto">
+   951→   951→                      <p className="text-blue-400">Ders Kodu,Ders Adı,Öğretim Üyesi,Tarih,Gün,Saat,Gözetmen Sayısı</p>
+   952→   952→                      <p>MEK,Engineering Mechanics,Banu Tansel Büyükçelebi,17.01.2026,Cumartesi,15:00-17:00,2</p>
+   953→   953→                      <p>GMI201,Gemi Makineleri,Ahmet Yılmaz,20.05.2026,Çarşamba,09:00-11:00,2</p>
+   954→   954→                    </div>
+   955→   955→                  </div>
+   956→   956→                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+   957→   957→                    <p className="text-xs text-amber-800 flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5 flex-shrink-0" /> İsim eşleşmesi otomatik yapılır. Eşleşmeyen kayıtlar atlanır.</p>
+   958→   958→                  </div>
+   959→   959→                </CardContent>
+   960→   960→              </Card>
+   961→   961→            </div>
+   962→   962→          </TabsContent>
+   963→   963→
+   964→   964→          {/* ===== CATEGORIES TAB ===== */}
+   965→   965→          <TabsContent value="categories" className="space-y-6">
+   966→   966→            <Card className="border-0 shadow-md">
+   967→   967→              <CardHeader className="pb-3">
+   968→   968→                <CardTitle className="flex items-center gap-2"><Award className="h-5 w-5 text-amber-600" /> Puan Baremi</CardTitle>
+   969→   969→                <CardDescription>Görev kategorileri ve puan değerleri</CardDescription>
+   970→   970→              </CardHeader>
+   971→   971→              <CardContent>
+   972→   972→                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+   973→   973→                  {categories.map(cat => (
+   974→   974→                    <div key={cat.id} className="p-4 rounded-xl border border-slate-200 hover:border-amber-300 hover:bg-amber-50/30 transition-all group">
+   975→   975→                      <div className="flex items-center justify-between">
+   976→   976→                        <h4 className="font-medium text-slate-900 text-sm group-hover:text-amber-900 transition-colors">{cat.name}</h4>
+   977→   977→                        <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-200 font-bold">{cat.points} p</Badge>
+   978→   978→                      </div>
+   979→   979→                      {cat.description && <p className="text-xs text-slate-500 mt-1">{cat.description}</p>}
+   980→   980→                    </div>
+   981→   981→                  ))}
+   982→   982→                </div>
+   983→   983→              </CardContent>
+   984→   984→            </Card>
+   985→   985→          </TabsContent>
+   986→   986→
+   987→   987→          {/* ===== PERSONNEL TAB ===== */}
+   988→   988→          <TabsContent value="personnel" className="space-y-6">
+   989→   989→            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+   990→   990→              {assistants.map(ra => (
+   991→   991→                <Card key={ra.id} className="border-0 shadow-md hover:shadow-lg transition-shadow">
+   992→   992→                  <CardContent className="p-5">
+   993→   993→                    <div className="flex items-start gap-4">
+   994→   994→                      <div className={`h-12 w-12 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-lg ${ra.role === 'admin' ? 'bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-emerald-200' : 'bg-gradient-to-br from-slate-400 to-slate-500 shadow-slate-200'}`}>
+   995→   995→                        {ra.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+   996→   996→                      </div>
+   997→   997→                      <div className="flex-1 min-w-0">
+   998→   998→                        <div className="flex items-center gap-2">
+   999→   999→                          <h3 className="font-bold text-slate-900 truncate">{ra.name}</h3>
+  1000→  1000→                          {ra.role === 'admin' && <Badge className="bg-emerald-100 text-emerald-700 text-[10px] gap-0.5"><Shield className="h-2.5 w-2.5" /> Temsilci</Badge>}
+  1001→  1001→                        </div>
+  1002→  1002→                        <p className="text-xs text-slate-500 truncate">{ra.email}</p>
+  1003→  1003→                        <div className="flex items-center gap-3 mt-2">
+  1004→  1004→                          <Badge variant="outline" className="text-xs">{ra.faculty} - {ra.department}</Badge>
+  1005→  1005→                          <Badge className="bg-emerald-100 text-emerald-700 text-xs">{ra.totalPoints} puan</Badge>
+  1006→  1006→                        </div>
+  1007→  1007→                      </div>
+  1008→  1008→                    </div>
+  1009→  1009→                    {ra.permanentDuties.length > 0 && (
+  1010→  1010→                      <div className="mt-4 pt-3 border-t border-slate-100">
+  1011→  1011→                        <p className="text-xs font-medium text-slate-400 mb-2">Daimi Görevler:</p>
+  1012→  1012→                        <div className="space-y-1">{ra.permanentDuties.map(pd => (
+  1013→  1013→                          <div key={pd.id} className="flex items-center gap-2 text-xs text-slate-600">
+  1014→  1014→                            <div className="h-1.5 w-1.5 rounded-full bg-emerald-400 flex-shrink-0"></div><span>{pd.name}</span>
+  1015→  1015→                          </div>
+  1016→  1016→                        ))}</div>
+  1017→  1017→                      </div>
+  1018→  1018→                    )}
+  1019→  1019→                    {ra.tasks.length > 0 && (
+  1020→  1020→                      <div className="mt-3 pt-3 border-t border-slate-100">
+  1021→  1021→                        <p className="text-xs font-medium text-slate-400 mb-2">Son Görevler:</p>
+  1022→  1022→                        <div className="space-y-1">{ra.tasks.slice(0, 3).map(t => (
+  1023→  1023→                          <div key={t.id} className="flex items-center justify-between text-xs">
+  1024→  1024→                            <span className="text-slate-600 truncate flex-1">{t.description}</span>
+  1025→  1025→                            <Badge variant="outline" className="text-[10px] ml-2 flex-shrink-0">+{t.points}</Badge>
+  1026→  1026→                          </div>
+  1027→  1027→                        ))}</div>
+  1028→  1028→                      </div>
+  1029→  1029→                    )}
+  1030→  1030→                  </CardContent>
+  1031→  1031→                </Card>
+  1032→  1032→              ))}
+  1033→  1033→            </div>
+  1034→  1034→          </TabsContent>
+  1035→  1035→        </Tabs>
+  1036→  1036→      </main>
+  1037→  1037→
+  1038→  1038→      {/* Footer */}
+  1039→  1039→      <footer className="mt-12 border-t border-slate-200 bg-white">
+  1040→  1040→        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between text-xs text-slate-400">
+  1041→  1041→          <span>GMIM Ar.Gör Yönetim Sistemi · İTÜ Denizcilik Fakültesi</span>
+  1042→  1042→          <span className="flex items-center gap-1"><Sparkles className="h-3 w-3" /> AI Destekli v2.0</span>
+  1043→  1043→        </div>
+  1044→  1044→      </footer>
+  1045→  1045→    </div>
+  1046→  1046→  )
+  1047→  1047→}
+  1048→  1048→

@@ -10,14 +10,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'examId is required' }, { status: 400 });
     }
 
-    // Get the exam
     const exam = await db.exam.findUnique({
       where: { id: examId },
       include: { supervisors: true },
     });
 
     if (!exam) {
-      return NextResponse.json({ error: 'Exam not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Sınav bulunamadı' }, { status: 404 });
     }
 
     const needed = exam.requiredSupervisors - exam.supervisors.length;
@@ -25,35 +24,64 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'Bu sınav için yeterli gözetmen zaten atanmış', exam }, { status: 200 });
     }
 
-    // Get all assistants sorted by totalPoints ascending (lowest points = highest priority)
+    // Get all assistants sorted by totalPoints ascending
     const assistants = await db.researchAssistant.findMany({
       where: { isActive: true },
       orderBy: { totalPoints: 'asc' },
     });
 
-    // Get existing supervisor IDs for this exam
     const existingSupervisorIds = exam.supervisors.map(s => s.assistantId);
-
-    // Filter out already assigned assistants
     const availableAssistants = assistants.filter(a => !existingSupervisorIds.includes(a.id));
 
-    // Assign the needed number of supervisors (lowest points first)
-    const toAssign = availableAssistants.slice(0, needed);
+    // Check weekly schedule conflicts
+    const dayMap: Record<string, number> = {
+      'Pazartesi': 1, 'Salı': 2, 'Çarşamba': 3, 'Perşembe': 4, 'Cuma': 5, 'Cumartesi': 6, 'Pazar': 7,
+    };
+    const examDayNum = dayMap[exam.day] || 0;
+    const [examStart, examEnd] = parseTimeSlot(exam.timeSlot);
+
+    const eligibleAssistants = [];
+    for (const assistant of availableAssistants) {
+      if (examStart !== null && examEnd !== null && examDayNum > 0) {
+        const schedules = await db.weeklySchedule.findMany({
+          where: { assistantId: assistant.id, dayOfWeek: examDayNum },
+        });
+        let hasConflict = false;
+        for (const sched of schedules) {
+          const [sStart, sEnd] = parseTimeSlot(sched.timeSlot);
+          if (sStart !== null && sEnd !== null) {
+            if (examStart < sEnd && examEnd > sStart) {
+              hasConflict = true;
+              break;
+            }
+          }
+        }
+        if (!hasConflict) {
+          eligibleAssistants.push(assistant);
+        }
+      } else {
+        eligibleAssistants.push(assistant);
+      }
+    }
+
+    const toAssign = eligibleAssistants.slice(0, needed);
+
+    if (toAssign.length === 0) {
+      return NextResponse.json({
+        message: 'Uygun araş gör bulunamadı. Tüm araş görlerin programında çakışma var.',
+        assigned: 0,
+      }, { status: 200 });
+    }
 
     const assignments = [];
     for (const assistant of toAssign) {
       const assignment = await db.examSupervisor.create({
-        data: {
-          examId: exam.id,
-          assistantId: assistant.id,
-        },
-        include: {
-          assistant: true,
-        },
+        data: { examId: exam.id, assistantId: assistant.id },
+        include: { assistant: true },
       });
       assignments.push(assignment);
 
-      // Add supervisor points to assistant
+      // Add supervisor points
       const supervisorCategory = await db.pointCategory.findFirst({
         where: { name: { contains: 'Gözetmenlik' } },
       });
@@ -64,7 +92,7 @@ export async function POST(request: Request) {
         data: { totalPoints: { increment: pointsToAdd } },
       });
 
-      // Create a task for this assignment
+      // Create task for this assignment
       const maxTask = await db.task.findFirst({
         where: { assistantId: assistant.id },
         orderBy: { number: 'desc' },
@@ -84,15 +112,22 @@ export async function POST(request: Request) {
           categoryId: supervisorCategory?.id || null,
         },
       });
+
+      // Create notification
+      await db.notification.create({
+        data: {
+          title: 'Gözetmenlik Ataması',
+          message: `${exam.courseCode} - ${exam.courseName} sınavına gözetmen olarak atandınız. Tarih: ${new Date(exam.date).toLocaleDateString('tr-TR')}, Saat: ${exam.timeSlot}`,
+          type: 'exam_assigned',
+          assistantId: assistant.id,
+          relatedId: exam.id,
+        },
+      });
     }
 
     const updatedExam = await db.exam.findUnique({
       where: { id: examId },
-      include: {
-        supervisors: {
-          include: { assistant: true },
-        },
-      },
+      include: { supervisors: { include: { assistant: true } } },
     });
 
     return NextResponse.json({
@@ -104,4 +139,12 @@ export async function POST(request: Request) {
     console.error('Error assigning supervisors:', error);
     return NextResponse.json({ error: 'Failed to assign supervisors' }, { status: 500 });
   }
+}
+
+function parseTimeSlot(timeSlot: string): [number | null, number | null] {
+  const match = timeSlot.match(/(\d{1,2}):(\d{2})\s*[-–]\s*(\d{1,2}):(\d{2})/);
+  if (!match) return [null, null];
+  const start = parseInt(match[1]) * 60 + parseInt(match[2]);
+  const end = parseInt(match[3]) * 60 + parseInt(match[4]);
+  return [start, end];
 }

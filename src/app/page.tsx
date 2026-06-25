@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog'
 import { Progress } from '@/components/ui/progress'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
@@ -18,7 +18,9 @@ import { toast } from 'sonner'
 import {
   Users, ListChecks, GraduationCap, Brain, BarChart3, Plus, CheckCircle2,
   Clock, AlertCircle, UserCheck, Award, TrendingDown, Zap, Ship,
-  CalendarDays, ChevronRight, Sparkles, Send, ArrowUpRight, Target
+  CalendarDays, ChevronRight, Sparkles, Send, ArrowUpRight, Target,
+  Bell, BellRing, Upload, FileSpreadsheet, LogIn, LogOut, Shield,
+  X, Info, Trash2, Schedule, Conflict
 } from 'lucide-react'
 
 // Types
@@ -32,6 +34,8 @@ interface ResearchAssistant {
   totalPoints: number
   order: number
   isActive: boolean
+  role: string
+  password?: string
   tasks: Task[]
   permanentDuties: PermanentDuty[]
 }
@@ -81,13 +85,39 @@ interface ExamSupervisor {
   assistant: ResearchAssistant
 }
 
+interface NotificationItem {
+  id: string
+  title: string
+  message: string
+  type: string
+  isRead: boolean
+  relatedId: string | null
+  createdAt: string
+  assistantId: string
+  assistant?: ResearchAssistant
+}
+
+interface WeeklyScheduleItem {
+  id: string
+  dayOfWeek: number
+  timeSlot: string
+  description: string
+  assistantId: string
+  assistant: ResearchAssistant
+}
+
 interface AIClassifyResult {
   matched: boolean
   category: PointCategory | null
   confidence: number
   suggestedPoints: number
+  reasoning?: string
   message?: string
   allCategories: { id: string; name: string; points: number }[]
+}
+
+const DAY_NAMES: Record<number, string> = {
+  1: 'Pazartesi', 2: 'Salı', 3: 'Çarşamba', 4: 'Perşembe', 5: 'Cuma', 6: 'Cumartesi', 7: 'Pazar'
 }
 
 export default function Home() {
@@ -95,8 +125,17 @@ export default function Home() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [categories, setCategories] = useState<PointCategory[]>([])
   const [exams, setExams] = useState<Exam[]>([])
+  const [notifications, setNotifications] = useState<NotificationItem[]>([])
+  const [weeklySchedules, setWeeklySchedules] = useState<WeeklyScheduleItem[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('dashboard')
+
+  // Auth state
+  const [currentUser, setCurrentUser] = useState<ResearchAssistant | null>(null)
+  const [loginEmail, setLoginEmail] = useState('')
+  const [loginPassword, setLoginPassword] = useState('')
+  const [showLoginDialog, setShowLoginDialog] = useState(false)
 
   // Task form state
   const [taskDesc, setTaskDesc] = useState('')
@@ -119,24 +158,39 @@ export default function Home() {
   const [examSupervisors, setExamSupervisors] = useState('1')
   const [examNotes, setExamNotes] = useState('')
 
+  // Schedule form state
+  const [schedAssistantId, setSchedAssistantId] = useState('')
+  const [schedDay, setSchedDay] = useState('1')
+  const [schedTime, setSchedTime] = useState('')
+  const [schedDesc, setSchedDesc] = useState('')
+
+  // Import state
+  const [importFile, setImportFile] = useState<File | null>(null)
+  const [importType, setImportType] = useState('tasks')
+  const [isImporting, setIsImporting] = useState(false)
+
+  // Notification dialog
+  const [showNotifDialog, setShowNotifDialog] = useState(false)
+
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const [assRes, taskRes, catRes, examRes] = await Promise.all([
+      const [assRes, taskRes, catRes, examRes, notifRes, schedRes] = await Promise.all([
         fetch('/api/assistants'),
         fetch('/api/tasks'),
         fetch('/api/categories'),
         fetch('/api/exams'),
+        fetch('/api/notifications'),
+        fetch('/api/weekly-schedule'),
       ])
-      const assData = await assRes.json()
-      const taskData = await taskRes.json()
-      const catData = await catRes.json()
-      const examData = await examRes.json()
-
-      setAssistants(assData)
-      setTasks(taskData)
-      setCategories(catData)
-      setExams(examData)
+      setAssistants(await assRes.json())
+      setTasks(await taskRes.json())
+      setCategories(await catRes.json())
+      setExams(await examRes.json())
+      const notifData = await notifRes.json()
+      setNotifications(notifData.notifications || [])
+      setUnreadCount(notifData.unreadCount || 0)
+      setWeeklySchedules(await schedRes.json())
     } catch (err) {
       console.error('Error fetching data:', err)
       toast.error('Veriler yüklenirken hata oluştu')
@@ -145,16 +199,38 @@ export default function Home() {
     }
   }, [])
 
-  useEffect(() => {
-    fetchData()
-  }, [fetchData])
+  useEffect(() => { fetchData() }, [fetchData])
 
-  // AI Classify task
+  // Auth
+  const handleLogin = async () => {
+    if (!loginEmail || !loginPassword) { toast.error('E-posta ve şifre gerekli'); return }
+    try {
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: loginEmail, password: loginPassword }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setCurrentUser(data.user)
+        setShowLoginDialog(false)
+        setLoginEmail('')
+        setLoginPassword('')
+        toast.success(`Hoş geldiniz, ${data.user.name}!`, { description: `Rol: ${data.user.role === 'admin' ? 'Temsilci (Admin)' : 'Araş Gör'}` })
+      } else {
+        toast.error(data.error || 'Giriş başarısız')
+      }
+    } catch { toast.error('Bağlantı hatası') }
+  }
+
+  const handleLogout = () => {
+    setCurrentUser(null)
+    toast.info('Çıkış yapıldı')
+  }
+
+  // AI Classify
   const handleClassifyTask = async () => {
-    if (!taskDesc.trim()) {
-      toast.error('Lütfen görev açıklaması girin')
-      return
-    }
+    if (!taskDesc.trim()) { toast.error('Lütfen görev açıklaması girin'); return }
     setIsClassifying(true)
     try {
       const res = await fetch('/api/ai-classify', {
@@ -168,97 +244,58 @@ export default function Home() {
         setTaskCategoryId(data.category?.id || '')
         setTaskPoints(data.suggestedPoints)
         toast.success(`AI Eşleşme: ${data.category?.name} (${data.suggestedPoints} puan)`, {
-          description: `Güven: %${Math.round(data.confidence * 100)}`
+          description: data.reasoning || `Güven: %${Math.round(data.confidence * 100)}`
         })
       } else {
         toast.info('Otomatik eşleşme bulunamadı. Lütfen kategoriyi manuel seçin.')
       }
-    } catch {
-      toast.error('AI sınıflandırma hatası')
-    } finally {
-      setIsClassifying(false)
-    }
+    } catch { toast.error('AI sınıflandırma hatası') }
+    finally { setIsClassifying(false) }
   }
 
-  // Submit new task
+  // Submit task
   const handleSubmitTask = async () => {
-    if (!taskDesc || !taskDate || !taskAssistantId) {
-      toast.error('Lütfen tüm zorunlu alanları doldurun')
-      return
-    }
+    if (!taskDesc || !taskDate || !taskAssistantId) { toast.error('Lütfen tüm zorunlu alanları doldurun'); return }
     try {
       const res = await fetch('/api/tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          description: taskDesc,
-          date: taskDate,
-          hoursWorked: taskHours || null,
-          assistantId: taskAssistantId,
-          categoryId: taskCategoryId || null,
-          points: taskPoints,
-          source: 'external',
-          notes: taskNotes || null,
+          description: taskDesc, date: taskDate, hoursWorked: taskHours || null,
+          assistantId: taskAssistantId, categoryId: taskCategoryId || null,
+          points: taskPoints, source: 'external', notes: taskNotes || null,
+          assignedBy: currentUser?.name || null,
         }),
       })
       if (res.ok) {
-        toast.success('Görev başarıyla eklendi!')
-        // Reset form
-        setTaskDesc('')
-        setTaskDate('')
-        setTaskHours('')
-        setTaskAssistantId('')
-        setTaskCategoryId('')
-        setTaskPoints(0)
-        setTaskNotes('')
-        setClassifyResult(null)
+        toast.success('Görev başarıyla eklendi!', { description: 'Araş gör bilgilendirildi' })
+        setTaskDesc(''); setTaskDate(''); setTaskHours(''); setTaskAssistantId('')
+        setTaskCategoryId(''); setTaskPoints(0); setTaskNotes(''); setClassifyResult(null)
         fetchData()
-      } else {
-        toast.error('Görev eklenirken hata oluştu')
-      }
-    } catch {
-      toast.error('Bağlantı hatası')
-    }
+      } else { toast.error('Görev eklenirken hata oluştu') }
+    } catch { toast.error('Bağlantı hatası') }
   }
 
-  // Submit new exam
+  // Submit exam
   const handleSubmitExam = async () => {
-    if (!examCourseCode || !examCourseName || !examDate || !examDay || !examTime) {
-      toast.error('Lütfen tüm zorunlu alanları doldurun')
-      return
-    }
+    if (!examCourseCode || !examCourseName || !examDate || !examDay || !examTime) { toast.error('Lütfen tüm zorunlu alanları doldurun'); return }
     try {
       const res = await fetch('/api/exams', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          courseCode: examCourseCode,
-          courseName: examCourseName,
-          instructor: examInstructor,
-          date: examDate,
-          day: examDay,
-          timeSlot: examTime,
-          requiredSupervisors: parseInt(examSupervisors),
-          notes: examNotes || null,
+          courseCode: examCourseCode, courseName: examCourseName, instructor: examInstructor,
+          date: examDate, day: examDay, timeSlot: examTime,
+          requiredSupervisors: parseInt(examSupervisors), notes: examNotes || null,
         }),
       })
       if (res.ok) {
         toast.success('Sınav başarıyla eklendi!')
-        setExamCourseCode('')
-        setExamCourseName('')
-        setExamInstructor('')
-        setExamDate('')
-        setExamDay('')
-        setExamTime('')
-        setExamSupervisors('1')
-        setExamNotes('')
+        setExamCourseCode(''); setExamCourseName(''); setExamInstructor(''); setExamDate('')
+        setExamDay(''); setExamTime(''); setExamSupervisors('1'); setExamNotes('')
         fetchData()
-      } else {
-        toast.error('Sınav eklenirken hata oluştu')
-      }
-    } catch {
-      toast.error('Bağlantı hatası')
-    }
+      } else { toast.error('Sınav eklenirken hata oluştu') }
+    } catch { toast.error('Bağlantı hatası') }
   }
 
   // Auto-assign supervisors
@@ -271,27 +308,83 @@ export default function Home() {
       })
       const data = await res.json()
       if (res.ok) {
-        toast.success(data.message, {
-          description: data.assignments?.map((a: ExamSupervisor) => a.assistant.name).join(', ')
-        })
+        toast.success(data.message, { description: data.assignments?.map((a: ExamSupervisor) => a.assistant.name).join(', ') })
         fetchData()
-      } else {
-        toast.error('Gözetmen atama hatası')
-      }
-    } catch {
-      toast.error('Bağlantı hatası')
-    }
+      } else { toast.error(data.message || 'Gözetmen atama hatası') }
+    } catch { toast.error('Bağlantı hatası') }
   }
 
-  // Stats
+  // Add schedule
+  const handleAddSchedule = async () => {
+    if (!schedAssistantId || !schedTime || !schedDesc) { toast.error('Tüm alanları doldurun'); return }
+    try {
+      const res = await fetch('/api/weekly-schedule', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assistantId: schedAssistantId, dayOfWeek: parseInt(schedDay), timeSlot: schedTime, description: schedDesc }),
+      })
+      if (res.ok) {
+        toast.success('Program eklendi!')
+        setSchedAssistantId(''); setSchedTime(''); setSchedDesc('')
+        fetchData()
+      } else {
+        const errData = await res.json()
+        if (res.status === 409) {
+          toast.error('Zaman çakışması!', { description: errData.conflicts?.map((c: WeeklyScheduleItem) => `${c.description} (${c.timeSlot})`).join(', ') })
+        } else {
+          toast.error(errData.error || 'Hata')
+        }
+      }
+    } catch { toast.error('Bağlantı hatası') }
+  }
+
+  // Delete schedule
+  const handleDeleteSchedule = async (id: string) => {
+    try {
+      const res = await fetch(`/api/weekly-schedule?id=${id}`, { method: 'DELETE' })
+      if (res.ok) { toast.success('Program silindi'); fetchData() }
+      else { toast.error('Silme hatası') }
+    } catch { toast.error('Bağlantı hatası') }
+  }
+
+  // Import Excel/CSV
+  const handleImport = async () => {
+    if (!importFile) { toast.error('Dosya seçin'); return }
+    setIsImporting(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', importFile)
+      formData.append('type', importType)
+      const res = await fetch('/api/import-excel', { method: 'POST', body: formData })
+      const data = await res.json()
+      if (res.ok) {
+        toast.success(data.message, { description: `${data.imported}/${data.totalLines} kayıt aktarıldı` })
+        setImportFile(null); fetchData()
+      } else { toast.error(data.error || 'İçe aktarma hatası') }
+    } catch { toast.error('Bağlantı hatası') }
+    finally { setIsImporting(false) }
+  }
+
+  // Mark notification read
+  const handleMarkRead = async (notifId?: string) => {
+    try {
+      await fetch('/api/notifications', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(notifId ? { notificationId: notifId } : { markAllRead: true, assistantId: currentUser?.id }),
+      })
+      fetchData()
+    } catch { /* silent */ }
+  }
+
+  // Computed
   const totalTasks = tasks.length
   const pendingTasks = tasks.filter(t => t.status === 'pending').length
   const maxPoints = Math.max(...assistants.map(a => a.totalPoints), 1)
   const minPointsAssistant = assistants.length > 0 ? [...assistants].sort((a, b) => a.totalPoints - b.totalPoints)[0] : null
   const unassignedExams = exams.filter(e => e.supervisors.length < e.requiredSupervisors).length
-
-  // Sort by points ascending for display
   const sortedByPoints = [...assistants].sort((a, b) => a.totalPoints - b.totalPoints)
+  const isAdmin = currentUser?.role === 'admin'
 
   if (loading) {
     return (
@@ -323,10 +416,109 @@ export default function Home() {
               <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></div>
               AI Destekli
             </Badge>
-            <Badge variant="secondary" className="text-xs gap-1">
-              <Brain className="h-3 w-3" />
-              {categories.length} Kategori
-            </Badge>
+
+            {/* Notification Bell */}
+            <Dialog open={showNotifDialog} onOpenChange={setShowNotifDialog}>
+              <DialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="relative h-9 w-9">
+                  {unreadCount > 0 ? (
+                    <BellRing className="h-4 w-4 text-amber-500 animate-pulse" />
+                  ) : (
+                    <Bell className="h-4 w-4 text-slate-500" />
+                  )}
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-red-500 text-[10px] text-white flex items-center justify-center font-bold">{unreadCount}</span>
+                  )}
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Bell className="h-5 w-5" /> Bildirimler
+                  </DialogTitle>
+                </DialogHeader>
+                <ScrollArea className="h-[400px]">
+                  {notifications.length === 0 ? (
+                    <p className="text-sm text-slate-400 text-center py-8">Bildirim yok</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {notifications.map(n => (
+                        <div key={n.id} className={`p-3 rounded-lg border ${n.isRead ? 'bg-white border-slate-200' : 'bg-blue-50 border-blue-200'}`}>
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <p className="text-sm font-semibold text-slate-900 flex items-center gap-1">
+                                {n.type === 'task_assigned' && <ListChecks className="h-3.5 w-3.5 text-emerald-500" />}
+                                {n.type === 'exam_assigned' && <GraduationCap className="h-3.5 w-3.5 text-blue-500" />}
+                                {n.type === 'info' && <Info className="h-3.5 w-3.5 text-slate-500" />}
+                                {n.title}
+                              </p>
+                              <p className="text-xs text-slate-600 mt-0.5">{n.message}</p>
+                              <p className="text-[10px] text-slate-400 mt-1">{new Date(n.createdAt).toLocaleString('tr-TR')}</p>
+                            </div>
+                            {!n.isRead && (
+                              <Button variant="ghost" size="sm" className="h-6 text-[10px]" onClick={() => handleMarkRead(n.id)}>
+                                Okundu
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </ScrollArea>
+                {unreadCount > 0 && (
+                  <Button variant="outline" size="sm" className="w-full" onClick={() => handleMarkRead()}>
+                    Tümünü Okundu İşaretle
+                  </Button>
+                )}
+              </DialogContent>
+            </Dialog>
+
+            {/* Login/User */}
+            {currentUser ? (
+              <div className="flex items-center gap-2">
+                <Badge className={`gap-1 text-xs ${isAdmin ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700'}`}>
+                  <Shield className="h-3 w-3" />
+                  {isAdmin ? 'Temsilci' : 'Ar.Gör'}
+                </Badge>
+                <span className="text-xs text-slate-600 hidden sm:inline">{currentUser.name}</span>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleLogout}>
+                  <LogOut className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            ) : (
+              <Dialog open={showLoginDialog} onOpenChange={setShowLoginDialog}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-1 text-xs">
+                    <LogIn className="h-3.5 w-3.5" /> Giriş
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-sm">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                      <LogIn className="h-5 w-5" /> Sisteme Giriş
+                    </DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>E-posta</Label>
+                      <Input placeholder="ymutlu@itu.edu.tr" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Şifre</Label>
+                      <Input type="password" placeholder="••••••" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleLogin()} />
+                    </div>
+                    <Button onClick={handleLogin} className="w-full bg-emerald-600 hover:bg-emerald-700 gap-2">
+                      <LogIn className="h-4 w-4" /> Giriş Yap
+                    </Button>
+                    <div className="text-[11px] text-slate-400 space-y-1">
+                      <p><b>Admin:</b> ymutlu@itu.edu.tr / tarik2026</p>
+                      <p><b>Kullanıcı:</b> sbicen@itu.edu.tr / argor2026</p>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
         </div>
       </header>
@@ -334,129 +526,73 @@ export default function Home() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 gap-1 bg-slate-100 p-1 rounded-xl h-auto">
-            <TabsTrigger value="dashboard" className="rounded-lg text-xs sm:text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm py-2">
-              <BarChart3 className="h-4 w-4 mr-1 sm:mr-2" />
-              <span className="hidden sm:inline">Puan Tablosu</span>
-              <span className="sm:hidden">Puan</span>
-            </TabsTrigger>
-            <TabsTrigger value="tasks" className="rounded-lg text-xs sm:text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm py-2">
-              <ListChecks className="h-4 w-4 mr-1 sm:mr-2" />
-              <span className="hidden sm:inline">Görevler</span>
-              <span className="sm:hidden">Görev</span>
-            </TabsTrigger>
-            <TabsTrigger value="exams" className="rounded-lg text-xs sm:text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm py-2">
-              <GraduationCap className="h-4 w-4 mr-1 sm:mr-2" />
-              <span className="hidden sm:inline">Sınavlar</span>
-              <span className="sm:hidden">Sınav</span>
-            </TabsTrigger>
-            <TabsTrigger value="categories" className="rounded-lg text-xs sm:text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm py-2">
-              <Award className="h-4 w-4 mr-1 sm:mr-2" />
-              <span className="hidden sm:inline">Puan Baremi</span>
-              <span className="sm:hidden">Barem</span>
-            </TabsTrigger>
-            <TabsTrigger value="personnel" className="rounded-lg text-xs sm:text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm py-2">
-              <Users className="h-4 w-4 mr-1 sm:mr-2" />
-              <span className="hidden sm:inline">Personel</span>
-              <span className="sm:hidden">Kişiler</span>
-            </TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto">
+            <TabsList className="inline-flex w-auto min-w-full grid-cols-none gap-1 bg-slate-100 p-1 rounded-xl h-auto">
+              {[
+                { v: 'dashboard', icon: BarChart3, label: 'Puan Tablosu', short: 'Puan' },
+                { v: 'tasks', icon: ListChecks, label: 'Görevler', short: 'Görev' },
+                { v: 'exams', icon: GraduationCap, label: 'Sınavlar', short: 'Sınav' },
+                { v: 'schedule', icon: CalendarDays, label: 'Haftalık Program', short: 'Program' },
+                { v: 'import', icon: Upload, label: 'Veri Aktar', short: 'Aktar' },
+                { v: 'categories', icon: Award, label: 'Puan Baremi', short: 'Barem' },
+                { v: 'personnel', icon: Users, label: 'Personel', short: 'Kişiler' },
+              ].map(tab => (
+                <TabsTrigger key={tab.v} value={tab.v} className="rounded-lg text-xs sm:text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm py-2 px-3 whitespace-nowrap">
+                  <tab.icon className="h-4 w-4 mr-1 sm:mr-2" />
+                  <span className="hidden sm:inline">{tab.label}</span>
+                  <span className="sm:hidden">{tab.short}</span>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </div>
 
           {/* ===== DASHBOARD TAB ===== */}
           <TabsContent value="dashboard" className="space-y-6">
-            {/* Stats Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card className="border-0 shadow-md bg-gradient-to-br from-emerald-50 to-emerald-100/50">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs text-emerald-700 font-medium">Toplam Ar.Gör</p>
-                      <p className="text-2xl font-bold text-emerald-900">{assistants.length}</p>
+              {[
+                { label: 'Toplam Ar.Gör', val: assistants.length, icon: Users, from: 'from-emerald-50', to: 'to-emerald-100/50', iconBg: 'bg-emerald-500/20', iconColor: 'text-emerald-700', valColor: 'text-emerald-900' },
+                { label: 'Bekleyen Görev', val: pendingTasks, icon: Clock, from: 'from-amber-50', to: 'to-amber-100/50', iconBg: 'bg-amber-500/20', iconColor: 'text-amber-700', valColor: 'text-amber-900' },
+                { label: 'Toplam Görev', val: totalTasks, icon: ListChecks, from: 'from-blue-50', to: 'to-blue-100/50', iconBg: 'bg-blue-500/20', iconColor: 'text-blue-700', valColor: 'text-blue-900' },
+                { label: 'Gözetmen Bekleyen', val: unassignedExams, icon: AlertCircle, from: 'from-rose-50', to: 'to-rose-100/50', iconBg: 'bg-rose-500/20', iconColor: 'text-rose-700', valColor: 'text-rose-900' },
+              ].map(s => (
+                <Card key={s.label} className={`border-0 shadow-md bg-gradient-to-br ${s.from} ${s.to}`}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className={`text-xs ${s.iconColor} font-medium`}>{s.label}</p>
+                        <p className={`text-2xl font-bold ${s.valColor}`}>{s.val}</p>
+                      </div>
+                      <div className={`h-10 w-10 rounded-xl ${s.iconBg} flex items-center justify-center`}>
+                        <s.icon className={`h-5 w-5 ${s.iconColor}`} />
+                      </div>
                     </div>
-                    <div className="h-10 w-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
-                      <Users className="h-5 w-5 text-emerald-700" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="border-0 shadow-md bg-gradient-to-br from-amber-50 to-amber-100/50">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs text-amber-700 font-medium">Bekleyen Görev</p>
-                      <p className="text-2xl font-bold text-amber-900">{pendingTasks}</p>
-                    </div>
-                    <div className="h-10 w-10 rounded-xl bg-amber-500/20 flex items-center justify-center">
-                      <Clock className="h-5 w-5 text-amber-700" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="border-0 shadow-md bg-gradient-to-br from-blue-50 to-blue-100/50">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs text-blue-700 font-medium">Toplam Görev</p>
-                      <p className="text-2xl font-bold text-blue-900">{totalTasks}</p>
-                    </div>
-                    <div className="h-10 w-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
-                      <ListChecks className="h-5 w-5 text-blue-700" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="border-0 shadow-md bg-gradient-to-br from-rose-50 to-rose-100/50">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs text-rose-700 font-medium">Gözetmen Bekleyen</p>
-                      <p className="text-2xl font-bold text-rose-900">{unassignedExams}</p>
-                    </div>
-                    <div className="h-10 w-10 rounded-xl bg-rose-500/20 flex items-center justify-center">
-                      <AlertCircle className="h-5 w-5 text-rose-700" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
 
-            {/* Point Ranking */}
             <Card className="border-0 shadow-md">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <TrendingDown className="h-5 w-5 text-emerald-600" />
-                      Puan Sıralaması
-                    </CardTitle>
+                    <CardTitle className="flex items-center gap-2"><TrendingDown className="h-5 w-5 text-emerald-600" /> Puan Sıralaması</CardTitle>
                     <CardDescription>En az puanlı araş gör görev önceliğine sahiptir</CardDescription>
                   </div>
-                  <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 gap-1">
-                    <Target className="h-3 w-3" />
-                    Öncelik: Düşük Puan
-                  </Badge>
+                  <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 gap-1"><Target className="h-3 w-3" /> Öncelik: Düşük Puan</Badge>
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
                   {sortedByPoints.map((ra, idx) => (
                     <div key={ra.id} className={`flex items-center gap-4 p-3 rounded-xl transition-all hover:bg-slate-50 ${idx === 0 ? 'bg-emerald-50 border border-emerald-200' : ''}`}>
-                      <div className={`flex-shrink-0 h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                        idx === 0 ? 'bg-emerald-500 text-white' :
-                        idx === 1 ? 'bg-amber-500 text-white' :
-                        idx === 2 ? 'bg-orange-400 text-white' :
-                        'bg-slate-200 text-slate-600'
-                      }`}>
+                      <div className={`flex-shrink-0 h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold ${idx === 0 ? 'bg-emerald-500 text-white' : idx === 1 ? 'bg-amber-500 text-white' : idx === 2 ? 'bg-orange-400 text-white' : 'bg-slate-200 text-slate-600'}`}>
                         {idx + 1}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="font-semibold text-slate-900 truncate">{ra.name}</span>
-                          {idx === 0 && (
-                            <Badge className="bg-emerald-500 text-white text-[10px] px-1.5 py-0 h-5 gap-0.5">
-                              <Zap className="h-2.5 w-2.5" /> ÖNCELİKLİ
-                            </Badge>
-                          )}
+                          {idx === 0 && <Badge className="bg-emerald-500 text-white text-[10px] px-1.5 py-0 h-5 gap-0.5"><Zap className="h-2.5 w-2.5" /> ÖNCELİKLİ</Badge>}
+                          {ra.role === 'admin' && <Badge className="bg-slate-700 text-white text-[10px] px-1.5 py-0 h-5 gap-0.5"><Shield className="h-2.5 w-2.5" /> TEMSİLCİ</Badge>}
                         </div>
                         <Progress value={(ra.totalPoints / maxPoints) * 100} className="h-2 mt-1.5" />
                       </div>
@@ -469,13 +605,9 @@ export default function Home() {
                 </div>
                 {minPointsAssistant && (
                   <div className="mt-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0">
-                      <ArrowUpRight className="h-4 w-4 text-white" />
-                    </div>
+                    <div className="h-8 w-8 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0"><ArrowUpRight className="h-4 w-4 text-white" /></div>
                     <div>
-                      <p className="text-sm font-semibold text-emerald-800">
-                        {minPointsAssistant.name} en az puana sahip
-                      </p>
+                      <p className="text-sm font-semibold text-emerald-800">{minPointsAssistant.name} en az puana sahip</p>
                       <p className="text-xs text-emerald-600">Yeni görevler öncelikli olarak bu araş görle paylaşılmalıdır</p>
                     </div>
                   </div>
@@ -483,51 +615,28 @@ export default function Home() {
               </CardContent>
             </Card>
 
-            {/* Quick Info */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Card className="border-0 shadow-md">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <CalendarDays className="h-4 w-4 text-blue-600" />
-                    Yaklaşan Sınavlar
-                  </CardTitle>
-                </CardHeader>
+                <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><CalendarDays className="h-4 w-4 text-blue-600" /> Yaklaşan Sınavlar</CardTitle></CardHeader>
                 <CardContent>
                   <div className="space-y-2">
                     {exams.slice(0, 4).map(exam => (
                       <div key={exam.id} className="flex items-center justify-between p-2 rounded-lg bg-slate-50">
-                        <div>
-                          <p className="text-sm font-medium text-slate-900">{exam.courseCode} - {exam.courseName}</p>
-                          <p className="text-xs text-slate-500">{exam.day} · {exam.timeSlot}</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant={exam.supervisors.length >= exam.requiredSupervisors ? "default" : "destructive"} className="text-[10px]">
-                            {exam.supervisors.length}/{exam.requiredSupervisors} Gözetmen
-                          </Badge>
-                        </div>
+                        <div><p className="text-sm font-medium text-slate-900">{exam.courseCode} - {exam.courseName}</p><p className="text-xs text-slate-500">{exam.day} · {exam.timeSlot}</p></div>
+                        <Badge variant={exam.supervisors.length >= exam.requiredSupervisors ? "default" : "destructive"} className="text-[10px]">{exam.supervisors.length}/{exam.requiredSupervisors} Gözetmen</Badge>
                       </div>
                     ))}
                   </div>
                 </CardContent>
               </Card>
               <Card className="border-0 shadow-md">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <ListChecks className="h-4 w-4 text-amber-600" />
-                    Son Görevler
-                  </CardTitle>
-                </CardHeader>
+                <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><ListChecks className="h-4 w-4 text-amber-600" /> Son Görevler</CardTitle></CardHeader>
                 <CardContent>
                   <div className="space-y-2">
                     {tasks.slice(0, 5).map(task => (
                       <div key={task.id} className="flex items-center justify-between p-2 rounded-lg bg-slate-50">
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium text-slate-900 truncate">{task.description}</p>
-                          <p className="text-xs text-slate-500">{task.assistant?.name || '—'}</p>
-                        </div>
-                        <Badge variant="outline" className="text-[10px] flex-shrink-0 ml-2">
-                          +{task.points} p
-                        </Badge>
+                        <div className="min-w-0 flex-1"><p className="text-sm font-medium text-slate-900 truncate">{task.description}</p><p className="text-xs text-slate-500">{task.assistant?.name || '—'}</p></div>
+                        <Badge variant="outline" className="text-[10px] flex-shrink-0 ml-2">+{task.points} p</Badge>
                       </div>
                     ))}
                   </div>
@@ -539,56 +648,30 @@ export default function Home() {
           {/* ===== TASKS TAB ===== */}
           <TabsContent value="tasks" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Add Task Form */}
               <Card className="border-0 shadow-md lg:col-span-1">
                 <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center gap-2">
-                    <Plus className="h-5 w-5 text-emerald-600" />
-                    Yeni Görev Ekle
-                  </CardTitle>
+                  <CardTitle className="flex items-center gap-2"><Plus className="h-5 w-5 text-emerald-600" /> Yeni Görev Ekle</CardTitle>
                   <CardDescription>AI destekli görev girişi ve puanlama</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="taskDesc" className="text-sm font-medium">Görev Açıklaması</Label>
+                    <Label className="text-sm font-medium">Görev Açıklaması</Label>
                     <div className="flex gap-2">
-                      <Textarea
-                        id="taskDesc"
-                        placeholder="Örn: MÜDEK toplantısına 3 saat katıldım"
-                        value={taskDesc}
-                        onChange={e => setTaskDesc(e.target.value)}
-                        className="resize-none"
-                        rows={2}
-                      />
-                      <Button
-                        size="icon"
-                        variant="outline"
-                        className="flex-shrink-0 h-auto border-emerald-300 hover:bg-emerald-50 hover:border-emerald-400"
-                        onClick={handleClassifyTask}
-                        disabled={isClassifying || !taskDesc.trim()}
-                      >
-                        {isClassifying ? (
-                          <div className="animate-spin h-4 w-4 border-2 border-emerald-500 border-t-transparent rounded-full" />
-                        ) : (
-                          <Sparkles className="h-4 w-4 text-emerald-600" />
-                        )}
+                      <Textarea placeholder="Örn: MÜDEK toplantısına 3 saat katıldım" value={taskDesc} onChange={e => setTaskDesc(e.target.value)} className="resize-none" rows={2} />
+                      <Button size="icon" variant="outline" className="flex-shrink-0 h-auto border-emerald-300 hover:bg-emerald-50 hover:border-emerald-400" onClick={handleClassifyTask} disabled={isClassifying || !taskDesc.trim()}>
+                        {isClassifying ? <div className="animate-spin h-4 w-4 border-2 border-emerald-500 border-t-transparent rounded-full" /> : <Sparkles className="h-4 w-4 text-emerald-600" />}
                       </Button>
                     </div>
-                    <p className="text-[11px] text-slate-400 flex items-center gap-1">
-                      <Brain className="h-3 w-3" />
-                      AI otomatik kategori eşleştirme için butona tıklayın
-                    </p>
+                    <p className="text-[11px] text-slate-400 flex items-center gap-1"><Brain className="h-3 w-3" /> AI otomatik kategori eşleştirme</p>
                   </div>
 
                   {classifyResult && (
                     <div className={`p-3 rounded-xl text-sm ${classifyResult.matched ? 'bg-emerald-50 border border-emerald-200' : 'bg-amber-50 border border-amber-200'}`}>
                       {classifyResult.matched ? (
                         <div className="space-y-1">
-                          <p className="font-semibold text-emerald-800 flex items-center gap-1">
-                            <Sparkles className="h-3.5 w-3.5" />
-                            AI Eşleşme: {classifyResult.category?.name}
-                          </p>
-                          <p className="text-xs text-emerald-600">Önerilen Puan: {classifyResult.suggestedPoints} | Güven: %{Math.round(classifyResult.confidence * 100)}</p>
+                          <p className="font-semibold text-emerald-800 flex items-center gap-1"><Sparkles className="h-3.5 w-3.5" /> AI: {classifyResult.category?.name}</p>
+                          <p className="text-xs text-emerald-600">Puan: {classifyResult.suggestedPoints} | Güven: %{Math.round(classifyResult.confidence * 100)}</p>
+                          {classifyResult.reasoning && <p className="text-[11px] text-emerald-500 italic">{classifyResult.reasoning}</p>}
                         </div>
                       ) : (
                         <p className="text-amber-800 text-xs">{classifyResult.message}</p>
@@ -599,121 +682,68 @@ export default function Home() {
                   <div className="space-y-2">
                     <Label className="text-sm font-medium">Araş Gör</Label>
                     <Select value={taskAssistantId} onValueChange={setTaskAssistantId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Araş gör seçin..." />
-                      </SelectTrigger>
+                      <SelectTrigger><SelectValue placeholder="Seçin..." /></SelectTrigger>
                       <SelectContent>
                         {sortedByPoints.map(ra => (
                           <SelectItem key={ra.id} value={ra.id}>
-                            <span className="flex items-center gap-2">
-                              {ra.name}
-                              <span className="text-xs text-slate-400">({ra.totalPoints}p)</span>
-                            </span>
+                            <span className="flex items-center gap-2">{ra.name}<span className="text-xs text-slate-400">({ra.totalPoints}p)</span></span>
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
-
                   <div className="space-y-2">
                     <Label className="text-sm font-medium">Kategori</Label>
-                    <Select value={taskCategoryId} onValueChange={v => {
-                      setTaskCategoryId(v)
-                      const cat = categories.find(c => c.id === v)
-                      if (cat) setTaskPoints(cat.points)
-                    }}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Kategori seçin..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories.map(cat => (
-                          <SelectItem key={cat.id} value={cat.id}>
-                            {cat.name} ({cat.points} puan)
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
+                    <Select value={taskCategoryId} onValueChange={v => { setTaskCategoryId(v); const cat = categories.find(c => c.id === v); if (cat) setTaskPoints(cat.points) }}>
+                      <SelectTrigger><SelectValue placeholder="Seçin..." /></SelectTrigger>
+                      <SelectContent>{categories.map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name} ({cat.points}p)</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
-
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">Tarih</Label>
-                      <Input type="date" value={taskDate} onChange={e => setTaskDate(e.target.value)} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">Saat</Label>
-                      <Input placeholder="09:00-12:00" value={taskHours} onChange={e => setTaskHours(e.target.value)} />
-                    </div>
+                    <div className="space-y-2"><Label className="text-sm font-medium">Tarih</Label><Input type="date" value={taskDate} onChange={e => setTaskDate(e.target.value)} /></div>
+                    <div className="space-y-2"><Label className="text-sm font-medium">Saat</Label><Input placeholder="09:00-12:00" value={taskHours} onChange={e => setTaskHours(e.target.value)} /></div>
                   </div>
-
                   <div className="space-y-2">
                     <Label className="text-sm font-medium">Puan</Label>
                     <div className="flex items-center gap-3">
                       <Input type="number" value={taskPoints} onChange={e => setTaskPoints(parseInt(e.target.value) || 0)} className="w-24" />
-                      {classifyResult?.matched && (
-                        <Badge className="bg-emerald-100 text-emerald-700 gap-1 text-xs">
-                          <Sparkles className="h-3 w-3" /> AI Önerisi
-                        </Badge>
-                      )}
+                      {classifyResult?.matched && <Badge className="bg-emerald-100 text-emerald-700 gap-1 text-xs"><Sparkles className="h-3 w-3" /> AI Önerisi</Badge>}
                     </div>
                   </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Notlar</Label>
-                    <Input placeholder="Opsiyonel" value={taskNotes} onChange={e => setTaskNotes(e.target.value)} />
-                  </div>
-
-                  <Button onClick={handleSubmitTask} className="w-full bg-emerald-600 hover:bg-emerald-700 gap-2">
-                    <Send className="h-4 w-4" />
-                    Görevi Ekle
-                  </Button>
+                  <div className="space-y-2"><Label className="text-sm font-medium">Notlar</Label><Input placeholder="Opsiyonel" value={taskNotes} onChange={e => setTaskNotes(e.target.value)} /></div>
+                  <Button onClick={handleSubmitTask} className="w-full bg-emerald-600 hover:bg-emerald-700 gap-2"><Send className="h-4 w-4" /> Görevi Ekle</Button>
                 </CardContent>
               </Card>
 
-              {/* Task List */}
               <Card className="border-0 shadow-md lg:col-span-2">
                 <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center gap-2">
-                    <ListChecks className="h-5 w-5 text-slate-700" />
-                    Tüm Görevler
-                  </CardTitle>
+                  <CardTitle className="flex items-center gap-2"><ListChecks className="h-5 w-5 text-slate-700" /> Tüm Görevler</CardTitle>
                   <CardDescription>{tasks.length} görev kayıtlı</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ScrollArea className="h-[600px]">
                     <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-12">#</TableHead>
-                          <TableHead>Araş Gör</TableHead>
-                          <TableHead>Görev</TableHead>
-                          <TableHead>Tarih</TableHead>
-                          <TableHead className="text-right">Puan</TableHead>
-                          <TableHead>Durum</TableHead>
-                        </TableRow>
-                      </TableHeader>
+                      <TableHeader><TableRow>
+                        <TableHead className="w-12">#</TableHead><TableHead>Araş Gör</TableHead><TableHead>Görev</TableHead><TableHead>Tarih</TableHead><TableHead className="text-right">Puan</TableHead><TableHead>Kaynak</TableHead><TableHead>Durum</TableHead>
+                      </TableRow></TableHeader>
                       <TableBody>
                         {tasks.map(task => (
                           <TableRow key={task.id}>
                             <TableCell className="font-mono text-xs text-slate-400">{task.number}</TableCell>
-                            <TableCell>
-                              <span className="text-sm font-medium">{task.assistant?.name || '—'}</span>
-                            </TableCell>
+                            <TableCell><span className="text-sm font-medium">{task.assistant?.name || '—'}</span></TableCell>
                             <TableCell>
                               <span className="text-sm">{task.description}</span>
-                              {task.category && (
-                                <Badge variant="outline" className="ml-2 text-[10px]">{task.category.name}</Badge>
-                              )}
+                              {task.category && <Badge variant="outline" className="ml-2 text-[10px]">{task.category.name}</Badge>}
                             </TableCell>
-                            <TableCell className="text-xs text-slate-500">
-                              {new Date(task.date).toLocaleDateString('tr-TR')}
-                            </TableCell>
+                            <TableCell className="text-xs text-slate-500">{new Date(task.date).toLocaleDateString('tr-TR')}</TableCell>
                             <TableCell className="text-right font-semibold">{task.points}</TableCell>
                             <TableCell>
-                              <Badge
-                                variant={task.status === 'approved' ? 'default' : task.status === 'pending' ? 'secondary' : 'destructive'}
-                                className="text-[10px]"
-                              >
+                              <Badge variant="outline" className="text-[10px]">
+                                {task.source === 'auto_assigned' ? '🤖 Otomatik' : task.source === 'import' ? '📥 İçe Aktarma' : '👤 Harici'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={task.status === 'approved' ? 'default' : task.status === 'pending' ? 'secondary' : 'destructive'} className="text-[10px]">
                                 {task.status === 'approved' ? 'Onaylı' : task.status === 'pending' ? 'Bekliyor' : 'Reddedildi'}
                               </Badge>
                             </TableCell>
@@ -730,91 +760,31 @@ export default function Home() {
           {/* ===== EXAMS TAB ===== */}
           <TabsContent value="exams" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Add Exam Form */}
               <Card className="border-0 shadow-md lg:col-span-1">
                 <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center gap-2">
-                    <Plus className="h-5 w-5 text-blue-600" />
-                    Yeni Sınav Ekle
-                  </CardTitle>
+                  <CardTitle className="flex items-center gap-2"><Plus className="h-5 w-5 text-blue-600" /> Yeni Sınav Ekle</CardTitle>
                   <CardDescription>Sınav takvimi ve gözetmen atama</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">Ders Kodu</Label>
-                      <Input placeholder="GMI201" value={examCourseCode} onChange={e => setExamCourseCode(e.target.value)} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">Gözetmen Sayısı</Label>
-                      <Select value={examSupervisors} onValueChange={setExamSupervisors}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="1">1 Gözetmen</SelectItem>
-                          <SelectItem value="2">2 Gözetmen</SelectItem>
-                          <SelectItem value="3">3 Gözetmen</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    <div className="space-y-2"><Label className="text-sm font-medium">Ders Kodu</Label><Input placeholder="GMI201" value={examCourseCode} onChange={e => setExamCourseCode(e.target.value)} /></div>
+                    <div className="space-y-2"><Label className="text-sm font-medium">Gözetmen</Label><Select value={examSupervisors} onValueChange={setExamSupervisors}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="1">1 Gözetmen</SelectItem><SelectItem value="2">2 Gözetmen</SelectItem><SelectItem value="3">3 Gözetmen</SelectItem></SelectContent></Select></div>
                   </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Ders Adı</Label>
-                    <Input placeholder="Gemi Makineleri" value={examCourseName} onChange={e => setExamCourseName(e.target.value)} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Öğretim Üyesi</Label>
-                    <Input placeholder="Prof. Dr. ..." value={examInstructor} onChange={e => setExamInstructor(e.target.value)} />
-                  </div>
+                  <div className="space-y-2"><Label className="text-sm font-medium">Ders Adı</Label><Input placeholder="Gemi Makineleri" value={examCourseName} onChange={e => setExamCourseName(e.target.value)} /></div>
+                  <div className="space-y-2"><Label className="text-sm font-medium">Öğretim Üyesi</Label><Input placeholder="Prof. Dr. ..." value={examInstructor} onChange={e => setExamInstructor(e.target.value)} /></div>
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">Tarih</Label>
-                      <Input type="date" value={examDate} onChange={e => setExamDate(e.target.value)} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">Gün</Label>
-                      <Select value={examDay} onValueChange={setExamDay}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Gün" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Pazartesi">Pazartesi</SelectItem>
-                          <SelectItem value="Salı">Salı</SelectItem>
-                          <SelectItem value="Çarşamba">Çarşamba</SelectItem>
-                          <SelectItem value="Perşembe">Perşembe</SelectItem>
-                          <SelectItem value="Cuma">Cuma</SelectItem>
-                          <SelectItem value="Cumartesi">Cumartesi</SelectItem>
-                          <SelectItem value="Pazar">Pazar</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    <div className="space-y-2"><Label className="text-sm font-medium">Tarih</Label><Input type="date" value={examDate} onChange={e => setExamDate(e.target.value)} /></div>
+                    <div className="space-y-2"><Label className="text-sm font-medium">Gün</Label><Select value={examDay} onValueChange={setExamDay}><SelectTrigger><SelectValue placeholder="Gün" /></SelectTrigger><SelectContent>{Object.entries(DAY_NAMES).map(([k, v]) => <SelectItem key={k} value={v}>{v}</SelectItem>)}</SelectContent></Select></div>
                   </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Saat</Label>
-                    <Input placeholder="09:00-11:00" value={examTime} onChange={e => setExamTime(e.target.value)} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Notlar</Label>
-                    <Input placeholder="Opsiyonel" value={examNotes} onChange={e => setExamNotes(e.target.value)} />
-                  </div>
-                  <Button onClick={handleSubmitExam} className="w-full bg-blue-600 hover:bg-blue-700 gap-2">
-                    <GraduationCap className="h-4 w-4" />
-                    Sınavı Ekle
-                  </Button>
+                  <div className="space-y-2"><Label className="text-sm font-medium">Saat</Label><Input placeholder="09:00-11:00" value={examTime} onChange={e => setExamTime(e.target.value)} /></div>
+                  <div className="space-y-2"><Label className="text-sm font-medium">Notlar</Label><Input placeholder="Opsiyonel" value={examNotes} onChange={e => setExamNotes(e.target.value)} /></div>
+                  <Button onClick={handleSubmitExam} className="w-full bg-blue-600 hover:bg-blue-700 gap-2"><GraduationCap className="h-4 w-4" /> Sınavı Ekle</Button>
                 </CardContent>
               </Card>
-
-              {/* Exam List */}
               <Card className="border-0 shadow-md lg:col-span-2">
                 <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center gap-2">
-                    <GraduationCap className="h-5 w-5 text-blue-600" />
-                    Sınav Listesi ve Gözetmen Atama
-                  </CardTitle>
-                  <CardDescription>
-                    {exams.length} sınav · {unassignedExams} gözetmen bekliyor
-                  </CardDescription>
+                  <CardTitle className="flex items-center gap-2"><GraduationCap className="h-5 w-5 text-blue-600" /> Sınav Listesi ve Gözetmen Atama</CardTitle>
+                  <CardDescription>{exams.length} sınav · {unassignedExams} gözetmen bekliyor</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ScrollArea className="h-[600px]">
@@ -830,33 +800,18 @@ export default function Home() {
                               </div>
                               <p className="text-xs text-slate-500">{exam.instructor}</p>
                               <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
-                                <span className="flex items-center gap-1">
-                                  <CalendarDays className="h-3 w-3" />
-                                  {exam.day} · {new Date(exam.date).toLocaleDateString('tr-TR')}
-                                </span>
-                                <span className="flex items-center gap-1">
-                                  <Clock className="h-3 w-3" />
-                                  {exam.timeSlot}
-                                </span>
+                                <span className="flex items-center gap-1"><CalendarDays className="h-3 w-3" />{exam.day} · {new Date(exam.date).toLocaleDateString('tr-TR')}</span>
+                                <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{exam.timeSlot}</span>
                               </div>
-                              {exam.notes && (
-                                <p className="text-xs text-amber-600 mt-1">Not: {exam.notes}</p>
-                              )}
+                              {exam.notes && <p className="text-xs text-amber-600 mt-1">Not: {exam.notes}</p>}
                             </div>
                             <div className="flex flex-col items-end gap-2 flex-shrink-0">
                               <Badge variant={exam.supervisors.length >= exam.requiredSupervisors ? "default" : "destructive"} className="gap-1">
-                                <UserCheck className="h-3 w-3" />
-                                {exam.supervisors.length}/{exam.requiredSupervisors}
+                                <UserCheck className="h-3 w-3" />{exam.supervisors.length}/{exam.requiredSupervisors}
                               </Badge>
                               {exam.supervisors.length < exam.requiredSupervisors && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="text-xs gap-1 border-emerald-300 text-emerald-700 hover:bg-emerald-50"
-                                  onClick={() => handleAutoAssign(exam.id)}
-                                >
-                                  <Zap className="h-3 w-3" />
-                                  Otomatik Ata
+                                <Button size="sm" variant="outline" className="text-xs gap-1 border-emerald-300 text-emerald-700 hover:bg-emerald-50" onClick={() => handleAutoAssign(exam.id)}>
+                                  <Zap className="h-3 w-3" /> Otomatik Ata
                                 </Button>
                               )}
                             </div>
@@ -865,12 +820,7 @@ export default function Home() {
                             <div className="mt-3 pt-3 border-t border-slate-100">
                               <p className="text-xs text-slate-400 mb-2">Atanan Gözetmenler:</p>
                               <div className="flex flex-wrap gap-2">
-                                {exam.supervisors.map(s => (
-                                  <Badge key={s.id} variant="secondary" className="gap-1">
-                                    <CheckCircle2 className="h-3 w-3 text-emerald-500" />
-                                    {s.assistant.name}
-                                  </Badge>
-                                ))}
+                                {exam.supervisors.map(s => <Badge key={s.id} variant="secondary" className="gap-1"><CheckCircle2 className="h-3 w-3 text-emerald-500" />{s.assistant.name}</Badge>)}
                               </div>
                             </div>
                           )}
@@ -883,14 +833,139 @@ export default function Home() {
             </div>
           </TabsContent>
 
+          {/* ===== WEEKLY SCHEDULE TAB ===== */}
+          <TabsContent value="schedule" className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <Card className="border-0 shadow-md lg:col-span-1">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2"><Plus className="h-5 w-5 text-violet-600" /> Program Ekle</CardTitle>
+                  <CardDescription>Çakışma kontrolü ile haftalık program</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Araş Gör</Label>
+                    <Select value={schedAssistantId} onValueChange={setSchedAssistantId}>
+                      <SelectTrigger><SelectValue placeholder="Seçin..." /></SelectTrigger>
+                      <SelectContent>{assistants.map(ra => <SelectItem key={ra.id} value={ra.id}>{ra.name}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Gün</Label>
+                    <Select value={schedDay} onValueChange={setSchedDay}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>{Object.entries(DAY_NAMES).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2"><Label className="text-sm font-medium">Saat</Label><Input placeholder="09:00-12:00" value={schedTime} onChange={e => setSchedTime(e.target.value)} /></div>
+                  <div className="space-y-2"><Label className="text-sm font-medium">Ders/Açıklama</Label><Input placeholder="GMIM Lisansüstü" value={schedDesc} onChange={e => setSchedDesc(e.target.value)} /></div>
+                  <Button onClick={handleAddSchedule} className="w-full bg-violet-600 hover:bg-violet-700 gap-2"><CalendarDays className="h-4 w-4" /> Programı Ekle</Button>
+                </CardContent>
+              </Card>
+
+              <Card className="border-0 shadow-md lg:col-span-2">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2"><CalendarDays className="h-5 w-5 text-violet-600" /> Haftalık Program</CardTitle>
+                  <CardDescription>{weeklySchedules.length} program kaydı · Çakışma kontrolü aktif</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader><TableRow>
+                        <TableHead>Araş Gör</TableHead><TableHead>Gün</TableHead><TableHead>Saat</TableHead><TableHead>Ders/Açıklama</TableHead><TableHead className="w-12"></TableHead>
+                      </TableRow></TableHeader>
+                      <TableBody>
+                        {weeklySchedules.sort((a, b) => a.dayOfWeek - b.dayOfWeek).map(sched => (
+                          <TableRow key={sched.id}>
+                            <TableCell><span className="text-sm font-medium">{sched.assistant.name}</span></TableCell>
+                            <TableCell><Badge variant="outline" className="text-xs">{DAY_NAMES[sched.dayOfWeek]}</Badge></TableCell>
+                            <TableCell className="text-sm font-mono">{sched.timeSlot}</TableCell>
+                            <TableCell className="text-sm">{sched.description}</TableCell>
+                            <TableCell>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-red-400 hover:text-red-600 hover:bg-red-50" onClick={() => handleDeleteSchedule(sched.id)}>
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* ===== IMPORT TAB ===== */}
+          <TabsContent value="import" className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card className="border-0 shadow-md">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2"><Upload className="h-5 w-5 text-orange-600" /> Veri İçe Aktarma</CardTitle>
+                  <CardDescription>Mevcut Excel/CSV dosyasından toplu veri aktarımı</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">İçe Aktarma Türü</Label>
+                    <Select value={importType} onValueChange={setImportType}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="tasks">Görevler</SelectItem>
+                        <SelectItem value="exams">Sınavlar</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Dosya (CSV)</Label>
+                    <div className="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center hover:border-orange-300 transition-colors">
+                      <FileSpreadsheet className="h-10 w-10 text-slate-300 mx-auto mb-2" />
+                      <Input type="file" accept=".csv,.txt" onChange={e => setImportFile(e.target.files?.[0] || null)} className="max-w-xs mx-auto" />
+                      <p className="text-xs text-slate-400 mt-2">CSV formatında dosya yükleyin</p>
+                    </div>
+                  </div>
+                  <Button onClick={handleImport} disabled={!importFile || isImporting} className="w-full bg-orange-600 hover:bg-orange-700 gap-2">
+                    {isImporting ? <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" /> : <Upload className="h-4 w-4" />}
+                    {isImporting ? 'İçe Aktarılıyor...' : 'İçe Aktar'}
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card className="border-0 shadow-md">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2"><FileSpreadsheet className="h-5 w-5 text-orange-600" /> CSV Format Rehberi</CardTitle>
+                  <CardDescription>İçe aktarma için dosya formatı örnekleri</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div>
+                    <h4 className="font-semibold text-sm text-slate-900 mb-2">Görev İçe Aktarma</h4>
+                    <div className="bg-slate-900 text-slate-100 rounded-lg p-3 text-xs font-mono overflow-x-auto">
+                      <p className="text-emerald-400">İsim,Görev,Tarih,Puan,Saat</p>
+                      <p>Y.Tarık MUTLU,MÜDEK toplantısı,21.07.2025,4,5</p>
+                      <p>Fatih NACAR,Ders Programı İşleri,01.09.2025,3,11:00-16:00</p>
+                      <p>Samet BİÇEN,Not Komisyonu,25.09.2025,2,09:00-12:00</p>
+                    </div>
+                  </div>
+                  <Separator />
+                  <div>
+                    <h4 className="font-semibold text-sm text-slate-900 mb-2">Sınav İçe Aktarma</h4>
+                    <div className="bg-slate-900 text-slate-100 rounded-lg p-3 text-xs font-mono overflow-x-auto">
+                      <p className="text-blue-400">Ders Kodu,Ders Adı,Öğretim Üyesi,Tarih,Gün,Saat,Gözetmen Sayısı</p>
+                      <p>MEK,Engineering Mechanics,Banu Tansel Büyükçelebi,17.01.2026,Cumartesi,15:00-17:00,2</p>
+                      <p>GMI201,Gemi Makineleri,Ahmet Yılmaz,20.05.2026,Çarşamba,09:00-11:00,2</p>
+                    </div>
+                  </div>
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                    <p className="text-xs text-amber-800 flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5 flex-shrink-0" /> İsim eşleşmesi otomatik yapılır. Eşleşmeyen kayıtlar atlanır.</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
           {/* ===== CATEGORIES TAB ===== */}
           <TabsContent value="categories" className="space-y-6">
             <Card className="border-0 shadow-md">
               <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2">
-                  <Award className="h-5 w-5 text-amber-600" />
-                  Puan Baremi
-                </CardTitle>
+                <CardTitle className="flex items-center gap-2"><Award className="h-5 w-5 text-amber-600" /> Puan Baremi</CardTitle>
                 <CardDescription>Görev kategorileri ve puan değerleri</CardDescription>
               </CardHeader>
               <CardContent>
@@ -899,13 +974,9 @@ export default function Home() {
                     <div key={cat.id} className="p-4 rounded-xl border border-slate-200 hover:border-amber-300 hover:bg-amber-50/30 transition-all group">
                       <div className="flex items-center justify-between">
                         <h4 className="font-medium text-slate-900 text-sm group-hover:text-amber-900 transition-colors">{cat.name}</h4>
-                        <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-200 font-bold">
-                          {cat.points} p
-                        </Badge>
+                        <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-200 font-bold">{cat.points} p</Badge>
                       </div>
-                      {cat.description && (
-                        <p className="text-xs text-slate-500 mt-1">{cat.description}</p>
-                      )}
+                      {cat.description && <p className="text-xs text-slate-500 mt-1">{cat.description}</p>}
                     </div>
                   ))}
                 </div>
@@ -920,11 +991,14 @@ export default function Home() {
                 <Card key={ra.id} className="border-0 shadow-md hover:shadow-lg transition-shadow">
                   <CardContent className="p-5">
                     <div className="flex items-start gap-4">
-                      <div className="h-12 w-12 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-lg shadow-emerald-200">
+                      <div className={`h-12 w-12 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-lg ${ra.role === 'admin' ? 'bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-emerald-200' : 'bg-gradient-to-br from-slate-400 to-slate-500 shadow-slate-200'}`}>
                         {ra.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-slate-900 truncate">{ra.name}</h3>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-bold text-slate-900 truncate">{ra.name}</h3>
+                          {ra.role === 'admin' && <Badge className="bg-emerald-100 text-emerald-700 text-[10px] gap-0.5"><Shield className="h-2.5 w-2.5" /> Temsilci</Badge>}
+                        </div>
                         <p className="text-xs text-slate-500 truncate">{ra.email}</p>
                         <div className="flex items-center gap-3 mt-2">
                           <Badge variant="outline" className="text-xs">{ra.faculty} - {ra.department}</Badge>
@@ -935,27 +1009,22 @@ export default function Home() {
                     {ra.permanentDuties.length > 0 && (
                       <div className="mt-4 pt-3 border-t border-slate-100">
                         <p className="text-xs font-medium text-slate-400 mb-2">Daimi Görevler:</p>
-                        <div className="space-y-1">
-                          {ra.permanentDuties.map(pd => (
-                            <div key={pd.id} className="flex items-center gap-2 text-xs text-slate-600">
-                              <div className="h-1.5 w-1.5 rounded-full bg-emerald-400 flex-shrink-0"></div>
-                              <span>{pd.name}</span>
-                            </div>
-                          ))}
-                        </div>
+                        <div className="space-y-1">{ra.permanentDuties.map(pd => (
+                          <div key={pd.id} className="flex items-center gap-2 text-xs text-slate-600">
+                            <div className="h-1.5 w-1.5 rounded-full bg-emerald-400 flex-shrink-0"></div><span>{pd.name}</span>
+                          </div>
+                        ))}</div>
                       </div>
                     )}
                     {ra.tasks.length > 0 && (
                       <div className="mt-3 pt-3 border-t border-slate-100">
                         <p className="text-xs font-medium text-slate-400 mb-2">Son Görevler:</p>
-                        <div className="space-y-1">
-                          {ra.tasks.slice(0, 3).map(t => (
-                            <div key={t.id} className="flex items-center justify-between text-xs">
-                              <span className="text-slate-600 truncate flex-1">{t.description}</span>
-                              <Badge variant="outline" className="text-[10px] ml-2 flex-shrink-0">+{t.points}</Badge>
-                            </div>
-                          ))}
-                        </div>
+                        <div className="space-y-1">{ra.tasks.slice(0, 3).map(t => (
+                          <div key={t.id} className="flex items-center justify-between text-xs">
+                            <span className="text-slate-600 truncate flex-1">{t.description}</span>
+                            <Badge variant="outline" className="text-[10px] ml-2 flex-shrink-0">+{t.points}</Badge>
+                          </div>
+                        ))}</div>
                       </div>
                     )}
                   </CardContent>
@@ -970,10 +1039,7 @@ export default function Home() {
       <footer className="mt-12 border-t border-slate-200 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between text-xs text-slate-400">
           <span>GMIM Ar.Gör Yönetim Sistemi · İTÜ Denizcilik Fakültesi</span>
-          <span className="flex items-center gap-1">
-            <Sparkles className="h-3 w-3" />
-            AI Destekli Prototip
-          </span>
+          <span className="flex items-center gap-1"><Sparkles className="h-3 w-3" /> AI Destekli v2.0</span>
         </div>
       </footer>
     </div>
