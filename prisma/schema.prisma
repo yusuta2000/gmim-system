@@ -1,0 +1,113 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model ResearchAssistant {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  phone     String?
+  faculty   String   @default("DZ")
+  department String  @default("GMI")
+  totalPoints Int     @default(0)
+  order     Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tasks     Task[]
+  permanentDuties PermanentDuty[]
+  examAssignments ExamSupervisor[]
+  weeklySchedule WeeklySchedule[]
+}
+
+model PointCategory {
+  id          String   @id @default(cuid())
+  name        String
+  points      Int
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tasks       Task[]
+}
+
+model Task {
+  id          String   @id @default(cuid())
+  number      Int
+  description String
+  hoursWorked String?
+  date        DateTime
+  points      Int
+  status      String   @default("pending") // pending, approved, rejected
+  source      String   @default("external") // external, department_head, auto_assigned
+  assignedBy  String?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  assistantId String
+  assistant   ResearchAssistant @relation(fields: [assistantId], references: [id])
+  categoryId  String?
+  category    PointCategory? @relation(fields: [categoryId], references: [id])
+}
+
+model PermanentDuty {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  assistantId String
+  assistant   ResearchAssistant @relation(fields: [assistantId], references: [id])
+}
+
+model Exam {
+  id            String   @id @default(cuid())
+  courseCode    String
+  courseName    String
+  instructor    String
+  date          DateTime
+  day           String
+  timeSlot      String
+  classroom     String?
+  requiredSupervisors Int  @default(1)
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  supervisors  ExamSupervisor[]
+}
+
+model ExamSupervisor {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+
+  examId      String
+  exam        Exam @relation(fields: [examId], references: [id])
+  assistantId String
+  assistant   ResearchAssistant @relation(fields: [assistantId], references: [id])
+}
+
+model WeeklySchedule {
+  id          String   @id @default(cuid())
+  dayOfWeek   Int      // 1=Monday, 5=Friday
+  timeSlot    String
+  description String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  assistantId String
+  assistant   ResearchAssistant @relation(fields: [assistantId], references: [id])
+}
