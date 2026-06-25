@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "Bu Excel tablosu, bir akademik veya idari birimde (muhtemelen üniversite/fakülte) çalışan personelin görevlerini, zamanlamalarını ve sorumluluklarını takip etmek için kullanılan bir **iş planlama ve görev dağılım tablosudur**. Tablonun yapısı, içeriği ve mantığı aşağıda detaylıca açıklanmıştır:\n\n\n### **1. Tablonun Yapısı ve Sütun Başlıkları**\nTablo, **3 ana sütundan** oluşur. Sütun başlıkları ve işlevleri şöyledir:\n\n| Sütun | Başlık (A1:Hücre) | Açıklama |\n|-------|------------------|----------|\n| **A** | **YAPILAN GÖREVLER** | Görevi üstlenen personelin adı/soyadı. |\n| **B** | **Tarih** | Görevin yapılacağı veya yapıldığı tarih (gün.ay.yıl formatında). |\n| **C** | **Görev Açıklaması** | Görevin detaylı tanımı (içerik, zaman aralığı, katılımcılar vb.). |\n\n\n### **2. Satır Yapısı ve İçerik**\nHer satır, **tek bir görevi temsil eder**. Satırlar, genellikle aynı personelin birden fazla görevini (farklı tarihlerde) veya farklı personelin görevlerini içerir. Örnek satırlar:\n\n| Satır No | A (Personel) | B (Tarih) | C (Görev Açıklaması) |\n|---------|-------------|-----------|---------------------|\n| 119     | Yusuf Tarık Mutlu | 15.04.2026 | Staj komisyonu toplantısı 15:00–16:30 |\n| 120     | Yusuf Tarık Mutlu | 22.04.2026 | Final sınavları derslik atama ön çalışması 08:30–09:30 |\n| 129     | Rukiye Gülmez | 06.05.2026 | Tesis gereklilikleri konulu toplantı 14:00–16:30 |\n| 137     | Cenk KAYA | 19.06.2026 | Gizem Kayışoğlu ile Kalite Dosyalarının Oluşturulması 14.00-19.00 |\n\n**Önemli Detaylar:**\n- **Personel Listesi**: Tabloda 4 kişi yer alır: *Merve Gürçaygın, Yusuf Tarık Mutlu, Rukiye Gülmez, Cenk KAYA*. (Merve Gürçaygın sadece 1 görevi, diğerleri daha fazla görevi var.)\n- **Tarih Aralığı**: Görevler 22.03.2026 (Merve Gürçaygın) ile 25.06.2026 (Cenk KAYA) arasında dağılmıştır. Bu, tablonun **yılın ikinci yarısını (bahar/yaz dönemi)** kapsadığını gösterir.\n- **Görev Detayları**: Görevler, genellikle **zaman aralığı (saat)**, **katılımcılar (örn: \"Esma Hoca\")** ve **konu (örn: \"final sınavları derslik atama\")** içerir.\n\n\n### **3. Puanlama Sistemi**\nTabloda **resmi bir puanlama sistemi yoktur**. Ancak, görevlerin içeriğine göre **önem derecesi veya karmaşıklık** anlaşılabiliyor:\n- **Yüksek Önemli Görevler**: Örneğin, \"Final sınavları derslik atama\" (Yusuf Tarık Mutlu, 22.04.2026) veya \"Kalite Dosyalarının Oluşturulması\" (Cenk KAYA, 19.06.2026) gibi görevler, akademik yılın kritik süreçlerini yönetir.\n- **Düşük Önemli Görevler**: Örneğin, \"staj evraklarının takibi\" (Rukiye Gülmez, 20.05.2026) gibi rutin işler.\n\n\n### **4. Görev Dağılım Mantığı**\nTablonun temel amacı, **görevlerin personellere adil ve verimli bir şekilde dağıtılmasını sağlamaktır**. Mantık şu şekilde işler:\n\n#### **a. Sorumluluk Bazlı Atama**\n- Her görev, **spesifik bir personel** tarafından üstlenilir (örn: \"Final sınavları\" görevleri hep Yusuf Tarık Mutlu'ya atanmıştır). Bu, görevin **uzmanlık alanına** (örn: akademik yönetim) dayanır.\n- Örneğin, \"Kalite Dosyaları\" görevleri Cenk KAYA'ya atanmıştır; bu, Cenk KAYA'nın kalite yönetimi uzmanı olduğunu gösterir.\n\n#### **b. Zamanlama ve Koordinasyon**\n- Görevler, **tarihe göre sıralanmıştır** (en eski tarihten en yeniye). Bu, personelin ve yöneticinin görevleri planlamasını kolaylaştırır.\n- Zaman aralıkları (örn: \"14:00–16:30\") ve \"ön çalışma\" gibi ifadeler, görevlerin **planlı ve koordineli** olduğunu gösterir.\n\n#### **c. Katılımcıların Belirtilmesi**\n- Görev açıklamalarında, \"Esma Hoca ile toplantı\" veya \"Gizem Kayışoğlu ile\" gibi ifadeler, görevin **birden fazla kişiyle işbirliği gerektirdiğini** ve **koordinasyonun** önemli olduğunu vurgular.\n\n#### **d. Rutin ve Olağanüstü Görevler**\n- Rutin görevler: \"staj komisyonu toplantısı\" (Yusuf Tarık Mutlu, 15.04.2026) veya \"tesis gereklilikleri toplantısı\" (Rukiye Gülmez, 06.05.2026).\n- Olağanüstü görevler: \"final programı hazırlanması\" (Yusuf Tarık Mutlu, 13.05.2026) veya \"mezuniyet planlaması\" (Cenk KAYA, 23.06.2026).\n\n\n### **5. Genel Amaç**\nTablonun amacı, **görevlerin takibini, sorumlulukların netleştirilmesini ve zamanlama koordinasyonunu** sağlamaktır. Bu, özellikle akademik birimlerde (fakülte/dekanlık) sıkça kullanılan bir yöntemdir. Personel, görevlerini kolayca görebilir; yöneticiler, iş yükünü dengeleyebilir ve gecikmeleri önleyebilir.\n\n\n### **Özet**\nBu Excel tablosu, bir akademik birimin personel görevlerini **tarih, sorumluluk ve detaylı açıklama** ile takip eden pratik bir araçtır. Yapısı basit olmasına rağmen, görev dağılımını, zamanlamayı ve işbirliğini net bir şekilde yansıtır. Puanlama sistemi olmasa da, görevlerin içeriği ve zamanlaması, önem derecesini ve iş yükünü gösterir.",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1782424330,
+  "id": "20260626055111003c2d4610024c96",
+  "model": "glm-4.6v",
+  "object": "chat.completion",
+  "request_id": "20260626055111003c2d4610024c96",
+  "usage": {
+    "completion_tokens": 1681,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 2037,
+    "prompt_tokens_details": {
+      "cached_tokens": 5
+    },
+    "total_tokens": 3718
+  }
+}
