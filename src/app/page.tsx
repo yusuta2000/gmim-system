@@ -307,8 +307,9 @@ export default function Home() {
   // Computed
   const totalTasks = tasks.length
   const pendingCount = pendingTasks.length
-  const maxPoints = Math.max(...assistants.map(a => a.totalPoints), 1)
-  const minPA = assistants.length > 0 ? [...assistants].sort((a, b) => a.totalPoints - b.totalPoints)[0] : null
+  const activeAssistants = assistants.filter(a => a.isActive)
+  const maxPoints = Math.max(...activeAssistants.map(a => a.totalPoints), 1)
+  const minPA = activeAssistants.length > 0 ? [...activeAssistants].sort((a, b) => a.totalPoints - b.totalPoints)[0] : null
   const unassignedExams = exams.filter(e => e.supervisors.length < e.requiredSupervisors).length
   const sortedByPoints = [...assistants].sort((a, b) => a.totalPoints - b.totalPoints)
 
@@ -429,7 +430,7 @@ export default function Home() {
           <TabsContent value="dashboard" className="space-y-6">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {[
-                { label: 'Toplam Ar.Gör', val: assistants.length, icon: Users, from: 'from-emerald-50', to: 'to-emerald-100/50', ibg: 'bg-emerald-500/20', ic: 'text-emerald-700', vc: 'text-emerald-900' },
+                { label: 'Aktif Ar.Gör', val: activeAssistants.length, icon: Users, from: 'from-emerald-50', to: 'to-emerald-100/50', ibg: 'bg-emerald-500/20', ic: 'text-emerald-700', vc: 'text-emerald-900' },
                 { label: 'Onay Bekleyen', val: pendingCount, icon: Clock, from: 'from-amber-50', to: 'to-amber-100/50', ibg: 'bg-amber-500/20', ic: 'text-amber-700', vc: 'text-amber-900' },
                 { label: 'Toplam Görev', val: totalTasks, icon: ListChecks, from: 'from-blue-50', to: 'to-blue-100/50', ibg: 'bg-blue-500/20', ic: 'text-blue-700', vc: 'text-blue-900' },
                 { label: 'Gözetmen Bekleyen', val: unassignedExams, icon: AlertCircle, from: 'from-rose-50', to: 'to-rose-100/50', ibg: 'bg-rose-500/20', ic: 'text-rose-700', vc: 'text-rose-900' },
@@ -485,7 +486,7 @@ export default function Home() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {sortedByPoints.map((ra, idx) => (
+                  {sortedByPoints.filter(ra => ra.isActive).map((ra, idx) => (
                     <div key={ra.id} className={`flex items-center gap-4 p-3 rounded-xl transition-all hover:bg-slate-50 ${idx === 0 ? 'bg-emerald-50 border border-emerald-200' : ''}`}>
                       <div className={`flex-shrink-0 h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold ${idx === 0 ? 'bg-emerald-500 text-white' : idx === 1 ? 'bg-amber-500 text-white' : idx === 2 ? 'bg-orange-400 text-white' : 'bg-slate-200 text-slate-600'}`}>{idx + 1}</div>
                       <div className="flex-1 min-w-0">
@@ -499,6 +500,23 @@ export default function Home() {
                       <div className="text-right flex-shrink-0"><span className="text-lg font-bold text-slate-900">{ra.totalPoints}</span><span className="text-xs text-slate-500 ml-1">puan</span></div>
                     </div>
                   ))}
+                  {sortedByPoints.filter(ra => !ra.isActive).length > 0 && (
+                    <div className="pt-2 border-t mt-2">
+                      <p className="text-xs text-red-500 font-medium mb-2">🔴 Yurt dışında / Pasif</p>
+                      {sortedByPoints.filter(ra => !ra.isActive).map((ra) => (
+                        <div key={ra.id} className="flex items-center gap-4 p-2 rounded-xl opacity-50">
+                          <div className="flex-shrink-0 h-8 w-8 rounded-full bg-red-200 text-red-600 flex items-center justify-center text-sm font-bold">−</div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-slate-500 truncate line-through">{ra.name}</span>
+                              <Badge className="bg-red-100 text-red-600 text-[10px] px-1.5 py-0 h-5">Pasif</Badge>
+                            </div>
+                          </div>
+                          <div className="text-right flex-shrink-0"><span className="text-lg font-bold text-slate-400">{ra.totalPoints}</span><span className="text-xs text-slate-400 ml-1">puan</span></div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 {minPA && (
                   <div className="mt-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center gap-3">
