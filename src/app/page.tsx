@@ -117,6 +117,14 @@ export default function Home() {
   // Dialogs
   const [showNotifDialog, setShowNotifDialog] = useState(false)
   const [showResetDialog, setShowResetDialog] = useState(false)
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false)
+  const [showAddPersonDialog, setShowAddPersonDialog] = useState(false)
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [newPersonName, setNewPersonName] = useState('')
+  const [newPersonEmail, setNewPersonEmail] = useState('')
+  const [newPersonPhone, setNewPersonPhone] = useState('')
+  const [newPersonPassword, setNewPersonPassword] = useState('')
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -358,6 +366,82 @@ export default function Home() {
     } catch { toast.error('Bağlantı hatası') }
   }
 
+  // Change own password
+  const handleChangePassword = async () => {
+    if (!currentUser || !currentPassword || !newPassword) { toast.error('Tüm alanları doldurun'); return }
+    if (newPassword.length < 4) { toast.error('Yeni şifre en az 4 karakter olmalı'); return }
+    try {
+      const res = await fetch('/api/change-password', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assistantId: currentUser.id, currentPassword, newPassword }),
+      })
+      const data = await res.json()
+      if (res.ok) { toast.success(data.message); setShowPasswordDialog(false); setCurrentPassword(''); setNewPassword('') }
+      else { toast.error(data.error) }
+    } catch { toast.error('Bağlantı hatası') }
+  }
+
+  // Admin reset password
+  const handleResetPassword = async (assistantId: string, assistantName: string) => {
+    if (!currentUser || !isAdmin) return
+    const newPass = prompt(`${assistantName} için yeni şifre girin (en az 4 karakter):`)
+    if (!newPass || newPass.length < 4) { toast.error('Şifre en az 4 karakter olmalı'); return }
+    try {
+      const res = await fetch('/api/reset-password', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assistantId, newPassword: newPass, requesterId: currentUser.id }),
+      })
+      const data = await res.json()
+      if (res.ok) { toast.success(data.message) }
+      else { toast.error(data.error) }
+    } catch { toast.error('Bağlantı hatası') }
+  }
+
+  // Add new assistant
+  const handleAddAssistant = async () => {
+    if (!currentUser || !isAdmin) return
+    if (!newPersonName || !newPersonEmail) { toast.error('Ad ve e-posta gerekli'); return }
+    try {
+      const res = await fetch('/api/add-assistant', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newPersonName, email: newPersonEmail, phone: newPersonPhone || null,
+          password: newPersonPassword || undefined, requesterId: currentUser.id,
+        }),
+      })
+      const data = await res.json()
+      if (res.ok) { toast.success(data.message); setShowAddPersonDialog(false); setNewPersonName(''); setNewPersonEmail(''); setNewPersonPhone(''); setNewPersonPassword(''); fetchData() }
+      else { toast.error(data.error) }
+    } catch { toast.error('Bağlantı hatası') }
+  }
+
+  // Remove assistant
+  const handleRemoveAssistant = async (assistantId: string, assistantName: string) => {
+    if (!currentUser || !isAdmin) return
+    if (!confirm(`${assistantName} adlı kişiyi sistemden kaldırmak istediğinize emin misiniz? Tüm görev ve kayıtları silinecek.`)) return
+    try {
+      const res = await fetch(`/api/remove-assistant?id=${assistantId}&requesterId=${currentUser.id}`, { method: 'DELETE' })
+      const data = await res.json()
+      if (res.ok) { toast.success(data.message); fetchData() }
+      else { toast.error(data.error) }
+    } catch { toast.error('Bağlantı hatası') }
+  }
+
+  // Export Excel
+  const handleExportExcel = async (type: string) => {
+    try {
+      const res = await fetch(`/api/export-excel?type=${type}`)
+      if (!res.ok) throw new Error()
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url; a.download = `gmim_${type}_${new Date().toISOString().slice(0, 10)}.xlsx`
+      document.body.appendChild(a); a.click(); document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      toast.success('Excel dosyası indirildi')
+    } catch { toast.error('İndirme hatası') }
+  }
+
   // Computed
   const totalTasks = tasks.length
   const pendingCount = pendingTasks.length
@@ -432,6 +516,19 @@ export default function Home() {
                   <Shield className="h-3 w-3" />{isAdmin ? 'Temsilci' : 'Ar.Gör'}
                 </Badge>
                 <span className="text-xs text-slate-600 hidden sm:inline">{currentUser.name}</span>
+                <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
+                  <DialogTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" title="Şifre Değiştir"><Settings2 className="h-3.5 w-3.5" /></Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-sm">
+                    <DialogHeader><DialogTitle>Şifre Değiştir</DialogTitle></DialogHeader>
+                    <div className="space-y-4">
+                      <div className="space-y-2"><Label>Mevcut Şifre</Label><Input type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} /></div>
+                      <div className="space-y-2"><Label>Yeni Şifre</Label><Input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="En az 4 karakter" /></div>
+                      <Button onClick={handleChangePassword} className="w-full bg-emerald-600 hover:bg-emerald-700 gap-2"><Check className="h-4 w-4" /> Değiştir</Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setCurrentUser(null); toast.info('Çıkış yapıldı') }}><LogOut className="h-3.5 w-3.5" /></Button>
               </div>
             ) : (
@@ -496,7 +593,7 @@ export default function Home() {
             </div>
 
             {isAdmin && (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Dialog open={showResetDialog} onOpenChange={setShowResetDialog}>
                   <DialogTrigger asChild>
                     <Button variant="outline" size="sm" className="gap-1 text-xs border-orange-300 text-orange-700 hover:bg-orange-50">
@@ -528,6 +625,15 @@ export default function Home() {
                     </div>
                   </DialogContent>
                 </Dialog>
+                <Button variant="outline" size="sm" className="gap-1 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-50" onClick={() => handleExportExcel('ranking')}>
+                  <FileSpreadsheet className="h-3.5 w-3.5" /> Puanları İndir
+                </Button>
+                <Button variant="outline" size="sm" className="gap-1 text-xs border-blue-300 text-blue-700 hover:bg-blue-50" onClick={() => handleExportExcel('tasks')}>
+                  <FileSpreadsheet className="h-3.5 w-3.5" /> Görevleri İndir
+                </Button>
+                <Button variant="outline" size="sm" className="gap-1 text-xs border-violet-300 text-violet-700 hover:bg-violet-50" onClick={() => handleExportExcel('exams')}>
+                  <FileSpreadsheet className="h-3.5 w-3.5" /> Sınavları İndir
+                </Button>
               </div>
             )}
 
@@ -941,6 +1047,28 @@ export default function Home() {
 
           {/* PERSONNEL */}
           <TabsContent value="personnel" className="space-y-6">
+            {/* Admin: Add new person */}
+            {isAdmin && (
+              <Dialog open={showAddPersonDialog} onOpenChange={setShowAddPersonDialog}>
+                <DialogTrigger asChild>
+                  <Button className="gap-2 bg-emerald-600 hover:bg-emerald-700"><Plus className="h-4 w-4" /> Yeni Araş Gör Ekle</Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-md">
+                  <DialogHeader><DialogTitle>Yeni Araş Gör Ekle</DialogTitle></DialogHeader>
+                  <div className="space-y-4">
+                    <div className="space-y-2"><Label>Ad Soyad *</Label><Input placeholder="Ad Soyad" value={newPersonName} onChange={e => setNewPersonName(e.target.value)} /></div>
+                    <div className="space-y-2"><Label>E-posta *</Label><Input placeholder="isim@itu.edu.tr" value={newPersonEmail} onChange={e => setNewPersonEmail(e.target.value)} /></div>
+                    <div className="space-y-2"><Label>Telefon</Label><Input placeholder="0555 555 55 55" value={newPersonPhone} onChange={e => setNewPersonPhone(e.target.value)} /></div>
+                    <div className="space-y-2">
+                      <Label>Şifre</Label>
+                      <Input placeholder="Boş bırakırsanız otomatik oluşturulur (eposta+2026)" value={newPersonPassword} onChange={e => setNewPersonPassword(e.target.value)} />
+                      <p className="text-[11px] text-slate-400">Boş bırakılırsa varsayılan: e-posta önek + 2026</p>
+                    </div>
+                    <Button onClick={handleAddAssistant} className="w-full bg-emerald-600 hover:bg-emerald-700 gap-2"><Plus className="h-4 w-4" /> Ekle</Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
             {/* Pending duty changes for admin approval */}
             {isAdmin && (() => {
               const allPendingChanges = assistants.flatMap(a => (a.pendingDutyChanges || []).filter(c => c.status === 'pending').map(c => ({ ...c, assistantName: a.name })))
@@ -1048,27 +1176,41 @@ export default function Home() {
                     </div>
 
                     {isAdmin && (
-                      <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
-                        <span className="text-xs text-slate-500">Durum:</span>
-                        <Button
-                          size="sm"
-                          variant={ra.isActive ? "outline" : "default"}
-                          className={`text-xs gap-1 ${ra.isActive ? 'border-red-300 text-red-700 hover:bg-red-50' : 'bg-emerald-600 hover:bg-emerald-700'}`}
-                          onClick={async () => {
-                            try {
-                              const res = await fetch('/api/toggle-active', {
-                                method: 'PUT',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ assistantId: ra.id, isActive: !ra.isActive }),
-                              })
-                              const data = await res.json()
-                              if (res.ok) { toast.success(data.message); fetchData() }
-                              else { toast.error(data.error) }
-                            } catch { toast.error('Bağlantı hatası') }
-                          }}
-                        >
-                          {ra.isActive ? 'Pasif Yap' : 'Aktif Yap'}
-                        </Button>
+                      <div className="mt-4 pt-3 border-t border-slate-100 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-slate-500">Durum:</span>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              size="sm"
+                              variant={ra.isActive ? "outline" : "default"}
+                              className={`text-xs gap-1 ${ra.isActive ? 'border-red-300 text-red-700 hover:bg-red-50' : 'bg-emerald-600 hover:bg-emerald-700'}`}
+                              onClick={async () => {
+                                try {
+                                  const res = await fetch('/api/toggle-active', {
+                                    method: 'PUT',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ assistantId: ra.id, isActive: !ra.isActive }),
+                                  })
+                                  const data = await res.json()
+                                  if (res.ok) { toast.success(data.message); fetchData() }
+                                  else { toast.error(data.error) }
+                                } catch { toast.error('Bağlantı hatası') }
+                              }}
+                            >
+                              {ra.isActive ? 'Pasif Yap' : 'Aktif Yap'}
+                            </Button>
+                            <Button size="sm" variant="outline" className="text-xs gap-1 border-blue-300 text-blue-700 hover:bg-blue-50" onClick={() => handleResetPassword(ra.id, ra.name)}>
+                              Şifre Sıfırla
+                            </Button>
+                          </div>
+                        </div>
+                        {ra.role !== 'admin' && (
+                          <div className="flex justify-end">
+                            <Button size="sm" variant="outline" className="text-xs gap-1 border-red-300 text-red-600 hover:bg-red-50" onClick={() => handleRemoveAssistant(ra.id, ra.name)}>
+                              <Trash2 className="h-3 w-3" /> Kaldır
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     )}
                   </CardContent>
