@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "Bu Excel dosyası, **görev yönetimi ve planlama** odaklı bir yapıya sahip. Detaylı analiz aşağıdadır:\n\n\n### **1. Sayfa Sayısı ve Adları**  \nDosyada **6 sayfa** bulunmaktadır (alttaki sekmelerden anlaşılıyor):  \n- `TOPILAM` (Ana sayfa)  \n- `Ar.Gör. Bilgileri`  \n- `Puan Barımı`  \n- `Haftalık Program`  \n- `Genel Görevler`  \n- `Begüm DOGANAY` / `Fatih NACAR` / `Y.Tank MUTLU` / `Merve GÜL` (4 farklı isimli sayfa, muhtemelen kişisel görev listeleri)  \n\n\n### **2. Ana Sayfa (`TOPILAM`): Yapı ve Sütunlar**  \nAna sayfa, görevlerin detaylı listesini içerir. Sütunlar ve anlamları:  \n\n| Sütun | Başlık       | Açıklama                                                                 |\n|-------|-------------|--------------------------------------------------------------------------|\n| A     | `Sayı`       | Görevin sıra numarası (1’den başlayarak artan)                               |\n| B     | `Görev`      | Görevin adı (örn: *Toplantı (MÜDEK)*, *MÜDEK ders katalogları hazırlama*)       |\n| C     | `Çalışılan saat` | Görev için harcanan süre (saat cinsinden; *TÜM GÜN* = tam gün)                |\n| D     | `Tarih`      | Görevin tarihi (gün/ay/yıl ve gün adı; örn: *21 Temmuz 2025 Pazartesi*)         |\n| E     | `Puan`       | Görevin önem/öncelik puanı (1-12 arası)                                     |\n| F-J   | Boş          | Kullanılmıyor (görev listesi için ek alan)                                  |\n\n\n#### **Ek Bilgiler (Sağ Tarafta)**  \n- **`DAİMİ GÖREVLER`** (I-J sütunları): Kalıcı görevler listesi (örn: *Kalite komisyonu*, *İTÜ DF Ar.Gör. temsilciliği*).  \n- **İzin Bilgisi**: Sarı arka planla *“4-5 Aralık 2025 izinli”* ve *“10 Aralık 2025 15:30 Bölüm kurulu toplantısı”* notları var.  \n\n\n### **3. Diğer Sayfaların Yapısı**  \nDiğer sayfaların (örn: `Ar.Gör. Bilgileri`, `Puan Barımı`, `Haftalık Program`) **içeriği tam olarak görülmediği için** genel tahminler:  \n- **`Ar.Gör. Bilgileri`**: Araştırma görevlilerinin (Ar.Gör.) kişisel bilgileri (isim, unvan, departman vb.).  \n- **`Puan Barımı`**: Görev puanlarının grafik/çubuk grafiği ile görselleştirilmesi (puanlara göre görev önceliklendirme).  \n- **`Haftalık Program`**: Haftalık görev planlaması (günlere göre görev dağılımı).  \n- **Kişisel Sayfalar (`Begüm DOGANAY` vb.)**: Belirli kişilere ait görev listeleri (isimlere göre filtrelenmiş görevler).  \n\n\n### **Özet**  \n- **Toplam sayfa**: 6  \n- **Ana sayfa (`TOPILAM`)**: Görev listesi (sütunlar: Sayı, Görev, Çalışılan saat, Tarih, Puan).  \n- **Ek sayfalar**: Araştırma görevlileri bilgisi, puan görselleştirme, haftalık program ve kişisel görev listeleri.  \n\nBu yapı, görevlerin detaylı takibini, önceliklendirilmesini ve kişisel planlamayı destekler.",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1782478357,
+  "id": "202606262052088a09be5e8fe340b4",
+  "model": "glm-4.6v",
+  "object": "chat.completion",
+  "request_id": "202606262052088a09be5e8fe340b4",
+  "usage": {
+    "completion_tokens": 927,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 2805,
+    "prompt_tokens_details": {
+      "cached_tokens": 5
+    },
+    "total_tokens": 3732
+  }
+}
