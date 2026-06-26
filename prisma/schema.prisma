@@ -20,7 +20,7 @@ model ResearchAssistant {
   totalPoints Int     @default(0)
   order     Int      @default(0)
   isActive  Boolean  @default(true)
-  role      String   @default("user") // admin, user
+  role      String   @default("user")
   password  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -51,8 +51,8 @@ model Task {
   hoursWorked String?
   date        DateTime
   points      Int
-  status      String   @default("pending") // pending, approved, rejected
-  source      String   @default("external") // external, department_head, auto_assigned
+  status      String   @default("pending")
+  source      String   @default("external")
   assignedBy  String?
   notes       String?
   createdAt   DateTime @default(now())
@@ -105,7 +105,7 @@ model ExamSupervisor {
 
 model WeeklySchedule {
   id          String   @id @default(cuid())
-  dayOfWeek   Int      // 1=Monday, 5=Friday
+  dayOfWeek   Int
   timeSlot    String
   description String
   createdAt   DateTime @default(now())
@@ -119,9 +119,9 @@ model Notification {
   id          String   @id @default(cuid())
   title       String
   message     String
-  type        String   @default("info") // info, success, warning, task_assigned, exam_assigned
+  type        String   @default("info")
   isRead      Boolean  @default(false)
-  relatedId   String?  // Related task or exam id
+  relatedId   String?
   createdAt   DateTime @default(now())
 
   assistantId String
@@ -133,7 +133,7 @@ model ImportLog {
   fileName    String
   fileType    String   @default("xlsx")
   recordCount Int      @default(0)
-  status      String   @default("processing") // processing, completed, failed
+  status      String   @default("processing")
   error       String?
   createdAt   DateTime @default(now())
 }

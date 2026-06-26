@@ -388,7 +388,12 @@ export default function Home() {
                     <div className="space-y-2"><Label>E-posta</Label><Input placeholder="ymutlu@itu.edu.tr" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} /></div>
                     <div className="space-y-2"><Label>Şifre</Label><Input type="password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleLogin()} /></div>
                     <Button onClick={handleLogin} className="w-full bg-emerald-600 hover:bg-emerald-700 gap-2"><LogIn className="h-4 w-4" /> Giriş Yap</Button>
-                    <div className="text-[11px] text-slate-400"><p><b>Admin:</b> ymutlu@itu.edu.tr / tarik2026</p><p><b>Kullanıcı:</b> sbicen@itu.edu.tr / argor2026</p></div>
+                    <div className="text-[11px] text-slate-400 space-y-0.5">
+                      <p className="font-semibold text-slate-500 mb-1">Giriş Bilgileri:</p>
+                      <p>ymutlu@itu.edu.tr / tarik2026 (Temsilci)</p>
+                      <p>cenkkaya@itu.edu.tr / cenk2026</p>
+                      <p>sbicen@itu.edu.tr / samet2026</p>
+                    </div>
                   </div>
                 </DialogContent>
               </Dialog>
@@ -745,7 +750,7 @@ export default function Home() {
           <TabsContent value="import" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card className="border-0 shadow-md">
-                <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2"><Upload className="h-5 w-5 text-orange-600" /> Veri İçe Aktarma</CardTitle><CardDescription>Begüm'ün Excel'ini sisteme aktarın</CardDescription></CardHeader>
+                <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2"><Upload className="h-5 w-5 text-orange-600" /> Veri İçe Aktarma</CardTitle><CardDescription>CSV dosyasından toplu görev ve sınav aktarımı</CardDescription></CardHeader>
                 <CardContent className="space-y-6">
                   <div className="space-y-2"><Label className="text-sm">Tür</Label><Select value={importType} onValueChange={setImportType}><SelectTrigger /><SelectContent><SelectItem value="tasks">Görevler</SelectItem><SelectItem value="exams">Sınavlar</SelectItem></SelectContent></Select></div>
                   <div className="space-y-2"><Label className="text-sm">Dosya (CSV)</Label>
