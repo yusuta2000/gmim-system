@@ -811,19 +811,50 @@ export default function Home() {
           <TabsContent value="personnel" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {assistants.map(ra => (
-                <Card key={ra.id} className="border-0 shadow-md hover:shadow-lg transition-shadow">
+                <Card key={ra.id} className={`border-0 shadow-md hover:shadow-lg transition-shadow ${!ra.isActive ? 'opacity-60' : ''}`}>
                   <CardContent className="p-5">
                     <div className="flex items-start gap-4">
-                      <div className={`h-12 w-12 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-lg ${ra.role === 'admin' ? 'bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-emerald-200' : 'bg-gradient-to-br from-slate-400 to-slate-500 shadow-slate-200'}`}>
+                      <div className={`h-12 w-12 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-lg ${!ra.isActive ? 'bg-gradient-to-br from-red-300 to-red-400 shadow-red-200' : ra.role === 'admin' ? 'bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-emerald-200' : 'bg-gradient-to-br from-slate-400 to-slate-500 shadow-slate-200'}`}>
                         {ra.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2"><h3 className="font-bold truncate">{ra.name}</h3>{ra.role === 'admin' && <Badge className="bg-emerald-100 text-emerald-700 text-[10px] gap-0.5"><Shield className="h-2.5 w-2.5" /> Temsilci</Badge>}</div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-bold truncate">{ra.name}</h3>
+                          {ra.role === 'admin' && <Badge className="bg-emerald-100 text-emerald-700 text-[10px] gap-0.5"><Shield className="h-2.5 w-2.5" /> Temsilci</Badge>}
+                          {!ra.isActive && <Badge className="bg-red-100 text-red-700 text-[10px]">🔴 Pasif</Badge>}
+                        </div>
                         <p className="text-xs text-slate-500 truncate">{ra.email}</p>
-                        <div className="flex items-center gap-3 mt-2"><Badge variant="outline" className="text-xs">{ra.faculty} - {ra.department}</Badge><Badge className="bg-emerald-100 text-emerald-700 text-xs">{ra.totalPoints} puan</Badge></div>
+                        <div className="flex items-center gap-3 mt-2">
+                          <Badge variant="outline" className="text-xs">{ra.faculty} - {ra.department}</Badge>
+                          <Badge className="bg-emerald-100 text-emerald-700 text-xs">{ra.totalPoints} puan</Badge>
+                        </div>
                       </div>
                     </div>
                     {ra.permanentDuties.length > 0 && <div className="mt-4 pt-3 border-t border-slate-100"><p className="text-xs font-medium text-slate-400 mb-2">Daimi Görevler:</p><div className="space-y-1">{ra.permanentDuties.map(pd => <div key={pd.id} className="flex items-center gap-2 text-xs text-slate-600"><div className="h-1.5 w-1.5 rounded-full bg-emerald-400 flex-shrink-0"></div><span>{pd.name}</span></div>)}</div></div>}
+                    {isAdmin && (
+                      <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                        <span className="text-xs text-slate-500">Durum:</span>
+                        <Button
+                          size="sm"
+                          variant={ra.isActive ? "outline" : "default"}
+                          className={`text-xs gap-1 ${ra.isActive ? 'border-red-300 text-red-700 hover:bg-red-50' : 'bg-emerald-600 hover:bg-emerald-700'}`}
+                          onClick={async () => {
+                            try {
+                              const res = await fetch('/api/toggle-active', {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ assistantId: ra.id, isActive: !ra.isActive }),
+                              })
+                              const data = await res.json()
+                              if (res.ok) { toast.success(data.message); fetchData() }
+                              else { toast.error(data.error) }
+                            } catch { toast.error('Bağlantı hatası') }
+                          }}
+                        >
+                          {ra.isActive ? 'Pasif Yap' : 'Aktif Yap'}
+                        </Button>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               ))}
