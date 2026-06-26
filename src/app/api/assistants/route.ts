@@ -13,6 +13,10 @@ export async function GET() {
         permanentDuties: {
           orderBy: { order: 'asc' },
         },
+        pendingDutyChanges: {
+          where: { status: 'pending' },
+          orderBy: { createdAt: 'desc' },
+        },
       },
     });
     // Strip passwords from response for security

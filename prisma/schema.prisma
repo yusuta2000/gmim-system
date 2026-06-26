@@ -28,6 +28,7 @@ model ResearchAssistant {
 
   tasks     Task[]
   permanentDuties PermanentDuty[]
+  pendingDutyChanges PendingDutyChange[]
   examAssignments ExamSupervisor[]
   weeklySchedule WeeklySchedule[]
   notifications Notification[]
@@ -127,6 +128,21 @@ model Notification {
 
   assistantId String
   assistant   ResearchAssistant @relation(fields: [assistantId], references: [id])
+}
+
+model PendingDutyChange {
+  id          String   @id @default(cuid())
+  changeType  String   // "add", "edit", "delete"
+  dutyName    String   // new name (for add/edit) or existing name (for delete)
+  description String?
+  status      String   @default("pending") // pending, approved, rejected
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  assistantId String
+  assistant   ResearchAssistant @relation(fields: [assistantId], references: [id])
+  dutyId      String?  // existing duty ID for edit/delete
+  submittedBy String?  // who submitted this change
 }
 
 model ImportLog {

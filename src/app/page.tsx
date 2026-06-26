@@ -26,7 +26,7 @@ import {
 interface ResearchAssistant {
   id: string; name: string; email: string; phone: string | null
   faculty: string; department: string; totalPoints: number; order: number
-  isActive: boolean; role: string; tasks: Task[]; permanentDuties: PermanentDuty[]
+  isActive: boolean; role: string; tasks: Task[]; permanentDuties: PermanentDuty[]; pendingDutyChanges: PendingDutyChange[]
 }
 interface Task {
   id: string; number: number; description: string; hoursWorked: string | null
@@ -34,6 +34,7 @@ interface Task {
   assistantId: string; categoryId: string | null; assistant?: ResearchAssistant; category?: PointCategory
 }
 interface PointCategory { id: string; name: string; points: number; description: string | null; isActive: boolean }
+interface PendingDutyChange { id: string; changeType: string; dutyName: string; description: string | null; status: string; assistantId: string; dutyId: string | null; submittedBy: string | null; createdAt: string }
 interface Exam {
   id: string; courseCode: string; courseName: string; instructor: string; date: string
   day: string; timeSlot: string; classroom: string | null; requiredSupervisors: number
@@ -105,6 +106,13 @@ export default function Home() {
   const [importFile, setImportFile] = useState<File | null>(null)
   const [importType, setImportType] = useState('tasks')
   const [isImporting, setIsImporting] = useState(false)
+
+  // Task filter for admin
+  const [taskFilterAssistant, setTaskFilterAssistant] = useState<string>('all')
+
+  // Permanent duty editing
+  const [editingDutyAssistantId, setEditingDutyAssistantId] = useState<string | null>(null)
+  const [newDutyName, setNewDutyName] = useState('')
 
   // Dialogs
   const [showNotifDialog, setShowNotifDialog] = useState(false)
@@ -300,6 +308,52 @@ export default function Home() {
       })
       const data = await res.json()
       if (res.ok) { toast.success(data.message); setShowResetDialog(false); fetchData() }
+      else { toast.error(data.error) }
+    } catch { toast.error('Bağlantı hatası') }
+  }
+
+  // Delete task (admin only)
+  const handleDeleteTask = async (taskId: string) => {
+    if (!currentUser || !isAdmin) return
+    try {
+      const res = await fetch(`/api/delete-task?id=${taskId}&requesterId=${currentUser.id}`, { method: 'DELETE' })
+      const data = await res.json()
+      if (res.ok) { toast.success(data.message); fetchData() }
+      else { toast.error(data.error) }
+    } catch { toast.error('Bağlantı hatası') }
+  }
+
+  // Permanent duty change (admin: direct, user: pending approval)
+  const handleDutyChange = async (assistantId: string, changeType: 'add' | 'edit' | 'delete', dutyName: string, dutyId?: string, description?: string) => {
+    if (!currentUser) return
+    try {
+      const res = await fetch('/api/pending-duty', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assistantId, changeType, dutyName, description: description || null,
+          dutyId: dutyId || null, submittedBy: currentUser.id,
+          isDirectAdmin: isAdmin,
+        }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        toast.success(isAdmin ? 'Daimi görev güncellendi' : 'Değişiklik talebi gönderildi, onay bekleniyor')
+        setEditingDutyAssistantId(null); setNewDutyName('')
+        fetchData()
+      } else { toast.error(data.error) }
+    } catch { toast.error('Bağlantı hatası') }
+  }
+
+  // Approve/reject pending duty change
+  const handleDutyApproval = async (changeId: string, action: 'approve' | 'reject') => {
+    if (!currentUser || !isAdmin) return
+    try {
+      const res = await fetch('/api/pending-duty', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ changeId, action, reviewerId: currentUser.id }),
+      })
+      const data = await res.json()
+      if (res.ok) { toast.success(data.message); fetchData() }
       else { toast.error(data.error) }
     } catch { toast.error('Bağlantı hatası') }
   }
@@ -656,27 +710,87 @@ export default function Home() {
                 </CardContent>
               </Card>
               <Card className="border-0 shadow-md lg:col-span-2">
-                <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2"><ListChecks className="h-5 w-5 text-slate-700" /> Tüm Görevler</CardTitle><CardDescription>{tasks.length} görev kayıtlı</CardDescription></CardHeader>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <ListChecks className="h-5 w-5 text-slate-700" />
+                        {isAdmin ? 'Tüm Görevler' : 'İş Geçmişim'}
+                      </CardTitle>
+                      <CardDescription>
+                        {isAdmin
+                          ? taskFilterAssistant === 'all'
+                            ? `${tasks.length} görev kayıtlı`
+                            : `${tasks.filter(t => t.assistantId === taskFilterAssistant).length} görev (${assistants.find(a => a.id === taskFilterAssistant)?.name})`
+                          : `${tasks.filter(t => t.assistantId === currentUser?.id).length} görev kaydınız var`
+                        }
+                      </CardDescription>
+                    </div>
+                    {isAdmin && (
+                      <Select value={taskFilterAssistant} onValueChange={setTaskFilterAssistant}>
+                        <SelectTrigger className="w-48"><SelectValue placeholder="Kişi filtrele" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Tümü ({tasks.length})</SelectItem>
+                          {sortedByPoints.filter(a => a.isActive).map(ra => (
+                            <SelectItem key={ra.id} value={ra.id}>{ra.name} ({ra.totalPoints}p)</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+                </CardHeader>
                 <CardContent>
                   <ScrollArea className="h-[600px]">
-                    <Table>
-                      <TableHeader><TableRow>
-                        <TableHead className="w-12">#</TableHead><TableHead>Araş Gör</TableHead><TableHead>Görev</TableHead><TableHead>Tarih</TableHead><TableHead className="text-right">Puan</TableHead><TableHead>Kaynak</TableHead><TableHead>Durum</TableHead>
-                      </TableRow></TableHeader>
-                      <TableBody>
-                        {tasks.map(task => (
-                          <TableRow key={task.id}>
-                            <TableCell className="font-mono text-xs text-slate-400">{task.number}</TableCell>
-                            <TableCell><span className="text-sm font-medium">{task.assistant?.name}</span></TableCell>
-                            <TableCell><span className="text-sm">{task.description}</span>{task.category && <Badge variant="outline" className="ml-2 text-[10px]">{task.category.name}</Badge>}</TableCell>
-                            <TableCell className="text-xs text-slate-500">{new Date(task.date).toLocaleDateString('tr-TR')}</TableCell>
-                            <TableCell className="text-right font-semibold">{task.points}</TableCell>
-                            <TableCell><Badge variant="outline" className="text-[10px]">{task.source === 'auto_assigned' ? '🤖 Otomatik' : task.source === 'import' ? '📥 İçe Aktarma' : task.source === 'temsilci_assigned' ? '👤 Temsilci' : '📝 Kendi Bildirimi'}</Badge></TableCell>
-                            <TableCell><Badge variant={task.status === 'approved' ? 'default' : task.status === 'pending' ? 'secondary' : 'destructive'} className="text-[10px]">{task.status === 'approved' ? '✅ Onaylı' : task.status === 'pending' ? '⏳ Bekliyor' : '❌ Reddedildi'}</Badge></TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                    <div className="space-y-2">
+                      {(isAdmin
+                        ? taskFilterAssistant === 'all' ? tasks : tasks.filter(t => t.assistantId === taskFilterAssistant)
+                        : tasks.filter(t => t.assistantId === currentUser?.id)
+                      ).map(task => (
+                        <div key={task.id} className={`p-3 rounded-xl border transition-all hover:border-slate-300 ${task.status === 'rejected' ? 'opacity-50 border-red-100' : task.status === 'pending' ? 'border-amber-200 bg-amber-50/30' : 'border-slate-200'}`}>
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                {isAdmin && (
+                                  <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">{task.assistant?.name}</span>
+                                )}
+                                <span className="text-sm font-medium text-slate-900">{task.description}</span>
+                                {task.category && <Badge variant="outline" className="text-[10px]">{task.category.name}</Badge>}
+                              </div>
+                              <div className="flex items-center gap-3 mt-1.5 text-xs text-slate-500">
+                                <span>{new Date(task.date).toLocaleDateString('tr-TR')}</span>
+                                {task.hoursWorked && <span>{task.hoursWorked}</span>}
+                                <Badge variant="outline" className="text-[10px]">
+                                  {task.source === 'auto_assigned' ? 'Otomatik' : task.source === 'import' ? 'İçe Aktarma' : task.source === 'temsilci_assigned' ? 'Temsilci' : 'Kendi Bildirimi'}
+                                </Badge>
+                                <Badge variant={task.status === 'approved' ? 'default' : task.status === 'pending' ? 'secondary' : 'destructive'} className="text-[10px]">
+                                  {task.status === 'approved' ? 'Onaylı' : task.status === 'pending' ? 'Bekliyor' : 'Reddedildi'}
+                                </Badge>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <div className="text-right">
+                                <span className="text-lg font-bold text-slate-900">{task.points}</span>
+                                <span className="text-xs text-slate-400 ml-0.5">p</span>
+                              </div>
+                              {isAdmin && (
+                                <Button variant="ghost" size="icon" className="h-7 w-7 text-red-400 hover:text-red-600 hover:bg-red-50" onClick={() => handleDeleteTask(task.id)}>
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      {(isAdmin
+                        ? taskFilterAssistant === 'all' ? tasks : tasks.filter(t => t.assistantId === taskFilterAssistant)
+                        : tasks.filter(t => t.assistantId === currentUser?.id)
+                      ).length === 0 && (
+                        <div className="text-center py-12 text-slate-400">
+                          <ListChecks className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                          <p className="text-sm">Henüz görev kaydı yok</p>
+                        </div>
+                      )}
+                    </div>
                   </ScrollArea>
                 </CardContent>
               </Card>
@@ -827,6 +941,35 @@ export default function Home() {
 
           {/* PERSONNEL */}
           <TabsContent value="personnel" className="space-y-6">
+            {/* Pending duty changes for admin approval */}
+            {isAdmin && (() => {
+              const allPendingChanges = assistants.flatMap(a => (a.pendingDutyChanges || []).filter(c => c.status === 'pending').map(c => ({ ...c, assistantName: a.name })))
+              return allPendingChanges.length > 0 && (
+                <Card className="border-0 shadow-md border-l-4 border-l-amber-400">
+                  <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2"><Clock className="h-5 w-5 text-amber-600" /> Bekleyen Daimi Görev Değişiklikleri</CardTitle><CardDescription>{allPendingChanges.length} talep bekliyor</CardDescription></CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {allPendingChanges.map(c => (
+                        <div key={c.id} className="flex items-center justify-between p-3 rounded-xl border border-amber-200 bg-amber-50/50">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-semibold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded">{c.assistantName}</span>
+                              <span className="text-xs text-amber-600">{c.changeType === 'add' ? 'Ekleme' : c.changeType === 'edit' ? 'Düzenleme' : 'Silme'}</span>
+                            </div>
+                            <p className="text-sm font-medium text-slate-900 mt-1">"{c.dutyName}"</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button size="sm" variant="outline" className="h-7 text-xs gap-1 border-emerald-300 text-emerald-700 hover:bg-emerald-50" onClick={() => handleDutyApproval(c.id, 'approve')}><Check className="h-3 w-3" /> Onayla</Button>
+                            <Button size="sm" variant="outline" className="h-7 text-xs gap-1 border-red-300 text-red-700 hover:bg-red-50" onClick={() => handleDutyApproval(c.id, 'reject')}><XCircle className="h-3 w-3" /> Reddet</Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })()}
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {assistants.map(ra => (
                 <Card key={ra.id} className={`border-0 shadow-md hover:shadow-lg transition-shadow ${!ra.isActive ? 'opacity-60' : ''}`}>
@@ -839,7 +982,7 @@ export default function Home() {
                         <div className="flex items-center gap-2 flex-wrap">
                           <h3 className="font-bold truncate">{ra.name}</h3>
                           {ra.role === 'admin' && <Badge className="bg-emerald-100 text-emerald-700 text-[10px] gap-0.5"><Shield className="h-2.5 w-2.5" /> Temsilci</Badge>}
-                          {!ra.isActive && <Badge className="bg-red-100 text-red-700 text-[10px]">🔴 Pasif</Badge>}
+                          {!ra.isActive && <Badge className="bg-red-100 text-red-700 text-[10px]">Pasif</Badge>}
                         </div>
                         <p className="text-xs text-slate-500 truncate">{ra.email}</p>
                         <div className="flex items-center gap-3 mt-2">
@@ -848,7 +991,62 @@ export default function Home() {
                         </div>
                       </div>
                     </div>
-                    {ra.permanentDuties.length > 0 && <div className="mt-4 pt-3 border-t border-slate-100"><p className="text-xs font-medium text-slate-400 mb-2">Daimi Görevler:</p><div className="space-y-1">{ra.permanentDuties.map(pd => <div key={pd.id} className="flex items-center gap-2 text-xs text-slate-600"><div className="h-1.5 w-1.5 rounded-full bg-emerald-400 flex-shrink-0"></div><span>{pd.name}</span></div>)}</div></div>}
+
+                    {/* Daimi Görevler */}
+                    <div className="mt-4 pt-3 border-t border-slate-100">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs font-medium text-slate-400">Daimi Görevler:</p>
+                        {(isAdmin || currentUser?.id === ra.id) && (
+                          <Button variant="ghost" size="sm" className="h-6 text-[10px] gap-1 text-emerald-600 hover:bg-emerald-50" onClick={() => { setEditingDutyAssistantId(editingDutyAssistantId === ra.id ? null : ra.id); setNewDutyName('') }}>
+                            <Plus className="h-3 w-3" /> Düzenle
+                          </Button>
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        {ra.permanentDuties.map(pd => (
+                          <div key={pd.id} className="flex items-center justify-between gap-2 text-xs text-slate-600 group">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <div className="h-1.5 w-1.5 rounded-full bg-emerald-400 flex-shrink-0"></div>
+                              <span className="truncate">{pd.name}</span>
+                            </div>
+                            {editingDutyAssistantId === ra.id && (
+                              <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Button variant="ghost" size="icon" className="h-5 w-5 text-red-400 hover:text-red-600 hover:bg-red-50" onClick={() => handleDutyChange(ra.id, 'delete', pd.name, pd.id)}>
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                        {ra.permanentDuties.length === 0 && <p className="text-xs text-slate-400 italic">Daimi görev yok</p>}
+                        {/* Pending changes indicator for this assistant */}
+                        {(ra.pendingDutyChanges || []).filter(c => c.status === 'pending').length > 0 && !isAdmin && currentUser?.id === ra.id && (
+                          <div className="mt-2 p-2 rounded-lg bg-amber-50 border border-amber-200">
+                            <p className="text-[10px] text-amber-700 font-medium">Onay bekleyen değişiklikler:</p>
+                            {ra.pendingDutyChanges.filter(c => c.status === 'pending').map(c => (
+                              <div key={c.id} className="flex items-center gap-1 text-[10px] text-amber-600 mt-0.5">
+                                <Clock className="h-2.5 w-2.5" />
+                                <span>{c.changeType === 'add' ? 'Ekleme' : c.changeType === 'edit' ? 'Düzenleme' : 'Silme'}: "{c.dutyName}"</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {/* Add new duty input */}
+                        {editingDutyAssistantId === ra.id && (
+                          <div className="mt-2 flex gap-2">
+                            <Input placeholder="Yeni görev adı" value={newDutyName} onChange={e => setNewDutyName(e.target.value)} className="h-7 text-xs" onKeyDown={e => {
+                              if (e.key === 'Enter' && newDutyName.trim()) {
+                                handleDutyChange(ra.id, 'add', newDutyName.trim())
+                              }
+                            }} />
+                            <Button size="sm" className="h-7 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700" onClick={() => { if (newDutyName.trim()) handleDutyChange(ra.id, 'add', newDutyName.trim()) }} disabled={!newDutyName.trim()}>
+                              <Plus className="h-3 w-3" /> Ekle
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
                     {isAdmin && (
                       <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
                         <span className="text-xs text-slate-500">Durum:</span>
