@@ -152,6 +152,11 @@ export default function Home() {
   useEffect(() => { fetchData() }, [fetchData])
 
   const isAdmin = currentUser?.role === 'admin'
+  const isViewer = currentUser?.role === 'dekan' || currentUser?.role === 'baskan'
+  const isArGor = currentUser?.role === 'user'
+  // Viewer ve admin tüm listeyi görür; ar.gör sadece kendini
+  const canSeeAll = isAdmin || isViewer
+  const canEdit = isAdmin // sadece admin düzenleyebilir
 
   // Auth
   const handleLogin = async () => {
@@ -164,9 +169,11 @@ export default function Home() {
       const data = await res.json()
       if (res.ok) {
         setCurrentUser(data.user); setShowLoginDialog(false); setLoginEmail(''); setLoginPassword('')
-        toast.success(`Hoş geldiniz, ${data.user.name}!`, { description: data.user.role === 'admin' ? 'Temsilci (Admin)' : 'Araş Gör' })
+        const roleLabel = data.user.role === 'admin' ? 'Temsilci' : data.user.role === 'dekan' ? 'Dekan' : data.user.role === 'baskan' ? 'Bölüm Başkanı' : 'Araş Gör'
+        toast.success(`Hoş geldiniz, ${data.user.name}!`, { description: roleLabel })
         // Rol bazlı default tab
-        setActiveTab(data.user.role === 'admin' ? 'dashboard' : 'tasks')
+        const role = data.user.role
+        setActiveTab(role === 'admin' || role === 'dekan' || role === 'baskan' ? 'dashboard' : 'tasks')
         fetchData()
       } else { toast.error(data.error || 'Giriş başarısız') }
     } catch { toast.error('Bağlantı hatası') }
@@ -595,8 +602,8 @@ export default function Home() {
             </Dialog>
             {currentUser ? (
               <div className="flex items-center gap-2">
-                <Badge className={`gap-1 text-xs ${isAdmin ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700'}`}>
-                  <Shield className="h-3 w-3" />{isAdmin ? 'Temsilci' : 'Ar.Gör'}
+                <Badge className={`gap-1 text-xs ${isAdmin ? 'bg-emerald-100 text-emerald-800' : isViewer ? 'bg-violet-100 text-violet-800' : 'bg-slate-100 text-slate-700'}`}>
+                  <Shield className="h-3 w-3" />{isAdmin ? 'Temsilci' : currentUser?.role === 'dekan' ? 'Dekan' : currentUser?.role === 'baskan' ? 'Bölüm Bşk.' : 'Ar.Gör'}
                 </Badge>
                 <span className="text-xs text-slate-600 hidden sm:inline">{currentUser.name}</span>
                 <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
@@ -731,12 +738,12 @@ export default function Home() {
                 <div className="space-y-3">
                   {sortedByPoints.filter(ra => ra.isActive).map((ra, idx) => {
                     const isExpanded = expandedAssistantId === ra.id
-                    const stats = isExpanded && isAdmin ? getAssistantStats(ra.id) : null
+                    const stats = isExpanded && canSeeAll ? getAssistantStats(ra.id) : null
                     return (
-                    <div key={ra.id} className={`rounded-xl transition-all ${idx === 0 ? 'bg-emerald-50 border border-emerald-200' : ''} ${isAdmin ? 'cursor-pointer hover:bg-slate-50' : ''}`}>
+                    <div key={ra.id} className={`rounded-xl transition-all ${idx === 0 ? 'bg-emerald-50 border border-emerald-200' : ''} ${canSeeAll ? 'cursor-pointer hover:bg-slate-50' : ''}`}>
                       <div
-                        className={`flex items-center gap-4 p-3 ${isAdmin ? 'cursor-pointer' : ''}`}
-                        onClick={() => isAdmin && setExpandedAssistantId(isExpanded ? null : ra.id)}
+                        className={`flex items-center gap-4 p-3 ${canSeeAll ? 'cursor-pointer' : ''}`}
+                        onClick={() => canSeeAll && setExpandedAssistantId(isExpanded ? null : ra.id)}
                       >
                         <div className={`flex-shrink-0 h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold ${idx === 0 ? 'bg-emerald-500 text-white' : idx === 1 ? 'bg-amber-500 text-white' : idx === 2 ? 'bg-orange-400 text-white' : 'bg-slate-200 text-slate-600'}`}>{idx + 1}</div>
                         <div className="flex-1 min-w-0">
@@ -744,7 +751,7 @@ export default function Home() {
                             <span className="font-semibold text-slate-900 truncate">{ra.name}</span>
                             {idx === 0 && <Badge className="bg-emerald-500 text-white text-[10px] px-1.5 py-0 h-5 gap-0.5"><Zap className="h-2.5 w-2.5" /> ÖNCELİKLİ</Badge>}
                             {ra.role === 'admin' && <Badge className="bg-slate-700 text-white text-[10px] px-1.5 py-0 h-5 gap-0.5"><Shield className="h-2.5 w-2.5" /> TEMSİLCİ</Badge>}
-                            {isAdmin && <ChevronRight className={`h-3.5 w-3.5 text-slate-400 ml-auto transition-transform ${isExpanded ? 'rotate-90' : ''}`} />}
+                            {canSeeAll && <ChevronRight className={`h-3.5 w-3.5 text-slate-400 ml-auto transition-transform ${isExpanded ? 'rotate-90' : ''}`} />}
                           </div>
                           <Progress value={(ra.totalPoints / maxPoints) * 100} className="h-2 mt-1.5" />
                         </div>
@@ -921,16 +928,16 @@ export default function Home() {
           <TabsContent value="tasks" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Tüm Görevler / İş Geçmişim - SOLD A */}
-              <Card className="border-0 shadow-md lg:col-span-2 order-1 lg:order-1">
+              <Card className={`border-0 shadow-md order-1 ${canSeeAll && !isViewer ? 'lg:col-span-2' : 'lg:col-span-3'}`}>
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <div>
                       <CardTitle className="flex items-center gap-2">
                         <ListChecks className="h-5 w-5 text-slate-700" />
-                        {isAdmin ? 'Tüm Görevler' : 'İş Geçmişim'}
+                        {canSeeAll ? 'Tüm Görevler' : 'İş Geçmişim'}
                       </CardTitle>
                       <CardDescription>
-                        {isAdmin
+                        {canSeeAll
                           ? taskFilterAssistant === 'all'
                             ? `${tasks.length} görev kayıtlı`
                             : `${tasks.filter(t => t.assistantId === taskFilterAssistant).length} görev (${assistants.find(a => a.id === taskFilterAssistant)?.name})`
@@ -939,7 +946,7 @@ export default function Home() {
                       </CardDescription>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
-                      {isAdmin && (
+                      {canSeeAll && (
                         <Select value={taskFilterAssistant} onValueChange={setTaskFilterAssistant}>
                           <SelectTrigger className="w-44"><SelectValue placeholder="Kişi filtrele" /></SelectTrigger>
                           <SelectContent>
@@ -1018,7 +1025,8 @@ export default function Home() {
                 </CardContent>
               </Card>
 
-              {/* Görev Ata / Görev Bildir - SAĞDA */}
+              {/* Görev Ata / Görev Bildir - SAĞDA (viewer hariç) */}
+              {!isViewer && (
               <Card className="border-0 shadow-md lg:col-span-1 order-2 lg:order-2">
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center gap-2"><Plus className="h-5 w-5 text-emerald-600" /> {isAdmin ? 'Görev Ata' : 'Görev Bildir'}</CardTitle>
@@ -1088,33 +1096,15 @@ export default function Home() {
                   </Button>
                 </CardContent>
               </Card>
+              )}
             </div>
           </TabsContent>
 
           {/* EXAMS */}
           <TabsContent value="exams" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {isAdmin && (
-                <Card className="border-0 shadow-md lg:col-span-1">
-                  <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2"><Plus className="h-5 w-5 text-blue-600" /> Yeni Sınav</CardTitle></CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-2"><Label className="text-sm">Ders Kodu</Label><Input placeholder="GMI201" value={examCourseCode} onChange={e => setExamCourseCode(e.target.value)} /></div>
-                      <div className="space-y-2"><Label className="text-sm">Gözetmen</Label><Select value={examSupervisors} onValueChange={setExamSupervisors}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="1">1</SelectItem><SelectItem value="2">2</SelectItem><SelectItem value="3">3</SelectItem></SelectContent></Select></div>
-                    </div>
-                    <div className="space-y-2"><Label className="text-sm">Ders Adı</Label><Input value={examCourseName} onChange={e => setExamCourseName(e.target.value)} /></div>
-                    <div className="space-y-2"><Label className="text-sm">Öğr. Üyesi</Label><Input value={examInstructor} onChange={e => setExamInstructor(e.target.value)} /></div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-2"><Label className="text-sm">Tarih</Label><Input type="date" value={examDate} onChange={e => setExamDate(e.target.value)} /></div>
-                      <div className="space-y-2"><Label className="text-sm">Gün</Label><Select value={examDay} onValueChange={setExamDay}><SelectTrigger><SelectValue placeholder="Gün" /></SelectTrigger><SelectContent>{Object.entries(DAY_NAMES).map(([k, v]) => <SelectItem key={k} value={v}>{v}</SelectItem>)}</SelectContent></Select></div>
-                    </div>
-                    <div className="space-y-2"><Label className="text-sm">Saat</Label><Input placeholder="09:00-11:00" value={examTime} onChange={e => setExamTime(e.target.value)} /></div>
-                    <div className="space-y-2"><Label className="text-sm">Notlar</Label><Input value={examNotes} onChange={e => setExamNotes(e.target.value)} /></div>
-                    <Button onClick={handleSubmitExam} className="w-full bg-blue-600 hover:bg-blue-700 gap-2"><GraduationCap className="h-4 w-4" /> Ekle</Button>
-                  </CardContent>
-                </Card>
-              )}
-              <Card className={`border-0 shadow-md ${isAdmin ? 'lg:col-span-2' : 'lg:col-span-3'}`}>
+              {/* Sınavlar & Gözetmen - SOLDA */}
+              <Card className={`border-0 shadow-md order-1 ${isAdmin ? 'lg:col-span-2' : 'lg:col-span-3'}`}>
                 <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2"><GraduationCap className="h-5 w-5 text-blue-600" /> Sınavlar & Gözetmen</CardTitle><CardDescription>{exams.length} sınav{isAdmin ? ` · ${unassignedExams} gözetmen bekliyor` : ''}</CardDescription></CardHeader>
                 <CardContent><ScrollArea className="h-[600px]"><div className="space-y-4">
                   {exams.map(exam => (
@@ -1139,14 +1129,55 @@ export default function Home() {
                   ))}
                 </div></ScrollArea></CardContent>
               </Card>
+              {/* Yeni Sınav Ekle - SAĞDA */}
+              {isAdmin && (
+                <Card className="border-0 shadow-md lg:col-span-1 order-2">
+                  <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2"><Plus className="h-5 w-5 text-blue-600" /> Yeni Sınav</CardTitle></CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-2"><Label className="text-sm">Ders Kodu</Label><Input placeholder="GMI201" value={examCourseCode} onChange={e => setExamCourseCode(e.target.value)} /></div>
+                      <div className="space-y-2"><Label className="text-sm">Gözetmen</Label><Select value={examSupervisors} onValueChange={setExamSupervisors}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="1">1</SelectItem><SelectItem value="2">2</SelectItem><SelectItem value="3">3</SelectItem></SelectContent></Select></div>
+                    </div>
+                    <div className="space-y-2"><Label className="text-sm">Ders Adı</Label><Input value={examCourseName} onChange={e => setExamCourseName(e.target.value)} /></div>
+                    <div className="space-y-2"><Label className="text-sm">Öğr. Üyesi</Label><Input value={examInstructor} onChange={e => setExamInstructor(e.target.value)} /></div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-2"><Label className="text-sm">Tarih</Label><Input type="date" value={examDate} onChange={e => setExamDate(e.target.value)} /></div>
+                      <div className="space-y-2"><Label className="text-sm">Gün</Label><Select value={examDay} onValueChange={setExamDay}><SelectTrigger><SelectValue placeholder="Gün" /></SelectTrigger><SelectContent>{Object.entries(DAY_NAMES).map(([k, v]) => <SelectItem key={k} value={v}>{v}</SelectItem>)}</SelectContent></Select></div>
+                    </div>
+                    <div className="space-y-2"><Label className="text-sm">Saat</Label><Input placeholder="09:00-11:00" value={examTime} onChange={e => setExamTime(e.target.value)} /></div>
+                    <div className="space-y-2"><Label className="text-sm">Notlar</Label><Input value={examNotes} onChange={e => setExamNotes(e.target.value)} /></div>
+                    <Button onClick={handleSubmitExam} className="w-full bg-blue-600 hover:bg-blue-700 gap-2"><GraduationCap className="h-4 w-4" /> Ekle</Button>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </TabsContent>
 
           {/* SCHEDULE */}
           <TabsContent value="schedule" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Program Ekle - Hem admin hem ar.gör görür */}
-              <Card className="border-0 shadow-md lg:col-span-1">
+              {/* Haftalık Program - SOLDA */}
+              <Card className={`border-0 shadow-md order-1 ${!isViewer ? 'lg:col-span-2' : 'lg:col-span-3'}`}>
+                <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2"><CalendarDays className="h-5 w-5 text-violet-600" /> {canSeeAll ? 'Haftalık Program' : 'Haftalık Programım'}</CardTitle><CardDescription>
+                  {canSeeAll ? `${weeklySchedules.length} kayıt` : `${weeklySchedules.filter(s => s.assistantId === currentUser?.id).length} kaydınız var`}
+                </CardDescription></CardHeader>
+                <CardContent>
+                  <Table><TableHeader><TableRow><TableHead>Araş Gör</TableHead><TableHead>Gün</TableHead><TableHead>Saat</TableHead><TableHead>Ders</TableHead>{isAdmin && <TableHead className="w-12"></TableHead>}</TableRow></TableHeader>
+                    <TableBody>{(canSeeAll ? weeklySchedules : weeklySchedules.filter(s => s.assistantId === currentUser?.id)).sort((a, b) => a.dayOfWeek - b.dayOfWeek).map(s => (
+                      <TableRow key={s.id}>
+                        <TableCell><span className="text-sm font-medium">{s.assistant.name}</span></TableCell>
+                        <TableCell><Badge variant="outline" className="text-xs">{DAY_NAMES[s.dayOfWeek]}</Badge></TableCell>
+                        <TableCell className="text-sm font-mono">{s.timeSlot}</TableCell>
+                        <TableCell className="text-sm">{s.description}</TableCell>
+                        {isAdmin && <TableCell><Button variant="ghost" size="icon" className="h-7 w-7 text-red-400 hover:text-red-600 hover:bg-red-50" onClick={() => handleDeleteSchedule(s.id)}><Trash2 className="h-3.5 w-3.5" /></Button></TableCell>}
+                      </TableRow>
+                    ))}</TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+              {/* Program Ekle - SAĞDA (viewer hariç) */}
+              {!isViewer && (
+              <Card className="border-0 shadow-md lg:col-span-1 order-2">
                 <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2"><Plus className="h-5 w-5 text-violet-600" /> Program Ekle</CardTitle><CardDescription>{isAdmin ? 'Çakışma kontrolü aktif' : 'Kendi haftalık programınıza ekleyin'}</CardDescription></CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
@@ -1169,24 +1200,7 @@ export default function Home() {
                   <Button onClick={handleAddSchedule} className="w-full bg-violet-600 hover:bg-violet-700 gap-2"><CalendarDays className="h-4 w-4" /> Ekle</Button>
                 </CardContent>
               </Card>
-              <Card className="border-0 shadow-md lg:col-span-2">
-                <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2"><CalendarDays className="h-5 w-5 text-violet-600" /> {isAdmin ? 'Haftalık Program' : 'Haftalık Programım'}</CardTitle><CardDescription>
-                  {isAdmin ? `${weeklySchedules.length} kayıt` : `${weeklySchedules.filter(s => s.assistantId === currentUser?.id).length} kaydınız var`}
-                </CardDescription></CardHeader>
-                <CardContent>
-                  <Table><TableHeader><TableRow><TableHead>Araş Gör</TableHead><TableHead>Gün</TableHead><TableHead>Saat</TableHead><TableHead>Ders</TableHead>{isAdmin && <TableHead className="w-12"></TableHead>}</TableRow></TableHeader>
-                    <TableBody>{(isAdmin ? weeklySchedules : weeklySchedules.filter(s => s.assistantId === currentUser?.id)).sort((a, b) => a.dayOfWeek - b.dayOfWeek).map(s => (
-                      <TableRow key={s.id}>
-                        <TableCell><span className="text-sm font-medium">{s.assistant.name}</span></TableCell>
-                        <TableCell><Badge variant="outline" className="text-xs">{DAY_NAMES[s.dayOfWeek]}</Badge></TableCell>
-                        <TableCell className="text-sm font-mono">{s.timeSlot}</TableCell>
-                        <TableCell className="text-sm">{s.description}</TableCell>
-                        {isAdmin && <TableCell><Button variant="ghost" size="icon" className="h-7 w-7 text-red-400 hover:text-red-600 hover:bg-red-50" onClick={() => handleDeleteSchedule(s.id)}><Trash2 className="h-3.5 w-3.5" /></Button></TableCell>}
-                      </TableRow>
-                    ))}</TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
+              )}
             </div>
           </TabsContent>
 
@@ -1305,7 +1319,7 @@ export default function Home() {
             })()}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {(isAdmin ? assistants : assistants.filter(a => a.id === currentUser?.id)).map(ra => (
+              {(canSeeAll ? assistants : assistants.filter(a => a.id === currentUser?.id)).map(ra => (
                 <Card key={ra.id} className={`border-0 shadow-md hover:shadow-lg transition-shadow ${!ra.isActive ? 'opacity-60' : ''}`}>
                   <CardContent className="p-5">
                     <div className="flex items-start gap-4">
@@ -1330,7 +1344,7 @@ export default function Home() {
                     <div className="mt-4 pt-3 border-t border-slate-100">
                       <div className="flex items-center justify-between mb-2">
                         <p className="text-xs font-medium text-slate-400">Daimi Görevler:</p>
-                        {(isAdmin || currentUser?.id === ra.id) && (
+                        {(isAdmin || (currentUser?.id === ra.id && !isViewer)) && (
                           <Button variant="ghost" size="sm" className="h-6 text-[10px] gap-1 text-emerald-600 hover:bg-emerald-50" onClick={() => { setEditingDutyAssistantId(editingDutyAssistantId === ra.id ? null : ra.id); setNewDutyName('') }}>
                             <Plus className="h-3 w-3" /> Düzenle
                           </Button>
@@ -1354,7 +1368,7 @@ export default function Home() {
                         ))}
                         {ra.permanentDuties.length === 0 && <p className="text-xs text-slate-400 italic">Daimi görev yok</p>}
                         {/* Pending changes indicator for this assistant */}
-                        {(ra.pendingDutyChanges || []).filter(c => c.status === 'pending').length > 0 && !isAdmin && currentUser?.id === ra.id && (
+                        {(ra.pendingDutyChanges || []).filter(c => c.status === 'pending').length > 0 && !isAdmin && !isViewer && currentUser?.id === ra.id && (
                           <div className="mt-2 p-2 rounded-lg bg-amber-50 border border-amber-200">
                             <p className="text-[10px] text-amber-700 font-medium">Onay bekleyen değişiklikler:</p>
                             {ra.pendingDutyChanges.filter(c => c.status === 'pending').map(c => (
