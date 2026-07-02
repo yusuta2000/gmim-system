@@ -163,6 +163,8 @@ export default function Home() {
       if (res.ok) {
         setCurrentUser(data.user); setShowLoginDialog(false); setLoginEmail(''); setLoginPassword('')
         toast.success(`Hoş geldiniz, ${data.user.name}!`, { description: data.user.role === 'admin' ? 'Temsilci (Admin)' : 'Araş Gör' })
+        // Rol bazlı default tab
+        setActiveTab(data.user.role === 'admin' ? 'dashboard' : 'tasks')
         fetchData()
       } else { toast.error(data.error || 'Giriş başarısız') }
     } catch { toast.error('Bağlantı hatası') }
@@ -460,6 +462,44 @@ export default function Home() {
     </div>
   }
 
+  // Giriş ekranı - kullanıcı girişi yapmadan içerik gösterilmez
+  if (!currentUser) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-white to-teal-50 p-4">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-200 mx-auto mb-4">
+              <Ship className="h-8 w-8 text-white" />
+            </div>
+            <h1 className="text-2xl font-bold text-slate-900">GMIM Ar.Gör Yönetim</h1>
+            <p className="text-sm text-slate-500 mt-1">İTÜ Denizcilik Fakültesi · GMI</p>
+          </div>
+          <Card className="border-0 shadow-xl">
+            <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2 text-lg"><LogIn className="h-5 w-5 text-emerald-600" /> Sisteme Giriş</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>E-posta</Label>
+                <Input placeholder="isim@itu.edu.tr" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleLogin()} />
+              </div>
+              <div className="space-y-2">
+                <Label>Şifre</Label>
+                <Input type="password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleLogin()} />
+              </div>
+              <Button onClick={handleLogin} className="w-full bg-emerald-600 hover:bg-emerald-700 gap-2"><LogIn className="h-4 w-4" /> Giriş Yap</Button>
+              <div className="text-[11px] text-slate-400 space-y-0.5 pt-2 border-t border-slate-100">
+                <p className="font-semibold text-slate-500 mb-1">Giriş Bilgileri:</p>
+                <p>ymutlu@itu.edu.tr / tarik2026 (Temsilci)</p>
+                <p>cenkkaya@itu.edu.tr / cenk2026</p>
+                <p>sbicen@itu.edu.tr / samet2026</p>
+              </div>
+            </CardContent>
+          </Card>
+          <p className="text-center text-[11px] text-slate-400 mt-6">GMIM Ar.Gör Yönetim Sistemi · AI Destekli v3.0</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
       {/* Header */}
@@ -529,7 +569,7 @@ export default function Home() {
                     </div>
                   </DialogContent>
                 </Dialog>
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setCurrentUser(null); toast.info('Çıkış yapıldı') }}><LogOut className="h-3.5 w-3.5" /></Button>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setCurrentUser(null); setActiveTab('dashboard'); toast.info('Çıkış yapıldı') }}><LogOut className="h-3.5 w-3.5" /></Button>
               </div>
             ) : (
               <Dialog open={showLoginDialog} onOpenChange={setShowLoginDialog}>
@@ -560,14 +600,14 @@ export default function Home() {
             <TabsList className="inline-flex w-auto min-w-full grid-cols-none gap-1 bg-slate-100 p-1 rounded-xl h-auto">
               {[
                 { v: 'dashboard', icon: BarChart3, label: 'Puan Tablosu', short: 'Puan' },
-                { v: 'approvals', icon: CheckCircle2, label: 'Onaylar', short: 'Onay', badge: pendingCount },
+                { v: 'approvals', icon: CheckCircle2, label: 'Onaylar', short: 'Onay', badge: pendingCount, adminOnly: true },
                 { v: 'tasks', icon: ListChecks, label: 'Görevler', short: 'Görev' },
                 { v: 'exams', icon: GraduationCap, label: 'Sınavlar', short: 'Sınav' },
                 { v: 'schedule', icon: CalendarDays, label: 'Program', short: 'Prog.' },
-                { v: 'import', icon: Upload, label: 'Veri Aktar', short: 'Aktar' },
+                { v: 'import', icon: Upload, label: 'Veri Aktar', short: 'Aktar', adminOnly: true },
                 { v: 'categories', icon: Award, label: 'Puan Baremi', short: 'Barem' },
                 { v: 'personnel', icon: Users, label: 'Personel', short: 'Kişiler' },
-              ].map(tab => (
+              ].filter(tab => !tab.adminOnly || isAdmin).map(tab => (
                 <TabsTrigger key={tab.v} value={tab.v} className="rounded-lg text-xs sm:text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm py-2 px-3 whitespace-nowrap relative">
                   <tab.icon className="h-4 w-4 mr-1 sm:mr-2" />
                   <span className="hidden sm:inline">{tab.label}</span><span className="sm:hidden">{tab.short}</span>
@@ -906,26 +946,28 @@ export default function Home() {
           {/* EXAMS */}
           <TabsContent value="exams" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <Card className="border-0 shadow-md lg:col-span-1">
-                <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2"><Plus className="h-5 w-5 text-blue-600" /> Yeni Sınav</CardTitle></CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2"><Label className="text-sm">Ders Kodu</Label><Input placeholder="GMI201" value={examCourseCode} onChange={e => setExamCourseCode(e.target.value)} /></div>
-                    <div className="space-y-2"><Label className="text-sm">Gözetmen</Label><Select value={examSupervisors} onValueChange={setExamSupervisors}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="1">1</SelectItem><SelectItem value="2">2</SelectItem><SelectItem value="3">3</SelectItem></SelectContent></Select></div>
-                  </div>
-                  <div className="space-y-2"><Label className="text-sm">Ders Adı</Label><Input value={examCourseName} onChange={e => setExamCourseName(e.target.value)} /></div>
-                  <div className="space-y-2"><Label className="text-sm">Öğr. Üyesi</Label><Input value={examInstructor} onChange={e => setExamInstructor(e.target.value)} /></div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2"><Label className="text-sm">Tarih</Label><Input type="date" value={examDate} onChange={e => setExamDate(e.target.value)} /></div>
-                    <div className="space-y-2"><Label className="text-sm">Gün</Label><Select value={examDay} onValueChange={setExamDay}><SelectTrigger><SelectValue placeholder="Gün" /></SelectTrigger><SelectContent>{Object.entries(DAY_NAMES).map(([k, v]) => <SelectItem key={k} value={v}>{v}</SelectItem>)}</SelectContent></Select></div>
-                  </div>
-                  <div className="space-y-2"><Label className="text-sm">Saat</Label><Input placeholder="09:00-11:00" value={examTime} onChange={e => setExamTime(e.target.value)} /></div>
-                  <div className="space-y-2"><Label className="text-sm">Notlar</Label><Input value={examNotes} onChange={e => setExamNotes(e.target.value)} /></div>
-                  <Button onClick={handleSubmitExam} className="w-full bg-blue-600 hover:bg-blue-700 gap-2"><GraduationCap className="h-4 w-4" /> Ekle</Button>
-                </CardContent>
-              </Card>
-              <Card className="border-0 shadow-md lg:col-span-2">
-                <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2"><GraduationCap className="h-5 w-5 text-blue-600" /> Sınavlar & Gözetmen</CardTitle><CardDescription>{exams.length} sınav · {unassignedExams} gözetmen bekliyor</CardDescription></CardHeader>
+              {isAdmin && (
+                <Card className="border-0 shadow-md lg:col-span-1">
+                  <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2"><Plus className="h-5 w-5 text-blue-600" /> Yeni Sınav</CardTitle></CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-2"><Label className="text-sm">Ders Kodu</Label><Input placeholder="GMI201" value={examCourseCode} onChange={e => setExamCourseCode(e.target.value)} /></div>
+                      <div className="space-y-2"><Label className="text-sm">Gözetmen</Label><Select value={examSupervisors} onValueChange={setExamSupervisors}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="1">1</SelectItem><SelectItem value="2">2</SelectItem><SelectItem value="3">3</SelectItem></SelectContent></Select></div>
+                    </div>
+                    <div className="space-y-2"><Label className="text-sm">Ders Adı</Label><Input value={examCourseName} onChange={e => setExamCourseName(e.target.value)} /></div>
+                    <div className="space-y-2"><Label className="text-sm">Öğr. Üyesi</Label><Input value={examInstructor} onChange={e => setExamInstructor(e.target.value)} /></div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-2"><Label className="text-sm">Tarih</Label><Input type="date" value={examDate} onChange={e => setExamDate(e.target.value)} /></div>
+                      <div className="space-y-2"><Label className="text-sm">Gün</Label><Select value={examDay} onValueChange={setExamDay}><SelectTrigger><SelectValue placeholder="Gün" /></SelectTrigger><SelectContent>{Object.entries(DAY_NAMES).map(([k, v]) => <SelectItem key={k} value={v}>{v}</SelectItem>)}</SelectContent></Select></div>
+                    </div>
+                    <div className="space-y-2"><Label className="text-sm">Saat</Label><Input placeholder="09:00-11:00" value={examTime} onChange={e => setExamTime(e.target.value)} /></div>
+                    <div className="space-y-2"><Label className="text-sm">Notlar</Label><Input value={examNotes} onChange={e => setExamNotes(e.target.value)} /></div>
+                    <Button onClick={handleSubmitExam} className="w-full bg-blue-600 hover:bg-blue-700 gap-2"><GraduationCap className="h-4 w-4" /> Ekle</Button>
+                  </CardContent>
+                </Card>
+              )}
+              <Card className={`border-0 shadow-md ${isAdmin ? 'lg:col-span-2' : 'lg:col-span-3'}`}>
+                <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2"><GraduationCap className="h-5 w-5 text-blue-600" /> Sınavlar & Gözetmen</CardTitle><CardDescription>{exams.length} sınav{isAdmin ? ` · ${unassignedExams} gözetmen bekliyor` : ''}</CardDescription></CardHeader>
                 <CardContent><ScrollArea className="h-[600px]"><div className="space-y-4">
                   {exams.map(exam => (
                     <div key={exam.id} className="p-4 rounded-xl border border-slate-200 hover:border-slate-300">
@@ -955,27 +997,29 @@ export default function Home() {
           {/* SCHEDULE */}
           <TabsContent value="schedule" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <Card className="border-0 shadow-md lg:col-span-1">
-                <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2"><Plus className="h-5 w-5 text-violet-600" /> Program Ekle</CardTitle><CardDescription>Çakışma kontrolü aktif</CardDescription></CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2"><Label className="text-sm">Araş Gör</Label><Select value={schedAssistantId} onValueChange={setSchedAssistantId}><SelectTrigger><SelectValue placeholder="Seçin..." /></SelectTrigger><SelectContent>{assistants.map(ra => <SelectItem key={ra.id} value={ra.id}>{ra.name}</SelectItem>)}</SelectContent></Select></div>
-                  <div className="space-y-2"><Label className="text-sm">Gün</Label><Select value={schedDay} onValueChange={setSchedDay}><SelectTrigger /><SelectContent>{Object.entries(DAY_NAMES).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent></Select></div>
-                  <div className="space-y-2"><Label className="text-sm">Saat</Label><Input placeholder="09:00-12:00" value={schedTime} onChange={e => setSchedTime(e.target.value)} /></div>
-                  <div className="space-y-2"><Label className="text-sm">Ders/Açıklama</Label><Input placeholder="GMIM Lisansüstü" value={schedDesc} onChange={e => setSchedDesc(e.target.value)} /></div>
-                  <Button onClick={handleAddSchedule} className="w-full bg-violet-600 hover:bg-violet-700 gap-2"><CalendarDays className="h-4 w-4" /> Ekle</Button>
-                </CardContent>
-              </Card>
-              <Card className="border-0 shadow-md lg:col-span-2">
+              {isAdmin && (
+                <Card className="border-0 shadow-md lg:col-span-1">
+                  <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2"><Plus className="h-5 w-5 text-violet-600" /> Program Ekle</CardTitle><CardDescription>Çakışma kontrolü aktif</CardDescription></CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2"><Label className="text-sm">Araş Gör</Label><Select value={schedAssistantId} onValueChange={setSchedAssistantId}><SelectTrigger><SelectValue placeholder="Seçin..." /></SelectTrigger><SelectContent>{assistants.map(ra => <SelectItem key={ra.id} value={ra.id}>{ra.name}</SelectItem>)}</SelectContent></Select></div>
+                    <div className="space-y-2"><Label className="text-sm">Gün</Label><Select value={schedDay} onValueChange={setSchedDay}><SelectTrigger /><SelectContent>{Object.entries(DAY_NAMES).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent></Select></div>
+                    <div className="space-y-2"><Label className="text-sm">Saat</Label><Input placeholder="09:00-12:00" value={schedTime} onChange={e => setSchedTime(e.target.value)} /></div>
+                    <div className="space-y-2"><Label className="text-sm">Ders/Açıklama</Label><Input placeholder="GMIM Lisansüstü" value={schedDesc} onChange={e => setSchedDesc(e.target.value)} /></div>
+                    <Button onClick={handleAddSchedule} className="w-full bg-violet-600 hover:bg-violet-700 gap-2"><CalendarDays className="h-4 w-4" /> Ekle</Button>
+                  </CardContent>
+                </Card>
+              )}
+              <Card className={`border-0 shadow-md ${isAdmin ? 'lg:col-span-2' : 'lg:col-span-3'}`}>
                 <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2"><CalendarDays className="h-5 w-5 text-violet-600" /> Haftalık Program</CardTitle><CardDescription>{weeklySchedules.length} kayıt</CardDescription></CardHeader>
                 <CardContent>
-                  <Table><TableHeader><TableRow><TableHead>Araş Gör</TableHead><TableHead>Gün</TableHead><TableHead>Saat</TableHead><TableHead>Ders</TableHead><TableHead className="w-12"></TableHead></TableRow></TableHeader>
+                  <Table><TableHeader><TableRow><TableHead>Araş Gör</TableHead><TableHead>Gün</TableHead><TableHead>Saat</TableHead><TableHead>Ders</TableHead>{isAdmin && <TableHead className="w-12"></TableHead>}</TableRow></TableHeader>
                     <TableBody>{weeklySchedules.sort((a, b) => a.dayOfWeek - b.dayOfWeek).map(s => (
                       <TableRow key={s.id}>
                         <TableCell><span className="text-sm font-medium">{s.assistant.name}</span></TableCell>
                         <TableCell><Badge variant="outline" className="text-xs">{DAY_NAMES[s.dayOfWeek]}</Badge></TableCell>
                         <TableCell className="text-sm font-mono">{s.timeSlot}</TableCell>
                         <TableCell className="text-sm">{s.description}</TableCell>
-                        <TableCell><Button variant="ghost" size="icon" className="h-7 w-7 text-red-400 hover:text-red-600 hover:bg-red-50" onClick={() => handleDeleteSchedule(s.id)}><Trash2 className="h-3.5 w-3.5" /></Button></TableCell>
+                        {isAdmin && <TableCell><Button variant="ghost" size="icon" className="h-7 w-7 text-red-400 hover:text-red-600 hover:bg-red-50" onClick={() => handleDeleteSchedule(s.id)}><Trash2 className="h-3.5 w-3.5" /></Button></TableCell>}
                       </TableRow>
                     ))}</TableBody>
                   </Table>
@@ -1099,7 +1143,7 @@ export default function Home() {
             })()}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {assistants.map(ra => (
+              {(isAdmin ? assistants : assistants.filter(a => a.id === currentUser?.id)).map(ra => (
                 <Card key={ra.id} className={`border-0 shadow-md hover:shadow-lg transition-shadow ${!ra.isActive ? 'opacity-60' : ''}`}>
                   <CardContent className="p-5">
                     <div className="flex items-start gap-4">
