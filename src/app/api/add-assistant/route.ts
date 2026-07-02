@@ -12,7 +12,7 @@ export async function POST(request: Request) {
 
     // Verify requester is admin
     const requester = await db.researchAssistant.findUnique({ where: { id: requesterId } });
-    if (!requester || requester.role !== 'admin') {
+    if (!requester || !['admin', 'dekan', 'baskan'].includes(requester.role)) {
       return NextResponse.json({ error: 'Bu işlem için yetkiniz yok' }, { status: 403 });
     }
 

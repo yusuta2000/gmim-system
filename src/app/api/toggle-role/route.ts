@@ -13,13 +13,18 @@ export async function PUT(request: Request) {
 
     // Verify requester is admin
     const requester = await db.researchAssistant.findUnique({ where: { id: requesterId } });
-    if (!requester || requester.role !== 'admin') {
+    if (!requester || !['admin', 'dekan', 'baskan'].includes(requester.role)) {
       return NextResponse.json({ error: 'Bu işlem için yetkiniz yok' }, { status: 403 });
     }
 
     const assistant = await db.researchAssistant.findUnique({ where: { id: assistantId } });
     if (!assistant) {
       return NextResponse.json({ error: 'Kullanıcı bulunamadı' }, { status: 404 });
+    }
+
+    // Dekan ve Bölüm Başkanı rolü değiştirilemez
+    if (assistant.role === 'dekan' || assistant.role === 'baskan') {
+      return NextResponse.json({ error: 'Dekan ve Bölüm Başkanı rolü değiştirilemez' }, { status: 400 });
     }
 
     // Prevent self-demotion (admin can't remove own admin role)

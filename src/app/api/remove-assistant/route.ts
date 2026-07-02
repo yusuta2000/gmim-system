@@ -13,7 +13,7 @@ export async function DELETE(request: Request) {
 
     // Verify requester is admin
     const requester = await db.researchAssistant.findUnique({ where: { id: requesterId } });
-    if (!requester || requester.role !== 'admin') {
+    if (!requester || !['admin', 'dekan', 'baskan'].includes(requester.role)) {
       return NextResponse.json({ error: 'Bu işlem için yetkiniz yok' }, { status: 403 });
     }
 
@@ -26,8 +26,8 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Kullanıcı bulunamadı' }, { status: 404 });
     }
 
-    if (assistant.role === 'admin') {
-      return NextResponse.json({ error: 'Temsilci hesabı silinemez' }, { status: 400 });
+    if (assistant.role === 'admin' || assistant.role === 'dekan' || assistant.role === 'baskan') {
+      return NextResponse.json({ error: 'Temsilci, Dekan ve Bölüm Başkanı hesapları silinemez' }, { status: 400 });
     }
 
     // Delete all related records first

@@ -152,11 +152,14 @@ export default function Home() {
   useEffect(() => { fetchData() }, [fetchData])
 
   const isAdmin = currentUser?.role === 'admin'
-  const isViewer = currentUser?.role === 'dekan' || currentUser?.role === 'baskan'
+  const isDekan = currentUser?.role === 'dekan'
+  const isBaskan = currentUser?.role === 'baskan'
+  // Dekan ve Bölüm Başkanı, temsilci ile AYNI erişime sahip (yönetici seviyesi)
+  const isManager = isAdmin || isDekan || isBaskan
   const isArGor = currentUser?.role === 'user'
-  // Viewer ve admin tüm listeyi görür; ar.gör sadece kendini
-  const canSeeAll = isAdmin || isViewer
-  const canEdit = isAdmin // sadece admin düzenleyebilir
+  // Yöneticiler (temsilci, dekan, baskan) tüm listeyi görür ve düzenleyebilir
+  const canSeeAll = isManager
+  const canEdit = isManager
 
   // Auth
   const handleLogin = async () => {
@@ -201,7 +204,7 @@ export default function Home() {
   // Submit task - ar.gör self-reports → pending; admin assigns → approved
   const handleSubmitTask = async () => {
     if (!taskDesc || !taskDate || !taskAssistantId) { toast.error('Zorunlu alanları doldurun'); return }
-    const source = isAdmin ? 'temsilci_assigned' : 'external'
+    const source = canEdit ? 'temsilci_assigned' : 'external'
     try {
       const res = await fetch('/api/tasks', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -213,8 +216,8 @@ export default function Home() {
         }),
       })
       if (res.ok) {
-        toast.success(isAdmin ? 'Görev atandı!' : 'Görev temsilci onayına gönderildi!', {
-          description: isAdmin ? 'Puan otomatik eklendi' : 'Onaylandıktan sonra puan eklenecek'
+        toast.success(canEdit ? 'Görev atandı!' : 'Görev temsilci onayına gönderildi!', {
+          description: canEdit ? 'Puan otomatik eklendi' : 'Onaylandıktan sonra puan eklenecek'
         })
         setTaskDesc(''); setTaskDate(''); setTaskHours(''); setTaskAssistantId('')
         setTaskCategoryId(''); setTaskPoints(0); setTaskNotes(''); setClassifyResult(null)
@@ -316,7 +319,7 @@ export default function Home() {
 
   // Period reset
   const handleResetPeriod = async (action: 'reset' | 'archive') => {
-    if (!currentUser || !isAdmin) return
+    if (!currentUser || !canEdit) return
     try {
       const carryOverPoints = action === 'archive'
         ? Object.fromEntries(assistants.map(a => [a.id, a.totalPoints]))
@@ -333,7 +336,7 @@ export default function Home() {
 
   // Delete task (admin only)
   const handleDeleteTask = async (taskId: string) => {
-    if (!currentUser || !isAdmin) return
+    if (!currentUser || !canEdit) return
     try {
       const res = await fetch(`/api/delete-task?id=${taskId}&requesterId=${currentUser.id}`, { method: 'DELETE' })
       const data = await res.json()
@@ -351,12 +354,12 @@ export default function Home() {
         body: JSON.stringify({
           assistantId, changeType, dutyName, description: description || null,
           dutyId: dutyId || null, submittedBy: currentUser.id,
-          isDirectAdmin: isAdmin,
+          isDirectAdmin: canEdit,
         }),
       })
       const data = await res.json()
       if (res.ok) {
-        toast.success(isAdmin ? 'Daimi görev güncellendi' : 'Değişiklik talebi gönderildi, onay bekleniyor')
+        toast.success(canEdit ? 'Daimi görev güncellendi' : 'Değişiklik talebi gönderildi, onay bekleniyor')
         setEditingDutyAssistantId(null); setNewDutyName('')
         fetchData()
       } else { toast.error(data.error) }
@@ -365,7 +368,7 @@ export default function Home() {
 
   // Approve/reject pending duty change
   const handleDutyApproval = async (changeId: string, action: 'approve' | 'reject') => {
-    if (!currentUser || !isAdmin) return
+    if (!currentUser || !canEdit) return
     try {
       const res = await fetch('/api/pending-duty', {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
@@ -394,7 +397,7 @@ export default function Home() {
 
   // Admin reset password
   const handleResetPassword = async (assistantId: string, assistantName: string) => {
-    if (!currentUser || !isAdmin) return
+    if (!currentUser || !canEdit) return
     const newPass = prompt(`${assistantName} için yeni şifre girin (en az 4 karakter):`)
     if (!newPass || newPass.length < 4) { toast.error('Şifre en az 4 karakter olmalı'); return }
     try {
@@ -410,7 +413,7 @@ export default function Home() {
 
   // Add new assistant
   const handleAddAssistant = async () => {
-    if (!currentUser || !isAdmin) return
+    if (!currentUser || !canEdit) return
     if (!newPersonName || !newPersonEmail) { toast.error('Ad ve e-posta gerekli'); return }
     try {
       const res = await fetch('/api/add-assistant', {
@@ -428,7 +431,7 @@ export default function Home() {
 
   // Remove assistant
   const handleRemoveAssistant = async (assistantId: string, assistantName: string) => {
-    if (!currentUser || !isAdmin) return
+    if (!currentUser || !canEdit) return
     if (!confirm(`${assistantName} adlı kişiyi sistemden kaldırmak istediğinize emin misiniz? Tüm görev ve kayıtları silinecek.`)) return
     try {
       const res = await fetch(`/api/remove-assistant?id=${assistantId}&requesterId=${currentUser.id}`, { method: 'DELETE' })
@@ -456,11 +459,14 @@ export default function Home() {
   // Computed
   const totalTasks = tasks.length
   const pendingCount = pendingTasks.length
-  const activeAssistants = assistants.filter(a => a.isActive)
+  // Dekan ve Bölüm Başkanı puan/görev listelerinde görünmez - sadece ar.gör ve temsilci
+  const arGorAssistants = assistants.filter(a => a.role === 'admin' || a.role === 'user')
+  const managerAssistants = assistants.filter(a => a.role === 'dekan' || a.role === 'baskan')
+  const activeAssistants = arGorAssistants.filter(a => a.isActive)
   const maxPoints = Math.max(...activeAssistants.map(a => a.totalPoints), 1)
   const minPA = activeAssistants.length > 0 ? [...activeAssistants].sort((a, b) => a.totalPoints - b.totalPoints)[0] : null
   const unassignedExams = exams.filter(e => e.supervisors.length < e.requiredSupervisors).length
-  const sortedByPoints = [...assistants].sort((a, b) => a.totalPoints - b.totalPoints)
+  const sortedByPoints = [...arGorAssistants].sort((a, b) => a.totalPoints - b.totalPoints)
 
   // Sort tasks based on selected sort option
   const sortTasks = (taskList: Task[]) => {
@@ -565,7 +571,7 @@ export default function Home() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {pendingCount > 0 && isAdmin && (
+            {pendingCount > 0 && canSeeAll && (
               <Badge className="bg-amber-100 text-amber-800 gap-1 text-xs animate-pulse">
                 <Clock className="h-3 w-3" /> {pendingCount} Onay Bekliyor
               </Badge>
@@ -602,8 +608,8 @@ export default function Home() {
             </Dialog>
             {currentUser ? (
               <div className="flex items-center gap-2">
-                <Badge className={`gap-1 text-xs ${isAdmin ? 'bg-emerald-100 text-emerald-800' : isViewer ? 'bg-violet-100 text-violet-800' : 'bg-slate-100 text-slate-700'}`}>
-                  <Shield className="h-3 w-3" />{isAdmin ? 'Temsilci' : currentUser?.role === 'dekan' ? 'Dekan' : currentUser?.role === 'baskan' ? 'Bölüm Bşk.' : 'Ar.Gör'}
+                <Badge className={`gap-1 text-xs ${isAdmin ? 'bg-emerald-100 text-emerald-800' : isDekan ? 'bg-violet-100 text-violet-800' : isBaskan ? 'bg-blue-100 text-blue-800' : 'bg-slate-100 text-slate-700'}`}>
+                  <Shield className="h-3 w-3" />{isAdmin ? 'Temsilci' : isDekan ? 'Dekan' : isBaskan ? 'Bölüm Bşk.' : 'Ar.Gör'}
                 </Badge>
                 <span className="text-xs text-slate-600 hidden sm:inline">{currentUser.name}</span>
                 <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
@@ -657,7 +663,7 @@ export default function Home() {
                 { v: 'import', icon: Upload, label: 'Veri Aktar', short: 'Aktar', adminOnly: true },
                 { v: 'categories', icon: Award, label: 'Puan Baremi', short: 'Barem' },
                 { v: 'personnel', icon: Users, label: 'Personel', short: 'Kişiler' },
-              ].filter(tab => !tab.adminOnly || isAdmin).map(tab => (
+              ].filter(tab => !tab.adminOnly || isManager).map(tab => (
                 <TabsTrigger key={tab.v} value={tab.v} className="rounded-lg text-xs sm:text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm py-2 px-3 whitespace-nowrap relative">
                   <tab.icon className="h-4 w-4 mr-1 sm:mr-2" />
                   <span className="hidden sm:inline">{tab.label}</span><span className="sm:hidden">{tab.short}</span>
@@ -682,7 +688,7 @@ export default function Home() {
               ))}
             </div>
 
-            {isAdmin && (
+            {canEdit && (
               <div className="flex items-center gap-2 flex-wrap">
                 <Dialog open={showResetDialog} onOpenChange={setShowResetDialog}>
                   <DialogTrigger asChild>
@@ -871,7 +877,7 @@ export default function Home() {
 
           {/* APPROVALS */}
           <TabsContent value="approvals" className="space-y-6">
-            {!isAdmin ? (
+            {!canEdit ? (
               <Card className="border-0 shadow-md"><CardContent className="p-8 text-center">
                 <Shield className="h-12 w-12 text-slate-300 mx-auto mb-3" />
                 <h3 className="font-semibold text-slate-700">Sadece Temsilci</h3>
@@ -928,7 +934,7 @@ export default function Home() {
           <TabsContent value="tasks" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Tüm Görevler / İş Geçmişim - SOLD A */}
-              <Card className={`border-0 shadow-md order-1 ${canSeeAll && !isViewer ? 'lg:col-span-2' : 'lg:col-span-3'}`}>
+              <Card className="border-0 shadow-md lg:col-span-2 order-1 lg:order-1">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <div>
@@ -972,7 +978,7 @@ export default function Home() {
                 <CardContent>
                   <ScrollArea className="h-[600px]">
                     <div className="space-y-2">
-                      {sortTasks(isAdmin
+                      {sortTasks(canSeeAll
                         ? taskFilterAssistant === 'all' ? tasks : tasks.filter(t => t.assistantId === taskFilterAssistant)
                         : tasks.filter(t => t.assistantId === currentUser?.id)
                       ).map(task => (
@@ -980,7 +986,7 @@ export default function Home() {
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
-                                {isAdmin && (
+                                {canEdit && (
                                   <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">{task.assistant?.name}</span>
                                 )}
                                 <span className="text-sm font-medium text-slate-900">{task.description}</span>
@@ -1002,7 +1008,7 @@ export default function Home() {
                                 <span className="text-lg font-bold text-slate-900">{task.points}</span>
                                 <span className="text-xs text-slate-400 ml-0.5">p</span>
                               </div>
-                              {isAdmin && (
+                              {canEdit && (
                                 <Button variant="ghost" size="icon" className="h-7 w-7 text-red-400 hover:text-red-600 hover:bg-red-50" onClick={() => handleDeleteTask(task.id)}>
                                   <Trash2 className="h-3.5 w-3.5" />
                                 </Button>
@@ -1011,7 +1017,7 @@ export default function Home() {
                           </div>
                         </div>
                       ))}
-                      {sortTasks(isAdmin
+                      {sortTasks(canSeeAll
                         ? taskFilterAssistant === 'all' ? tasks : tasks.filter(t => t.assistantId === taskFilterAssistant)
                         : tasks.filter(t => t.assistantId === currentUser?.id)
                       ).length === 0 && (
@@ -1025,18 +1031,17 @@ export default function Home() {
                 </CardContent>
               </Card>
 
-              {/* Görev Ata / Görev Bildir - SAĞDA (viewer hariç) */}
-              {!isViewer && (
+              {/* Görev Ata / Görev Bildir - SAĞDA */}
               <Card className="border-0 shadow-md lg:col-span-1 order-2 lg:order-2">
                 <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center gap-2"><Plus className="h-5 w-5 text-emerald-600" /> {isAdmin ? 'Görev Ata' : 'Görev Bildir'}</CardTitle>
-                  <CardDescription>{isAdmin ? 'Araş görle görev atayın' : 'Yaptığınız işi bildirin, temsilci onaylasın'}</CardDescription>
+                  <CardTitle className="flex items-center gap-2"><Plus className="h-5 w-5 text-emerald-600" /> {canEdit ? 'Görev Ata' : 'Görev Bildir'}</CardTitle>
+                  <CardDescription>{canEdit ? 'Araş görle görev atayın' : 'Yaptığınız işi bildirin, temsilci onaylasın'}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <Label className="text-sm font-medium">Görev Açıklaması</Label>
                     <div className="flex gap-2">
-                      <Textarea placeholder={isAdmin ? "Örn: MÜDEK toplantısı" : "Örn: Dün MÜDEK toplantısına 3 saat katıldım"} value={taskDesc} onChange={e => setTaskDesc(e.target.value)} className="resize-none" rows={2} />
+                      <Textarea placeholder={canEdit ? "Örn: MÜDEK toplantısı" : "Örn: Dün MÜDEK toplantısına 3 saat katıldım"} value={taskDesc} onChange={e => setTaskDesc(e.target.value)} className="resize-none" rows={2} />
                       <Button size="icon" variant="outline" className="flex-shrink-0 h-auto border-emerald-300 hover:bg-emerald-50" onClick={handleClassifyTask} disabled={isClassifying || !taskDesc.trim()}>
                         {isClassifying ? <div className="animate-spin h-4 w-4 border-2 border-emerald-500 border-t-transparent rounded-full" /> : <Sparkles className="h-4 w-4 text-emerald-600" />}
                       </Button>
@@ -1054,7 +1059,7 @@ export default function Home() {
                       ) : <p className="text-amber-800 text-xs">{classifyResult.message}</p>}
                     </div>
                   )}
-                  {!isAdmin && (
+                  {!canEdit && (
                     <div className="p-3 rounded-xl bg-blue-50 border border-blue-200">
                       <p className="text-xs text-blue-800 flex items-center gap-1"><Info className="h-3.5 w-3.5 flex-shrink-0" /> Göreviniz temsilci onayına gönderilecek. Onaylandıktan sonra puanınız eklenecektir.</p>
                     </div>
@@ -1064,7 +1069,7 @@ export default function Home() {
                     <Select value={taskAssistantId} onValueChange={setTaskAssistantId}>
                       <SelectTrigger><SelectValue placeholder="Seçin..." /></SelectTrigger>
                       <SelectContent>
-                        {!isAdmin ? (
+                        {!canEdit ? (
                           currentUser ? <SelectItem value={currentUser.id}>{currentUser.name} (Kendim)</SelectItem> : null
                         ) : (
                           sortedByPoints.map(ra => <SelectItem key={ra.id} value={ra.id}>{ra.name} ({ra.totalPoints}p)</SelectItem>)
@@ -1092,11 +1097,10 @@ export default function Home() {
                   </div>
                   <div className="space-y-2"><Label className="text-sm font-medium">Notlar</Label><Input placeholder="Opsiyonel" value={taskNotes} onChange={e => setTaskNotes(e.target.value)} /></div>
                   <Button onClick={handleSubmitTask} className="w-full bg-emerald-600 hover:bg-emerald-700 gap-2">
-                    <Send className="h-4 w-4" /> {isAdmin ? 'Görevi Ata' : 'Görevi Gönder (Onaya)'}
+                    <Send className="h-4 w-4" /> {canEdit ? 'Görevi Ata' : 'Görevi Gönder (Onaya)'}
                   </Button>
                 </CardContent>
               </Card>
-              )}
             </div>
           </TabsContent>
 
@@ -1104,8 +1108,8 @@ export default function Home() {
           <TabsContent value="exams" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Sınavlar & Gözetmen - SOLDA */}
-              <Card className={`border-0 shadow-md order-1 ${isAdmin ? 'lg:col-span-2' : 'lg:col-span-3'}`}>
-                <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2"><GraduationCap className="h-5 w-5 text-blue-600" /> Sınavlar & Gözetmen</CardTitle><CardDescription>{exams.length} sınav{isAdmin ? ` · ${unassignedExams} gözetmen bekliyor` : ''}</CardDescription></CardHeader>
+              <Card className={`border-0 shadow-md order-1 ${canEdit ? 'lg:col-span-2' : 'lg:col-span-3'}`}>
+                <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2"><GraduationCap className="h-5 w-5 text-blue-600" /> Sınavlar & Gözetmen</CardTitle><CardDescription>{exams.length} sınav{canEdit ? ` · ${unassignedExams} gözetmen bekliyor` : ''}</CardDescription></CardHeader>
                 <CardContent><ScrollArea className="h-[600px]"><div className="space-y-4">
                   {exams.map(exam => (
                     <div key={exam.id} className="p-4 rounded-xl border border-slate-200 hover:border-slate-300">
@@ -1130,7 +1134,7 @@ export default function Home() {
                 </div></ScrollArea></CardContent>
               </Card>
               {/* Yeni Sınav Ekle - SAĞDA */}
-              {isAdmin && (
+              {canEdit && (
                 <Card className="border-0 shadow-md lg:col-span-1 order-2">
                   <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2"><Plus className="h-5 w-5 text-blue-600" /> Yeni Sınav</CardTitle></CardHeader>
                   <CardContent className="space-y-4">
@@ -1157,42 +1161,41 @@ export default function Home() {
           <TabsContent value="schedule" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Haftalık Program - SOLDA */}
-              <Card className={`border-0 shadow-md order-1 ${!isViewer ? 'lg:col-span-2' : 'lg:col-span-3'}`}>
+              <Card className="border-0 shadow-md lg:col-span-2 order-1">
                 <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2"><CalendarDays className="h-5 w-5 text-violet-600" /> {canSeeAll ? 'Haftalık Program' : 'Haftalık Programım'}</CardTitle><CardDescription>
                   {canSeeAll ? `${weeklySchedules.length} kayıt` : `${weeklySchedules.filter(s => s.assistantId === currentUser?.id).length} kaydınız var`}
                 </CardDescription></CardHeader>
                 <CardContent>
-                  <Table><TableHeader><TableRow><TableHead>Araş Gör</TableHead><TableHead>Gün</TableHead><TableHead>Saat</TableHead><TableHead>Ders</TableHead>{isAdmin && <TableHead className="w-12"></TableHead>}</TableRow></TableHeader>
+                  <Table><TableHeader><TableRow><TableHead>Araş Gör</TableHead><TableHead>Gün</TableHead><TableHead>Saat</TableHead><TableHead>Ders</TableHead>{canEdit && <TableHead className="w-12"></TableHead>}</TableRow></TableHeader>
                     <TableBody>{(canSeeAll ? weeklySchedules : weeklySchedules.filter(s => s.assistantId === currentUser?.id)).sort((a, b) => a.dayOfWeek - b.dayOfWeek).map(s => (
                       <TableRow key={s.id}>
                         <TableCell><span className="text-sm font-medium">{s.assistant.name}</span></TableCell>
                         <TableCell><Badge variant="outline" className="text-xs">{DAY_NAMES[s.dayOfWeek]}</Badge></TableCell>
                         <TableCell className="text-sm font-mono">{s.timeSlot}</TableCell>
                         <TableCell className="text-sm">{s.description}</TableCell>
-                        {isAdmin && <TableCell><Button variant="ghost" size="icon" className="h-7 w-7 text-red-400 hover:text-red-600 hover:bg-red-50" onClick={() => handleDeleteSchedule(s.id)}><Trash2 className="h-3.5 w-3.5" /></Button></TableCell>}
+                        {canEdit && <TableCell><Button variant="ghost" size="icon" className="h-7 w-7 text-red-400 hover:text-red-600 hover:bg-red-50" onClick={() => handleDeleteSchedule(s.id)}><Trash2 className="h-3.5 w-3.5" /></Button></TableCell>}
                       </TableRow>
                     ))}</TableBody>
                   </Table>
                 </CardContent>
               </Card>
-              {/* Program Ekle - SAĞDA (viewer hariç) */}
-              {!isViewer && (
+              {/* Program Ekle - SAĞDA */}
               <Card className="border-0 shadow-md lg:col-span-1 order-2">
-                <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2"><Plus className="h-5 w-5 text-violet-600" /> Program Ekle</CardTitle><CardDescription>{isAdmin ? 'Çakışma kontrolü aktif' : 'Kendi haftalık programınıza ekleyin'}</CardDescription></CardHeader>
+                <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2"><Plus className="h-5 w-5 text-violet-600" /> Program Ekle</CardTitle><CardDescription>{canEdit ? 'Çakışma kontrolü aktif' : 'Kendi haftalık programınıza ekleyin'}</CardDescription></CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <Label className="text-sm">Araş Gör</Label>
-                    <Select value={isAdmin ? schedAssistantId : (currentUser?.id || '')} onValueChange={setSchedAssistantId} disabled={!isAdmin}>
+                    <Select value={canEdit ? schedAssistantId : (currentUser?.id || '')} onValueChange={setSchedAssistantId} disabled={!canEdit}>
                       <SelectTrigger><SelectValue placeholder="Seçin..." /></SelectTrigger>
                       <SelectContent>
-                        {isAdmin ? (
-                          assistants.map(ra => <SelectItem key={ra.id} value={ra.id}>{ra.name}</SelectItem>)
+                        {canEdit ? (
+                          arGorAssistants.map(ra => <SelectItem key={ra.id} value={ra.id}>{ra.name}</SelectItem>)
                         ) : (
                           currentUser ? <SelectItem value={currentUser.id}>{currentUser.name} (Kendim)</SelectItem> : null
                         )}
                       </SelectContent>
                     </Select>
-                    {!isAdmin && <p className="text-[11px] text-slate-400">Sadece kendinize program ekleyebilirsiniz</p>}
+                    {!canEdit && <p className="text-[11px] text-slate-400">Sadece kendinize program ekleyebilirsiniz</p>}
                   </div>
                   <div className="space-y-2"><Label className="text-sm">Gün</Label><Select value={schedDay} onValueChange={setSchedDay}><SelectTrigger /><SelectContent>{Object.entries(DAY_NAMES).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent></Select></div>
                   <div className="space-y-2"><Label className="text-sm">Saat</Label><Input placeholder="09:00-12:00" value={schedTime} onChange={e => setSchedTime(e.target.value)} /></div>
@@ -1200,7 +1203,6 @@ export default function Home() {
                   <Button onClick={handleAddSchedule} className="w-full bg-violet-600 hover:bg-violet-700 gap-2"><CalendarDays className="h-4 w-4" /> Ekle</Button>
                 </CardContent>
               </Card>
-              )}
             </div>
           </TabsContent>
 
@@ -1268,7 +1270,7 @@ export default function Home() {
           {/* PERSONNEL */}
           <TabsContent value="personnel" className="space-y-6">
             {/* Admin: Add new person */}
-            {isAdmin && (
+            {canEdit && (
               <Dialog open={showAddPersonDialog} onOpenChange={setShowAddPersonDialog}>
                 <DialogTrigger asChild>
                   <Button className="gap-2 bg-emerald-600 hover:bg-emerald-700"><Plus className="h-4 w-4" /> Yeni Araş Gör Ekle</Button>
@@ -1290,7 +1292,7 @@ export default function Home() {
               </Dialog>
             )}
             {/* Pending duty changes for admin approval */}
-            {isAdmin && (() => {
+            {canEdit && (() => {
               const allPendingChanges = assistants.flatMap(a => (a.pendingDutyChanges || []).filter(c => c.status === 'pending').map(c => ({ ...c, assistantName: a.name })))
               return allPendingChanges.length > 0 && (
                 <Card className="border-0 shadow-md border-l-4 border-l-amber-400">
@@ -1318,8 +1320,39 @@ export default function Home() {
               )
             })()}
 
+            {/* Yöneticiler (Dekan ve Bölüm Başkanı) - en üstte, sadece yöneticilere görünür */}
+            {canSeeAll && managerAssistants.length > 0 && (
+              <div className="mb-4">
+                <p className="text-xs font-semibold text-slate-500 mb-2 uppercase tracking-wide">Yönetim</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {managerAssistants.map(ra => (
+                    <Card key={ra.id} className="border-0 shadow-md bg-gradient-to-br from-violet-50 to-blue-50 border-l-4 border-l-violet-400">
+                      <CardContent className="p-5">
+                        <div className="flex items-start gap-4">
+                          <div className={`h-12 w-12 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-lg ${ra.role === 'dekan' ? 'bg-gradient-to-br from-violet-500 to-purple-600 shadow-violet-200' : 'bg-gradient-to-br from-blue-500 to-indigo-600 shadow-blue-200'}`}>
+                            {ra.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="font-bold truncate">{ra.name}</h3>
+                              <Badge className={`text-[10px] gap-0.5 ${ra.role === 'dekan' ? 'bg-violet-100 text-violet-700' : 'bg-blue-100 text-blue-700'}`}>
+                                <Shield className="h-2.5 w-2.5" /> {ra.role === 'dekan' ? 'Dekan' : 'Bölüm Başkanı'}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-slate-500 truncate">{ra.email}</p>
+                            <p className="text-[11px] text-slate-400 mt-1">Yönetim seviyesi — kontrol amaçlı erişim</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <p className="text-xs font-semibold text-slate-500 mb-2 uppercase tracking-wide">Araş Gör & Temsilci</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {(canSeeAll ? assistants : assistants.filter(a => a.id === currentUser?.id)).map(ra => (
+              {(canSeeAll ? arGorAssistants : arGorAssistants.filter(a => a.id === currentUser?.id)).map(ra => (
                 <Card key={ra.id} className={`border-0 shadow-md hover:shadow-lg transition-shadow ${!ra.isActive ? 'opacity-60' : ''}`}>
                   <CardContent className="p-5">
                     <div className="flex items-start gap-4">
@@ -1344,7 +1377,7 @@ export default function Home() {
                     <div className="mt-4 pt-3 border-t border-slate-100">
                       <div className="flex items-center justify-between mb-2">
                         <p className="text-xs font-medium text-slate-400">Daimi Görevler:</p>
-                        {(isAdmin || (currentUser?.id === ra.id && !isViewer)) && (
+                        {(canEdit || currentUser?.id === ra.id) && (
                           <Button variant="ghost" size="sm" className="h-6 text-[10px] gap-1 text-emerald-600 hover:bg-emerald-50" onClick={() => { setEditingDutyAssistantId(editingDutyAssistantId === ra.id ? null : ra.id); setNewDutyName('') }}>
                             <Plus className="h-3 w-3" /> Düzenle
                           </Button>
@@ -1368,7 +1401,7 @@ export default function Home() {
                         ))}
                         {ra.permanentDuties.length === 0 && <p className="text-xs text-slate-400 italic">Daimi görev yok</p>}
                         {/* Pending changes indicator for this assistant */}
-                        {(ra.pendingDutyChanges || []).filter(c => c.status === 'pending').length > 0 && !isAdmin && !isViewer && currentUser?.id === ra.id && (
+                        {(ra.pendingDutyChanges || []).filter(c => c.status === 'pending').length > 0 && !canEdit && currentUser?.id === ra.id && (
                           <div className="mt-2 p-2 rounded-lg bg-amber-50 border border-amber-200">
                             <p className="text-[10px] text-amber-700 font-medium">Onay bekleyen değişiklikler:</p>
                             {ra.pendingDutyChanges.filter(c => c.status === 'pending').map(c => (
@@ -1395,7 +1428,7 @@ export default function Home() {
                       </div>
                     </div>
 
-                    {isAdmin && (
+                    {canEdit && (
                       <div className="mt-4 pt-3 border-t border-slate-100 space-y-2">
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-slate-500">Durum:</span>
