@@ -109,6 +109,8 @@ export default function Home() {
 
   // Task filter for admin
   const [taskFilterAssistant, setTaskFilterAssistant] = useState<string>('all')
+  const [taskSortBy, setTaskSortBy] = useState<string>('date_desc')
+  const [expandedAssistantId, setExpandedAssistantId] = useState<string | null>(null)
 
   // Permanent duty editing
   const [editingDutyAssistantId, setEditingDutyAssistantId] = useState<string | null>(null)
@@ -453,6 +455,47 @@ export default function Home() {
   const unassignedExams = exams.filter(e => e.supervisors.length < e.requiredSupervisors).length
   const sortedByPoints = [...assistants].sort((a, b) => a.totalPoints - b.totalPoints)
 
+  // Sort tasks based on selected sort option
+  const sortTasks = (taskList: Task[]) => {
+    const sorted = [...taskList]
+    switch (taskSortBy) {
+      case 'date_desc': return sorted.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      case 'date_asc': return sorted.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      case 'points_asc': return sorted.sort((a, b) => a.points - b.points)
+      case 'points_desc': return sorted.sort((a, b) => b.points - a.points)
+      default: return sorted
+    }
+  }
+
+  // Get statistics for a specific assistant
+  const getAssistantStats = (assistantId: string) => {
+    const assistant = assistants.find(a => a.id === assistantId)
+    if (!assistant) return null
+    const myTasks = tasks.filter(t => t.assistantId === assistantId && t.status === 'approved')
+    const totalApprovedPoints = assistants.reduce((sum, a) => sum + a.totalPoints, 0) || 1
+    const mySharePct = (assistant.totalPoints / totalApprovedPoints) * 100
+    // Category distribution
+    const categoryDist: { [key: string]: { points: number; count: number; name: string } } = {}
+    myTasks.forEach(t => {
+      const catName = t.category?.name || 'Diğer'
+      if (!categoryDist[catName]) categoryDist[catName] = { points: 0, count: 0, name: catName }
+      categoryDist[catName].points += t.points
+      categoryDist[catName].count += 1
+    })
+    const categoryArr = Object.values(categoryDist).sort((a, b) => b.points - a.points)
+    const totalTasksInSystem = tasks.filter(t => t.status === 'approved').length || 1
+    const taskCountPct = (myTasks.length / totalTasksInSystem) * 100
+    return {
+      assistant,
+      taskCount: myTasks.length,
+      mySharePct,
+      taskCountPct,
+      categoryArr,
+      avgPointsPerTask: myTasks.length > 0 ? assistant.totalPoints / myTasks.length : 0,
+      lastTaskDate: myTasks.length > 0 ? myTasks.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0].date : null,
+    }
+  }
+
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
       <div className="text-center space-y-4">
@@ -686,20 +729,111 @@ export default function Home() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {sortedByPoints.filter(ra => ra.isActive).map((ra, idx) => (
-                    <div key={ra.id} className={`flex items-center gap-4 p-3 rounded-xl transition-all hover:bg-slate-50 ${idx === 0 ? 'bg-emerald-50 border border-emerald-200' : ''}`}>
-                      <div className={`flex-shrink-0 h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold ${idx === 0 ? 'bg-emerald-500 text-white' : idx === 1 ? 'bg-amber-500 text-white' : idx === 2 ? 'bg-orange-400 text-white' : 'bg-slate-200 text-slate-600'}`}>{idx + 1}</div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-slate-900 truncate">{ra.name}</span>
-                          {idx === 0 && <Badge className="bg-emerald-500 text-white text-[10px] px-1.5 py-0 h-5 gap-0.5"><Zap className="h-2.5 w-2.5" /> ÖNCELİKLİ</Badge>}
-                          {ra.role === 'admin' && <Badge className="bg-slate-700 text-white text-[10px] px-1.5 py-0 h-5 gap-0.5"><Shield className="h-2.5 w-2.5" /> TEMSİLCİ</Badge>}
+                  {sortedByPoints.filter(ra => ra.isActive).map((ra, idx) => {
+                    const isExpanded = expandedAssistantId === ra.id
+                    const stats = isExpanded && isAdmin ? getAssistantStats(ra.id) : null
+                    return (
+                    <div key={ra.id} className={`rounded-xl transition-all ${idx === 0 ? 'bg-emerald-50 border border-emerald-200' : ''} ${isAdmin ? 'cursor-pointer hover:bg-slate-50' : ''}`}>
+                      <div
+                        className={`flex items-center gap-4 p-3 ${isAdmin ? 'cursor-pointer' : ''}`}
+                        onClick={() => isAdmin && setExpandedAssistantId(isExpanded ? null : ra.id)}
+                      >
+                        <div className={`flex-shrink-0 h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold ${idx === 0 ? 'bg-emerald-500 text-white' : idx === 1 ? 'bg-amber-500 text-white' : idx === 2 ? 'bg-orange-400 text-white' : 'bg-slate-200 text-slate-600'}`}>{idx + 1}</div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-slate-900 truncate">{ra.name}</span>
+                            {idx === 0 && <Badge className="bg-emerald-500 text-white text-[10px] px-1.5 py-0 h-5 gap-0.5"><Zap className="h-2.5 w-2.5" /> ÖNCELİKLİ</Badge>}
+                            {ra.role === 'admin' && <Badge className="bg-slate-700 text-white text-[10px] px-1.5 py-0 h-5 gap-0.5"><Shield className="h-2.5 w-2.5" /> TEMSİLCİ</Badge>}
+                            {isAdmin && <ChevronRight className={`h-3.5 w-3.5 text-slate-400 ml-auto transition-transform ${isExpanded ? 'rotate-90' : ''}`} />}
+                          </div>
+                          <Progress value={(ra.totalPoints / maxPoints) * 100} className="h-2 mt-1.5" />
                         </div>
-                        <Progress value={(ra.totalPoints / maxPoints) * 100} className="h-2 mt-1.5" />
+                        <div className="text-right flex-shrink-0"><span className="text-lg font-bold text-slate-900">{ra.totalPoints}</span><span className="text-xs text-slate-500 ml-1">puan</span></div>
                       </div>
-                      <div className="text-right flex-shrink-0"><span className="text-lg font-bold text-slate-900">{ra.totalPoints}</span><span className="text-xs text-slate-500 ml-1">puan</span></div>
+                      {/* Akordiyon istatistikler - sadece admin için */}
+                      {isExpanded && stats && (
+                        <div className="px-3 pb-3 border-t border-slate-100 pt-3 mt-1 space-y-4">
+                          {/* Özet kartlar */}
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                            <div className="p-2 rounded-lg bg-emerald-50 border border-emerald-100">
+                              <p className="text-[10px] text-emerald-600 font-medium">Toplam Puan</p>
+                              <p className="text-lg font-bold text-emerald-900">{stats.assistant.totalPoints}</p>
+                            </div>
+                            <div className="p-2 rounded-lg bg-blue-50 border border-blue-100">
+                              <p className="text-[10px] text-blue-600 font-medium">Görev Sayısı</p>
+                              <p className="text-lg font-bold text-blue-900">{stats.taskCount}</p>
+                            </div>
+                            <div className="p-2 rounded-lg bg-violet-50 border border-violet-100">
+                              <p className="text-[10px] text-violet-600 font-medium">Ortalama Puan</p>
+                              <p className="text-lg font-bold text-violet-900">{stats.avgPointsPerTask.toFixed(1)}</p>
+                            </div>
+                            <div className="p-2 rounded-lg bg-amber-50 border border-amber-100">
+                              <p className="text-[10px] text-amber-600 font-medium">Sistemdeki Payı</p>
+                              <p className="text-lg font-bold text-amber-900">%{stats.mySharePct.toFixed(1)}</p>
+                            </div>
+                          </div>
+
+                          {/* İki panel yan yana */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {/* Puan dağılımı (yatay bar) */}
+                            <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                              <p className="text-xs font-semibold text-slate-700 mb-2">Kategoriye Göre Puan Dağılımı</p>
+                              {stats.categoryArr.length > 0 ? (
+                                <div className="space-y-1.5">
+                                  {stats.categoryArr.slice(0, 6).map(cat => {
+                                    const pct = (cat.points / stats.assistant.totalPoints) * 100
+                                    return (
+                                      <div key={cat.name}>
+                                        <div className="flex justify-between text-[11px] text-slate-600 mb-0.5">
+                                          <span className="truncate">{cat.name} <span className="text-slate-400">({cat.count} görev)</span></span>
+                                          <span className="font-semibold">{cat.points}p</span>
+                                        </div>
+                                        <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+                                          <div className="h-full bg-gradient-to-r from-emerald-400 to-teal-500 rounded-full" style={{ width: `${pct}%` }}></div>
+                                        </div>
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                              ) : <p className="text-[11px] text-slate-400">Henüz onaylı görev yok</p>}
+                            </div>
+
+                            {/* Sistem payı pasta grafik */}
+                            <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                              <p className="text-xs font-semibold text-slate-700 mb-2">Sistemdeki Görev Payı</p>
+                              <div className="flex items-center gap-3">
+                                <div className="relative w-20 h-20 flex-shrink-0">
+                                  <svg viewBox="0 0 36 36" className="w-20 h-20 transform -rotate-90">
+                                    <circle cx="18" cy="18" r="15.5" fill="none" stroke="#E2E8F0" strokeWidth="4" />
+                                    <circle
+                                      cx="18" cy="18" r="15.5" fill="none" stroke="#10b981" strokeWidth="4"
+                                      strokeDasharray={`${stats.taskCountPct * 0.977} 100`}
+                                      strokeLinecap="round"
+                                    />
+                                  </svg>
+                                  <div className="absolute inset-0 flex items-center justify-center">
+                                    <span className="text-sm font-bold text-emerald-700">%{stats.taskCountPct.toFixed(0)}</span>
+                                  </div>
+                                </div>
+                                <div className="text-xs text-slate-600 space-y-1">
+                                  <p><span className="font-semibold text-slate-900">{stats.taskCount}</span> görev / toplam {tasks.filter(t => t.status === 'approved').length}</p>
+                                  <p className="text-[11px] text-slate-400">Bu kişi sistemdeki tüm onaylı görevlerin %{stats.taskCountPct.toFixed(1)}'ine sahip</p>
+                                  <p className="text-[11px] text-slate-500">Puan payı: %{stats.mySharePct.toFixed(1)}</p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Son görev ve özet */}
+                          <div className="flex items-center justify-between text-xs text-slate-500 pt-1">
+                            <span>Son görev: {stats.lastTaskDate ? new Date(stats.lastTaskDate).toLocaleDateString('tr-TR') : 'Yok'}</span>
+                            <span>Puan/Görev: {stats.avgPointsPerTask.toFixed(2)} p</span>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  ))}
+                    )
+                  })}
                   {sortedByPoints.filter(ra => !ra.isActive).length > 0 && (
                     <div className="pt-2 border-t mt-2">
                       <p className="text-xs text-red-500 font-medium mb-2">🔴 Yurt dışında / Pasif</p>
@@ -786,7 +920,106 @@ export default function Home() {
           {/* TASKS */}
           <TabsContent value="tasks" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <Card className="border-0 shadow-md lg:col-span-1">
+              {/* Tüm Görevler / İş Geçmişim - SOLD A */}
+              <Card className="border-0 shadow-md lg:col-span-2 order-1 lg:order-1">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <ListChecks className="h-5 w-5 text-slate-700" />
+                        {isAdmin ? 'Tüm Görevler' : 'İş Geçmişim'}
+                      </CardTitle>
+                      <CardDescription>
+                        {isAdmin
+                          ? taskFilterAssistant === 'all'
+                            ? `${tasks.length} görev kayıtlı`
+                            : `${tasks.filter(t => t.assistantId === taskFilterAssistant).length} görev (${assistants.find(a => a.id === taskFilterAssistant)?.name})`
+                          : `${tasks.filter(t => t.assistantId === currentUser?.id).length} görev kaydınız var`
+                        }
+                      </CardDescription>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {isAdmin && (
+                        <Select value={taskFilterAssistant} onValueChange={setTaskFilterAssistant}>
+                          <SelectTrigger className="w-44"><SelectValue placeholder="Kişi filtrele" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Tümü ({tasks.length})</SelectItem>
+                            {sortedByPoints.filter(a => a.isActive).map(ra => (
+                              <SelectItem key={ra.id} value={ra.id}>{ra.name} ({ra.totalPoints}p)</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                      <Select value={taskSortBy} onValueChange={setTaskSortBy}>
+                        <SelectTrigger className="w-40"><SelectValue placeholder="Sırala" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="date_desc">Tarih (En Yeni)</SelectItem>
+                          <SelectItem value="date_asc">Tarih (En Eski)</SelectItem>
+                          <SelectItem value="points_asc">Puan (En Az)</SelectItem>
+                          <SelectItem value="points_desc">Puan (En Çok)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <ScrollArea className="h-[600px]">
+                    <div className="space-y-2">
+                      {sortTasks(isAdmin
+                        ? taskFilterAssistant === 'all' ? tasks : tasks.filter(t => t.assistantId === taskFilterAssistant)
+                        : tasks.filter(t => t.assistantId === currentUser?.id)
+                      ).map(task => (
+                        <div key={task.id} className={`p-3 rounded-xl border transition-all hover:border-slate-300 ${task.status === 'rejected' ? 'opacity-50 border-red-100' : task.status === 'pending' ? 'border-amber-200 bg-amber-50/30' : 'border-slate-200'}`}>
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                {isAdmin && (
+                                  <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">{task.assistant?.name}</span>
+                                )}
+                                <span className="text-sm font-medium text-slate-900">{task.description}</span>
+                                {task.category && <Badge variant="outline" className="text-[10px]">{task.category.name}</Badge>}
+                              </div>
+                              <div className="flex items-center gap-3 mt-1.5 text-xs text-slate-500">
+                                <span>{new Date(task.date).toLocaleDateString('tr-TR')}</span>
+                                {task.hoursWorked && <span>{task.hoursWorked}</span>}
+                                <Badge variant="outline" className="text-[10px]">
+                                  {task.source === 'auto_assigned' ? 'Otomatik' : task.source === 'import' ? 'İçe Aktarma' : task.source === 'temsilci_assigned' ? 'Temsilci' : 'Kendi Bildirimi'}
+                                </Badge>
+                                <Badge variant={task.status === 'approved' ? 'default' : task.status === 'pending' ? 'secondary' : 'destructive'} className="text-[10px]">
+                                  {task.status === 'approved' ? 'Onaylı' : task.status === 'pending' ? 'Bekliyor' : 'Reddedildi'}
+                                </Badge>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <div className="text-right">
+                                <span className="text-lg font-bold text-slate-900">{task.points}</span>
+                                <span className="text-xs text-slate-400 ml-0.5">p</span>
+                              </div>
+                              {isAdmin && (
+                                <Button variant="ghost" size="icon" className="h-7 w-7 text-red-400 hover:text-red-600 hover:bg-red-50" onClick={() => handleDeleteTask(task.id)}>
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      {sortTasks(isAdmin
+                        ? taskFilterAssistant === 'all' ? tasks : tasks.filter(t => t.assistantId === taskFilterAssistant)
+                        : tasks.filter(t => t.assistantId === currentUser?.id)
+                      ).length === 0 && (
+                        <div className="text-center py-12 text-slate-400">
+                          <ListChecks className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                          <p className="text-sm">Henüz görev kaydı yok</p>
+                        </div>
+                      )}
+                    </div>
+                  </ScrollArea>
+                </CardContent>
+              </Card>
+
+              {/* Görev Ata / Görev Bildir - SAĞDA */}
+              <Card className="border-0 shadow-md lg:col-span-1 order-2 lg:order-2">
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center gap-2"><Plus className="h-5 w-5 text-emerald-600" /> {isAdmin ? 'Görev Ata' : 'Görev Bildir'}</CardTitle>
                   <CardDescription>{isAdmin ? 'Araş görle görev atayın' : 'Yaptığınız işi bildirin, temsilci onaylasın'}</CardDescription>
@@ -855,91 +1088,6 @@ export default function Home() {
                   </Button>
                 </CardContent>
               </Card>
-              <Card className="border-0 shadow-md lg:col-span-2">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="flex items-center gap-2">
-                        <ListChecks className="h-5 w-5 text-slate-700" />
-                        {isAdmin ? 'Tüm Görevler' : 'İş Geçmişim'}
-                      </CardTitle>
-                      <CardDescription>
-                        {isAdmin
-                          ? taskFilterAssistant === 'all'
-                            ? `${tasks.length} görev kayıtlı`
-                            : `${tasks.filter(t => t.assistantId === taskFilterAssistant).length} görev (${assistants.find(a => a.id === taskFilterAssistant)?.name})`
-                          : `${tasks.filter(t => t.assistantId === currentUser?.id).length} görev kaydınız var`
-                        }
-                      </CardDescription>
-                    </div>
-                    {isAdmin && (
-                      <Select value={taskFilterAssistant} onValueChange={setTaskFilterAssistant}>
-                        <SelectTrigger className="w-48"><SelectValue placeholder="Kişi filtrele" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Tümü ({tasks.length})</SelectItem>
-                          {sortedByPoints.filter(a => a.isActive).map(ra => (
-                            <SelectItem key={ra.id} value={ra.id}>{ra.name} ({ra.totalPoints}p)</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <ScrollArea className="h-[600px]">
-                    <div className="space-y-2">
-                      {(isAdmin
-                        ? taskFilterAssistant === 'all' ? tasks : tasks.filter(t => t.assistantId === taskFilterAssistant)
-                        : tasks.filter(t => t.assistantId === currentUser?.id)
-                      ).map(task => (
-                        <div key={task.id} className={`p-3 rounded-xl border transition-all hover:border-slate-300 ${task.status === 'rejected' ? 'opacity-50 border-red-100' : task.status === 'pending' ? 'border-amber-200 bg-amber-50/30' : 'border-slate-200'}`}>
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                {isAdmin && (
-                                  <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">{task.assistant?.name}</span>
-                                )}
-                                <span className="text-sm font-medium text-slate-900">{task.description}</span>
-                                {task.category && <Badge variant="outline" className="text-[10px]">{task.category.name}</Badge>}
-                              </div>
-                              <div className="flex items-center gap-3 mt-1.5 text-xs text-slate-500">
-                                <span>{new Date(task.date).toLocaleDateString('tr-TR')}</span>
-                                {task.hoursWorked && <span>{task.hoursWorked}</span>}
-                                <Badge variant="outline" className="text-[10px]">
-                                  {task.source === 'auto_assigned' ? 'Otomatik' : task.source === 'import' ? 'İçe Aktarma' : task.source === 'temsilci_assigned' ? 'Temsilci' : 'Kendi Bildirimi'}
-                                </Badge>
-                                <Badge variant={task.status === 'approved' ? 'default' : task.status === 'pending' ? 'secondary' : 'destructive'} className="text-[10px]">
-                                  {task.status === 'approved' ? 'Onaylı' : task.status === 'pending' ? 'Bekliyor' : 'Reddedildi'}
-                                </Badge>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2 flex-shrink-0">
-                              <div className="text-right">
-                                <span className="text-lg font-bold text-slate-900">{task.points}</span>
-                                <span className="text-xs text-slate-400 ml-0.5">p</span>
-                              </div>
-                              {isAdmin && (
-                                <Button variant="ghost" size="icon" className="h-7 w-7 text-red-400 hover:text-red-600 hover:bg-red-50" onClick={() => handleDeleteTask(task.id)}>
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                      {(isAdmin
-                        ? taskFilterAssistant === 'all' ? tasks : tasks.filter(t => t.assistantId === taskFilterAssistant)
-                        : tasks.filter(t => t.assistantId === currentUser?.id)
-                      ).length === 0 && (
-                        <div className="text-center py-12 text-slate-400">
-                          <ListChecks className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                          <p className="text-sm">Henüz görev kaydı yok</p>
-                        </div>
-                      )}
-                    </div>
-                  </ScrollArea>
-                </CardContent>
-              </Card>
             </div>
           </TabsContent>
 
@@ -997,23 +1145,37 @@ export default function Home() {
           {/* SCHEDULE */}
           <TabsContent value="schedule" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {isAdmin && (
-                <Card className="border-0 shadow-md lg:col-span-1">
-                  <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2"><Plus className="h-5 w-5 text-violet-600" /> Program Ekle</CardTitle><CardDescription>Çakışma kontrolü aktif</CardDescription></CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2"><Label className="text-sm">Araş Gör</Label><Select value={schedAssistantId} onValueChange={setSchedAssistantId}><SelectTrigger><SelectValue placeholder="Seçin..." /></SelectTrigger><SelectContent>{assistants.map(ra => <SelectItem key={ra.id} value={ra.id}>{ra.name}</SelectItem>)}</SelectContent></Select></div>
-                    <div className="space-y-2"><Label className="text-sm">Gün</Label><Select value={schedDay} onValueChange={setSchedDay}><SelectTrigger /><SelectContent>{Object.entries(DAY_NAMES).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent></Select></div>
-                    <div className="space-y-2"><Label className="text-sm">Saat</Label><Input placeholder="09:00-12:00" value={schedTime} onChange={e => setSchedTime(e.target.value)} /></div>
-                    <div className="space-y-2"><Label className="text-sm">Ders/Açıklama</Label><Input placeholder="GMIM Lisansüstü" value={schedDesc} onChange={e => setSchedDesc(e.target.value)} /></div>
-                    <Button onClick={handleAddSchedule} className="w-full bg-violet-600 hover:bg-violet-700 gap-2"><CalendarDays className="h-4 w-4" /> Ekle</Button>
-                  </CardContent>
-                </Card>
-              )}
-              <Card className={`border-0 shadow-md ${isAdmin ? 'lg:col-span-2' : 'lg:col-span-3'}`}>
-                <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2"><CalendarDays className="h-5 w-5 text-violet-600" /> Haftalık Program</CardTitle><CardDescription>{weeklySchedules.length} kayıt</CardDescription></CardHeader>
+              {/* Program Ekle - Hem admin hem ar.gör görür */}
+              <Card className="border-0 shadow-md lg:col-span-1">
+                <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2"><Plus className="h-5 w-5 text-violet-600" /> Program Ekle</CardTitle><CardDescription>{isAdmin ? 'Çakışma kontrolü aktif' : 'Kendi haftalık programınıza ekleyin'}</CardDescription></CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm">Araş Gör</Label>
+                    <Select value={isAdmin ? schedAssistantId : (currentUser?.id || '')} onValueChange={setSchedAssistantId} disabled={!isAdmin}>
+                      <SelectTrigger><SelectValue placeholder="Seçin..." /></SelectTrigger>
+                      <SelectContent>
+                        {isAdmin ? (
+                          assistants.map(ra => <SelectItem key={ra.id} value={ra.id}>{ra.name}</SelectItem>)
+                        ) : (
+                          currentUser ? <SelectItem value={currentUser.id}>{currentUser.name} (Kendim)</SelectItem> : null
+                        )}
+                      </SelectContent>
+                    </Select>
+                    {!isAdmin && <p className="text-[11px] text-slate-400">Sadece kendinize program ekleyebilirsiniz</p>}
+                  </div>
+                  <div className="space-y-2"><Label className="text-sm">Gün</Label><Select value={schedDay} onValueChange={setSchedDay}><SelectTrigger /><SelectContent>{Object.entries(DAY_NAMES).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent></Select></div>
+                  <div className="space-y-2"><Label className="text-sm">Saat</Label><Input placeholder="09:00-12:00" value={schedTime} onChange={e => setSchedTime(e.target.value)} /></div>
+                  <div className="space-y-2"><Label className="text-sm">Ders/Açıklama</Label><Input placeholder="GMIM Lisansüstü" value={schedDesc} onChange={e => setSchedDesc(e.target.value)} /></div>
+                  <Button onClick={handleAddSchedule} className="w-full bg-violet-600 hover:bg-violet-700 gap-2"><CalendarDays className="h-4 w-4" /> Ekle</Button>
+                </CardContent>
+              </Card>
+              <Card className="border-0 shadow-md lg:col-span-2">
+                <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2"><CalendarDays className="h-5 w-5 text-violet-600" /> {isAdmin ? 'Haftalık Program' : 'Haftalık Programım'}</CardTitle><CardDescription>
+                  {isAdmin ? `${weeklySchedules.length} kayıt` : `${weeklySchedules.filter(s => s.assistantId === currentUser?.id).length} kaydınız var`}
+                </CardDescription></CardHeader>
                 <CardContent>
                   <Table><TableHeader><TableRow><TableHead>Araş Gör</TableHead><TableHead>Gün</TableHead><TableHead>Saat</TableHead><TableHead>Ders</TableHead>{isAdmin && <TableHead className="w-12"></TableHead>}</TableRow></TableHeader>
-                    <TableBody>{weeklySchedules.sort((a, b) => a.dayOfWeek - b.dayOfWeek).map(s => (
+                    <TableBody>{(isAdmin ? weeklySchedules : weeklySchedules.filter(s => s.assistantId === currentUser?.id)).sort((a, b) => a.dayOfWeek - b.dayOfWeek).map(s => (
                       <TableRow key={s.id}>
                         <TableCell><span className="text-sm font-medium">{s.assistant.name}</span></TableCell>
                         <TableCell><Badge variant="outline" className="text-xs">{DAY_NAMES[s.dayOfWeek]}</Badge></TableCell>
@@ -1249,9 +1411,39 @@ export default function Home() {
                           </div>
                         </div>
                         {ra.role !== 'admin' && (
-                          <div className="flex justify-end">
+                          <div className="flex justify-end gap-1">
+                            <Button size="sm" variant="outline" className="text-xs gap-1 border-emerald-300 text-emerald-700 hover:bg-emerald-50" onClick={async () => {
+                              try {
+                                const res = await fetch('/api/toggle-role', {
+                                  method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ assistantId: ra.id, requesterId: currentUser?.id }),
+                                })
+                                const data = await res.json()
+                                if (res.ok) { toast.success(data.message); fetchData() }
+                                else { toast.error(data.error) }
+                              } catch { toast.error('Bağlantı hatası') }
+                            }}>
+                              <Shield className="h-3 w-3" /> Temsilci Yap
+                            </Button>
                             <Button size="sm" variant="outline" className="text-xs gap-1 border-red-300 text-red-600 hover:bg-red-50" onClick={() => handleRemoveAssistant(ra.id, ra.name)}>
                               <Trash2 className="h-3 w-3" /> Kaldır
+                            </Button>
+                          </div>
+                        )}
+                        {ra.role === 'admin' && ra.id !== currentUser?.id && (
+                          <div className="flex justify-end">
+                            <Button size="sm" variant="outline" className="text-xs gap-1 border-amber-300 text-amber-700 hover:bg-amber-50" onClick={async () => {
+                              try {
+                                const res = await fetch('/api/toggle-role', {
+                                  method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ assistantId: ra.id, requesterId: currentUser?.id }),
+                                })
+                                const data = await res.json()
+                                if (res.ok) { toast.success(data.message); fetchData() }
+                                else { toast.error(data.error) }
+                              } catch { toast.error('Bağlantı hatası') }
+                            }}>
+                              <Shield className="h-3 w-3" /> Temsilciliği Kaldır
                             </Button>
                           </div>
                         )}
