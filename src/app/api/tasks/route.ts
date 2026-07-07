@@ -32,14 +32,14 @@ export async function POST(request: Request) {
 
     // Determine status based on source:
     // - If submitted by the ar.gör themselves (self-reported): PENDING (needs temsilci approval)
-    // - If assigned by temsilci/admin: APPROVED directly
+    // - If assigned by temsilci/manager: ASSIGNED (ar.gör must accept or reject)
     // - If auto-assigned (exam supervisor): APPROVED directly
     // - If imported: APPROVED directly
     let status = 'pending';
     if (source === 'auto_assigned' || source === 'import') {
       status = 'approved';
     } else if (source === 'temsilci_assigned') {
-      status = 'approved';
+      status = 'assigned'; // ar.gör must accept/reject
     } else {
       // Self-reported by ar.gör → needs approval
       status = 'pending';
@@ -75,17 +75,17 @@ export async function POST(request: Request) {
 
     // Create notification
     if (status === 'pending') {
-      // Notify ALL admins (temsilci) about the pending task
-      const admins = await db.researchAssistant.findMany({
-        where: { role: 'admin', isActive: true },
+      // Notify ALL managers about the pending task
+      const managers = await db.researchAssistant.findMany({
+        where: { role: { in: ['admin', 'dekan', 'baskan'] }, isActive: true },
       });
-      for (const admin of admins) {
+      for (const m of managers) {
         await db.notification.create({
           data: {
             title: 'Onay Bekleyen Görev',
             message: `${task.assistant.name} yeni görev gönderdi: "${description}". Puan: ${points || 'Belirsiz'}`,
             type: 'task_pending',
-            assistantId: admin.id,
+            assistantId: m.id,
             relatedId: task.id,
           },
         });
@@ -100,12 +100,23 @@ export async function POST(request: Request) {
           relatedId: task.id,
         },
       });
-    } else {
-      // Notify the assistant about the assignment
+    } else if (status === 'assigned') {
+      // Notify the ar.gör they need to accept/reject
       await db.notification.create({
         data: {
-          title: 'Yeni Görev Atandı',
-          message: `"${description}" görevi size atandı. Puan: ${points}`,
+          title: 'Yeni Görev Atandı - Yanıt Bekleniyor',
+          message: `"${description}" görevi size atandı. Puan: ${points}. Görevler sekmesinden kabul edebilir veya reddedebilirsiniz.`,
+          type: 'task_assigned',
+          assistantId,
+          relatedId: task.id,
+        },
+      });
+    } else {
+      // Approved directly (auto-assigned or imported) - notify the assistant
+      await db.notification.create({
+        data: {
+          title: 'Yeni Görev',
+          message: `"${description}" görevi eklendi. Puan: ${points}`,
           type: 'task_assigned',
           assistantId,
           relatedId: task.id,

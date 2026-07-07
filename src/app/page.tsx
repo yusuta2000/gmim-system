@@ -20,7 +20,7 @@ import {
   Clock, AlertCircle, UserCheck, Award, TrendingDown, Zap, Ship,
   CalendarDays, ChevronRight, Sparkles, Send, ArrowUpRight, Target,
   Bell, BellRing, Upload, FileSpreadsheet, LogIn, LogOut, Shield,
-  Info, Trash2, XCircle, Check, RotateCcw, Settings2
+  Info, Trash2, XCircle, Check, RotateCcw, Settings2, Megaphone, MessageSquare
 } from 'lucide-react'
 
 interface ResearchAssistant {
@@ -35,6 +35,15 @@ interface Task {
 }
 interface PointCategory { id: string; name: string; points: number; description: string | null; isActive: boolean }
 interface PendingDutyChange { id: string; changeType: string; dutyName: string; description: string | null; status: string; assistantId: string; dutyId: string | null; submittedBy: string | null; createdAt: string }
+interface Announcement {
+  id: string; title: string; content: string; createdAt: string
+  authorId: string; author: { id: string; name: string; role: string }
+  comments: AnnouncementComment[]
+}
+interface AnnouncementComment {
+  id: string; content: string; createdAt: string
+  announcementId: string; authorId: string; author: { id: string; name: string; role: string }
+}
 interface Exam {
   id: string; courseCode: string; courseName: string; instructor: string; date: string
   day: string; timeSlot: string; classroom: string | null; requiredSupervisors: number
@@ -64,6 +73,7 @@ export default function Home() {
   const [exams, setExams] = useState<Exam[]>([])
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const [weeklySchedules, setWeeklySchedules] = useState<WeeklyScheduleItem[]>([])
+  const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [pendingTasks, setPendingTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
@@ -128,13 +138,18 @@ export default function Home() {
   const [newPersonPhone, setNewPersonPhone] = useState('')
   const [newPersonPassword, setNewPersonPassword] = useState('')
 
+  // Announcement form
+  const [annTitle, setAnnTitle] = useState('')
+  const [annContent, setAnnContent] = useState('')
+  const [commentText, setCommentText] = useState<Record<string, string>>({})
+
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const [assRes, taskRes, catRes, examRes, notifRes, schedRes, pendRes] = await Promise.all([
+      const [assRes, taskRes, catRes, examRes, notifRes, schedRes, pendRes, annRes] = await Promise.all([
         fetch('/api/assistants'), fetch('/api/tasks'), fetch('/api/categories'),
         fetch('/api/exams'), fetch('/api/notifications'), fetch('/api/weekly-schedule'),
-        fetch('/api/approve-task'),
+        fetch('/api/approve-task'), fetch('/api/announcements'),
       ])
       setAssistants(await assRes.json())
       setTasks(await taskRes.json())
@@ -145,6 +160,7 @@ export default function Home() {
       setUnreadCount(notifData.unreadCount || 0)
       setWeeklySchedules(await schedRes.json())
       setPendingTasks(await pendRes.json())
+      setAnnouncements(await annRes.json())
     } catch (err) { console.error(err); toast.error('Veriler yüklenirken hata') }
     finally { setLoading(false) }
   }, [])
@@ -217,7 +233,7 @@ export default function Home() {
       })
       if (res.ok) {
         toast.success(canEdit ? 'Görev atandı!' : 'Görev temsilci onayına gönderildi!', {
-          description: canEdit ? 'Puan otomatik eklendi' : 'Onaylandıktan sonra puan eklenecek'
+          description: canEdit ? 'Araş görün kabul etmesi bekleniyor' : 'Onaylandıktan sonra puan eklenecek'
         })
         setTaskDesc(''); setTaskDate(''); setTaskHours(''); setTaskAssistantId('')
         setTaskCategoryId(''); setTaskPoints(0); setTaskNotes(''); setClassifyResult(null)
@@ -456,6 +472,65 @@ export default function Home() {
     } catch { toast.error('İndirme hatası') }
   }
 
+  // Create announcement
+  const handleCreateAnnouncement = async () => {
+    if (!currentUser || !canEdit) return
+    if (!annTitle || !annContent) { toast.error('Başlık ve içerik gerekli'); return }
+    try {
+      const res = await fetch('/api/announcements', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: annTitle, content: annContent, authorId: currentUser.id }),
+      })
+      const data = await res.json()
+      if (res.ok) { toast.success('Duyuru oluşturuldu'); setAnnTitle(''); setAnnContent(''); fetchData() }
+      else { toast.error(data.error) }
+    } catch { toast.error('Bağlantı hatası') }
+  }
+
+  // Add comment
+  const handleAddComment = async (announcementId: string) => {
+    if (!currentUser) return
+    const content = commentText[announcementId]
+    if (!content) { toast.error('Yorum boş olamaz'); return }
+    try {
+      const res = await fetch('/api/announcements', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ announcementId, content, authorId: currentUser.id }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setCommentText({ ...commentText, [announcementId]: '' })
+        fetchData()
+      } else { toast.error(data.error) }
+    } catch { toast.error('Bağlantı hatası') }
+  }
+
+  // Delete announcement
+  const handleDeleteAnnouncement = async (id: string) => {
+    if (!currentUser || !canEdit) return
+    if (!confirm('Bu duyuruyu silmek istediğinize emin misiniz?')) return
+    try {
+      const res = await fetch(`/api/announcements?id=${id}&requesterId=${currentUser.id}`, { method: 'DELETE' })
+      const data = await res.json()
+      if (res.ok) { toast.success(data.message); fetchData() }
+      else { toast.error(data.error) }
+    } catch { toast.error('Bağlantı hatası') }
+  }
+
+  // Respond to assigned task (accept/reject)
+  const handleRespondTask = async (taskId: string, action: 'accept' | 'reject') => {
+    if (!currentUser) return
+    try {
+      const res = await fetch('/api/respond-task', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taskId, action, responderId: currentUser.id }),
+      })
+      const data = await res.json()
+      if (res.ok) { toast.success(data.message); fetchData() }
+      else { toast.error(data.error) }
+    } catch { toast.error('Bağlantı hatası') }
+  }
+
   // Computed
   const totalTasks = tasks.length
   const pendingCount = pendingTasks.length
@@ -542,12 +617,6 @@ export default function Home() {
                 <Input type="password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleLogin()} />
               </div>
               <Button onClick={handleLogin} className="w-full bg-emerald-600 hover:bg-emerald-700 gap-2"><LogIn className="h-4 w-4" /> Giriş Yap</Button>
-              <div className="text-[11px] text-slate-400 space-y-0.5 pt-2 border-t border-slate-100">
-                <p className="font-semibold text-slate-500 mb-1">Giriş Bilgileri:</p>
-                <p>ymutlu@itu.edu.tr / tarik2026 (Temsilci)</p>
-                <p>cenkkaya@itu.edu.tr / cenk2026</p>
-                <p>sbicen@itu.edu.tr / samet2026</p>
-              </div>
             </CardContent>
           </Card>
           <p className="text-center text-[11px] text-slate-400 mt-6">GMIM Ar.Gör Yönetim Sistemi · AI Destekli v3.0</p>
@@ -633,15 +702,9 @@ export default function Home() {
                 <DialogContent className="max-w-sm">
                   <DialogHeader><DialogTitle className="flex items-center gap-2"><LogIn className="h-5 w-5" /> Sisteme Giriş</DialogTitle></DialogHeader>
                   <div className="space-y-4">
-                    <div className="space-y-2"><Label>E-posta</Label><Input placeholder="ymutlu@itu.edu.tr" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} /></div>
+                    <div className="space-y-2"><Label>E-posta</Label><Input placeholder="isim@itu.edu.tr" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} /></div>
                     <div className="space-y-2"><Label>Şifre</Label><Input type="password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleLogin()} /></div>
                     <Button onClick={handleLogin} className="w-full bg-emerald-600 hover:bg-emerald-700 gap-2"><LogIn className="h-4 w-4" /> Giriş Yap</Button>
-                    <div className="text-[11px] text-slate-400 space-y-0.5">
-                      <p className="font-semibold text-slate-500 mb-1">Giriş Bilgileri:</p>
-                      <p>ymutlu@itu.edu.tr / tarik2026 (Temsilci)</p>
-                      <p>cenkkaya@itu.edu.tr / cenk2026</p>
-                      <p>sbicen@itu.edu.tr / samet2026</p>
-                    </div>
                   </div>
                 </DialogContent>
               </Dialog>
@@ -656,14 +719,15 @@ export default function Home() {
             <TabsList className="inline-flex w-auto min-w-full grid-cols-none gap-1 bg-slate-100 p-1 rounded-xl h-auto">
               {[
                 { v: 'dashboard', icon: BarChart3, label: 'Puan Tablosu', short: 'Puan' },
-                { v: 'approvals', icon: CheckCircle2, label: 'Onaylar', short: 'Onay', badge: pendingCount, adminOnly: true },
-                { v: 'tasks', icon: ListChecks, label: 'Görevler', short: 'Görev' },
+                { v: 'announcements', icon: Megaphone, label: 'Duyurular', short: 'Duyuru' },
+                { v: 'approvals', icon: CheckCircle2, label: 'Onaylar', short: 'Onay', badge: pendingCount, managerOnly: true },
+                { v: 'tasks', icon: ListChecks, label: 'Görevler', short: 'Görev', badge: isArGor ? tasks.filter(t => t.assistantId === currentUser?.id && t.status === 'assigned').length : 0 },
                 { v: 'exams', icon: GraduationCap, label: 'Sınavlar', short: 'Sınav' },
                 { v: 'schedule', icon: CalendarDays, label: 'Program', short: 'Prog.' },
-                { v: 'import', icon: Upload, label: 'Veri Aktar', short: 'Aktar', adminOnly: true },
+                { v: 'import', icon: Upload, label: 'Veri Aktar', short: 'Aktar', managerOnly: true },
                 { v: 'categories', icon: Award, label: 'Puan Baremi', short: 'Barem' },
                 { v: 'personnel', icon: Users, label: 'Personel', short: 'Kişiler' },
-              ].filter(tab => !tab.adminOnly || isManager).map(tab => (
+              ].filter(tab => !tab.managerOnly || isManager).map(tab => (
                 <TabsTrigger key={tab.v} value={tab.v} className="rounded-lg text-xs sm:text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm py-2 px-3 whitespace-nowrap relative">
                   <tab.icon className="h-4 w-4 mr-1 sm:mr-2" />
                   <span className="hidden sm:inline">{tab.label}</span><span className="sm:hidden">{tab.short}</span>
@@ -875,6 +939,84 @@ export default function Home() {
             </Card>
           </TabsContent>
 
+          {/* ANNOUNCEMENTS */}
+          <TabsContent value="announcements" className="space-y-6">
+            {canEdit && (
+              <Card className="border-0 shadow-md">
+                <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2"><Megaphone className="h-5 w-5 text-violet-600" /> Yeni Duyuru</CardTitle><CardDescription>Tüm araş görlerle paylaşın</CardDescription></CardHeader>
+                <CardContent className="space-y-3">
+                  <Input placeholder="Duyuru başlığı" value={annTitle} onChange={e => setAnnTitle(e.target.value)} />
+                  <Textarea placeholder="Duyuru içeriği (örn: 'İki hafta sonraki MÜDEK hazırlıkları için müsaitlik durumunuzu yorum olarak yazın')" value={annContent} onChange={e => setAnnContent(e.target.value)} rows={3} />
+                  <Button onClick={handleCreateAnnouncement} disabled={!annTitle || !annContent} className="bg-violet-600 hover:bg-violet-700 gap-2"><Send className="h-4 w-4" /> Yayınla</Button>
+                </CardContent>
+              </Card>
+            )}
+            {announcements.length === 0 ? (
+              <Card className="border-0 shadow-md"><CardContent className="p-8 text-center">
+                <Megaphone className="h-12 w-12 text-slate-300 mx-auto mb-3" />
+                <h3 className="font-semibold text-slate-700">Henüz duyuru yok</h3>
+                <p className="text-sm text-slate-500">{canEdit ? 'İlk duyurunuzu oluşturun.' : 'Temsilci duyuru paylaştığında burada görünecek.'}</p>
+              </CardContent></Card>
+            ) : (
+              <div className="space-y-4">
+                {announcements.map(ann => (
+                  <Card key={ann.id} className="border-0 shadow-md">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <CardTitle className="text-base flex items-center gap-2"><Megaphone className="h-4 w-4 text-violet-600" /> {ann.title}</CardTitle>
+                          <CardDescription className="mt-1">
+                            {ann.author.name} · {new Date(ann.createdAt).toLocaleString('tr-TR')}
+                          </CardDescription>
+                        </div>
+                        {canEdit && ann.authorId === currentUser?.id && (
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-red-400 hover:text-red-600 hover:bg-red-50" onClick={() => handleDeleteAnnouncement(ann.id)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <p className="text-sm text-slate-700 whitespace-pre-wrap">{ann.content}</p>
+                      {ann.comments.length > 0 && (
+                        <div className="pt-3 border-t border-slate-100 space-y-2">
+                          <p className="text-xs font-medium text-slate-400 flex items-center gap-1"><MessageSquare className="h-3 w-3" /> Yorumlar ({ann.comments.length})</p>
+                          {ann.comments.map(c => (
+                            <div key={c.id} className="flex items-start gap-2 p-2 rounded-lg bg-slate-50">
+                              <div className={`h-6 w-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0 ${c.author.role === 'admin' ? 'bg-emerald-500' : c.author.role === 'dekan' ? 'bg-violet-500' : c.author.role === 'baskan' ? 'bg-blue-500' : 'bg-slate-400'}`}>
+                                {c.author.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1">
+                                  <span className="text-xs font-semibold text-slate-700">{c.author.name}</span>
+                                  <span className="text-[10px] text-slate-400">{new Date(c.createdAt).toLocaleString('tr-TR')}</span>
+                                </div>
+                                <p className="text-xs text-slate-600 mt-0.5">{c.content}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {/* Comment input */}
+                      <div className="flex gap-2 pt-2">
+                        <Input
+                          placeholder="Müsaitlik durumunuzu yazın..."
+                          value={commentText[ann.id] || ''}
+                          onChange={e => setCommentText({ ...commentText, [ann.id]: e.target.value })}
+                          onKeyDown={e => { if (e.key === 'Enter' && commentText[ann.id]) handleAddComment(ann.id) }}
+                          className="text-sm"
+                        />
+                        <Button size="sm" onClick={() => handleAddComment(ann.id)} disabled={!commentText[ann.id]} className="bg-violet-600 hover:bg-violet-700 gap-1">
+                          <MessageSquare className="h-3.5 w-3.5" /> Yanıtla
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
           {/* APPROVALS */}
           <TabsContent value="approvals" className="space-y-6">
             {!canEdit ? (
@@ -928,6 +1070,35 @@ export default function Home() {
                 ))}
               </div>
             )}
+
+            {/* Pending duty changes in approvals tab */}
+            {(() => {
+              const allPendingChanges = assistants.flatMap(a => (a.pendingDutyChanges || []).filter(c => c.status === 'pending').map(c => ({ ...c, assistantName: a.name })))
+              return allPendingChanges.length > 0 && (
+                <Card className="border-0 shadow-md border-l-4 border-l-amber-400 mt-6">
+                  <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2"><Clock className="h-5 w-5 text-amber-600" /> Bekleyen Daimi Görev Değişiklikleri</CardTitle><CardDescription>{allPendingChanges.length} talep bekliyor</CardDescription></CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {allPendingChanges.map(c => (
+                        <div key={c.id} className="flex items-center justify-between p-3 rounded-xl border border-amber-200 bg-amber-50/50">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-semibold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded">{c.assistantName}</span>
+                              <span className="text-xs text-amber-600">{c.changeType === 'add' ? 'Ekleme' : c.changeType === 'edit' ? 'Düzenleme' : 'Silme'}</span>
+                            </div>
+                            <p className="text-sm font-medium text-slate-900 mt-1">"{c.dutyName}"</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button size="sm" variant="outline" className="h-7 text-xs gap-1 border-emerald-300 text-emerald-700 hover:bg-emerald-50" onClick={() => handleDutyApproval(c.id, 'approve')}><Check className="h-3 w-3" /> Onayla</Button>
+                            <Button size="sm" variant="outline" className="h-7 text-xs gap-1 border-red-300 text-red-700 hover:bg-red-50" onClick={() => handleDutyApproval(c.id, 'reject')}><XCircle className="h-3 w-3" /> Reddet</Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })()}
           </TabsContent>
 
           {/* TASKS */}
@@ -998,12 +1169,22 @@ export default function Home() {
                                 <Badge variant="outline" className="text-[10px]">
                                   {task.source === 'auto_assigned' ? 'Otomatik' : task.source === 'import' ? 'İçe Aktarma' : task.source === 'temsilci_assigned' ? 'Temsilci' : 'Kendi Bildirimi'}
                                 </Badge>
-                                <Badge variant={task.status === 'approved' ? 'default' : task.status === 'pending' ? 'secondary' : 'destructive'} className="text-[10px]">
-                                  {task.status === 'approved' ? 'Onaylı' : task.status === 'pending' ? 'Bekliyor' : 'Reddedildi'}
+                                <Badge variant={task.status === 'approved' ? 'default' : task.status === 'pending' ? 'secondary' : task.status === 'assigned' ? 'secondary' : 'destructive'} className={`text-[10px] ${task.status === 'assigned' ? 'bg-blue-100 text-blue-700' : ''}`}>
+                                  {task.status === 'approved' ? 'Onaylı' : task.status === 'pending' ? 'Onay Bekliyor' : task.status === 'assigned' ? 'Yanıt Bekleniyor' : 'Reddedildi'}
                                 </Badge>
                               </div>
                             </div>
                             <div className="flex items-center gap-2 flex-shrink-0">
+                              {task.status === 'assigned' && task.assistantId === currentUser?.id && (
+                                <div className="flex items-center gap-1">
+                                  <Button size="sm" className="h-7 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700" onClick={() => handleRespondTask(task.id, 'accept')}>
+                                    <Check className="h-3 w-3" /> Kabul
+                                  </Button>
+                                  <Button size="sm" variant="outline" className="h-7 text-xs gap-1 border-red-300 text-red-700 hover:bg-red-50" onClick={() => handleRespondTask(task.id, 'reject')}>
+                                    <XCircle className="h-3 w-3" /> Red
+                                  </Button>
+                                </div>
+                              )}
                               <div className="text-right">
                                 <span className="text-lg font-bold text-slate-900">{task.points}</span>
                                 <span className="text-xs text-slate-400 ml-0.5">p</span>
@@ -1291,35 +1472,6 @@ export default function Home() {
                 </DialogContent>
               </Dialog>
             )}
-            {/* Pending duty changes for admin approval */}
-            {canEdit && (() => {
-              const allPendingChanges = assistants.flatMap(a => (a.pendingDutyChanges || []).filter(c => c.status === 'pending').map(c => ({ ...c, assistantName: a.name })))
-              return allPendingChanges.length > 0 && (
-                <Card className="border-0 shadow-md border-l-4 border-l-amber-400">
-                  <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2"><Clock className="h-5 w-5 text-amber-600" /> Bekleyen Daimi Görev Değişiklikleri</CardTitle><CardDescription>{allPendingChanges.length} talep bekliyor</CardDescription></CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      {allPendingChanges.map(c => (
-                        <div key={c.id} className="flex items-center justify-between p-3 rounded-xl border border-amber-200 bg-amber-50/50">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-semibold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded">{c.assistantName}</span>
-                              <span className="text-xs text-amber-600">{c.changeType === 'add' ? 'Ekleme' : c.changeType === 'edit' ? 'Düzenleme' : 'Silme'}</span>
-                            </div>
-                            <p className="text-sm font-medium text-slate-900 mt-1">"{c.dutyName}"</p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Button size="sm" variant="outline" className="h-7 text-xs gap-1 border-emerald-300 text-emerald-700 hover:bg-emerald-50" onClick={() => handleDutyApproval(c.id, 'approve')}><Check className="h-3 w-3" /> Onayla</Button>
-                            <Button size="sm" variant="outline" className="h-7 text-xs gap-1 border-red-300 text-red-700 hover:bg-red-50" onClick={() => handleDutyApproval(c.id, 'reject')}><XCircle className="h-3 w-3" /> Reddet</Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )
-            })()}
-
             {/* Yöneticiler (Dekan ve Bölüm Başkanı) - en üstte, sadece yöneticilere görünür */}
             {canSeeAll && managerAssistants.length > 0 && (
               <div className="mb-4">

@@ -32,6 +32,8 @@ model ResearchAssistant {
   examAssignments ExamSupervisor[]
   weeklySchedule WeeklySchedule[]
   notifications Notification[]
+  announcements Announcement[]
+  announcementComments AnnouncementComment[]
 }
 
 model PointCategory {
@@ -128,6 +130,31 @@ model Notification {
 
   assistantId String
   assistant   ResearchAssistant @relation(fields: [assistantId], references: [id])
+}
+
+model Announcement {
+  id          String   @id @default(cuid())
+  title       String
+  content     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  authorId    String
+  author      ResearchAssistant @relation(fields: [authorId], references: [id])
+
+  comments    AnnouncementComment[]
+}
+
+model AnnouncementComment {
+  id          String   @id @default(cuid())
+  content     String
+  createdAt   DateTime @default(now())
+
+  announcementId String
+  announcement    Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+
+  authorId    String
+  author      ResearchAssistant @relation(fields: [authorId], references: [id])
 }
 
 model PendingDutyChange {
