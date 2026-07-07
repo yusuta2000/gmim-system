@@ -79,8 +79,14 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('dashboard')
 
-  // Auth
-  const [currentUser, setCurrentUser] = useState<ResearchAssistant | null>(null)
+  // Auth - localStorage'dan geri yükle
+  const [currentUser, setCurrentUser] = useState<ResearchAssistant | null>(() => {
+    if (typeof window === 'undefined') return null
+    try {
+      const stored = localStorage.getItem('gmim_current_user')
+      return stored ? JSON.parse(stored) : null
+    } catch { return null }
+  })
   const [loginEmail, setLoginEmail] = useState('')
   const [loginPassword, setLoginPassword] = useState('')
   const [showLoginDialog, setShowLoginDialog] = useState(false)
@@ -187,7 +193,9 @@ export default function Home() {
       })
       const data = await res.json()
       if (res.ok) {
-        setCurrentUser(data.user); setShowLoginDialog(false); setLoginEmail(''); setLoginPassword('')
+        setCurrentUser(data.user)
+        try { localStorage.setItem('gmim_current_user', JSON.stringify(data.user)) } catch {}
+        setShowLoginDialog(false); setLoginEmail(''); setLoginPassword('')
         const roleLabel = data.user.role === 'admin' ? 'Temsilci' : data.user.role === 'dekan' ? 'Dekan' : data.user.role === 'baskan' ? 'Bölüm Başkanı' : 'Araş Gör'
         toast.success(`Hoş geldiniz, ${data.user.name}!`, { description: roleLabel })
         // Rol bazlı default tab
@@ -694,7 +702,7 @@ export default function Home() {
                     </div>
                   </DialogContent>
                 </Dialog>
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setCurrentUser(null); setActiveTab('dashboard'); toast.info('Çıkış yapıldı') }}><LogOut className="h-3.5 w-3.5" /></Button>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setCurrentUser(null); try { localStorage.removeItem('gmim_current_user') } catch {}; setActiveTab('dashboard'); toast.info('Çıkış yapıldı') }}><LogOut className="h-3.5 w-3.5" /></Button>
               </div>
             ) : (
               <Dialog open={showLoginDialog} onOpenChange={setShowLoginDialog}>
