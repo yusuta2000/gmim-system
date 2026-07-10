@@ -14,24 +14,20 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Z.ai Code Scaffold - AI-Powered Development",
-  description: "Modern Next.js scaffold optimized for AI-powered development with Z.ai. Built with TypeScript, Tailwind CSS, and shadcn/ui.",
-  keywords: ["Z.ai", "Next.js", "TypeScript", "Tailwind CSS", "shadcn/ui", "AI development", "React"],
-  authors: [{ name: "Z.ai Team" }],
-  icons: {
-    icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
-  },
+  title: "İTÜ DF Ar.Gör Portalı",
+  description: "İTÜ Denizcilik Fakültesi Araştırma Görevlisi Yönetim Sistemi — görev dağıtımı, puan takibi, sınav gözetmenliği ve haftalık program yönetimi (GMİM & DUİM).",
+  keywords: ["İTÜ", "Denizcilik Fakültesi", "GMİM", "DUİM", "Araştırma Görevlisi", "Yönetim Sistemi"],
+  authors: [{ name: "İTÜ Denizcilik Fakültesi" }],
   openGraph: {
-    title: "Z.ai Code Scaffold",
-    description: "AI-powered development with modern React stack",
-    url: "https://chat.z.ai",
-    siteName: "Z.ai",
+    title: "İTÜ DF Ar.Gör Portalı",
+    description: "İTÜ Denizcilik Fakültesi Araştırma Görevlisi Yönetim Sistemi",
+    siteName: "İTÜ DF Ar.Gör Portalı",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Z.ai Code Scaffold",
-    description: "AI-powered development with modern React stack",
+    title: "İTÜ DF Ar.Gör Portalı",
+    description: "İTÜ Denizcilik Fakültesi Araştırma Görevlisi Yönetim Sistemi",
   },
 };
 
@@ -41,7 +37,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="tr" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
