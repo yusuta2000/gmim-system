@@ -28,14 +28,16 @@ export async function POST(request: Request) {
       select: { order: true },
     });
 
+    const dept = department || 'GMIM';
+
     // Calculate average points for new ar.gör
-    // New ar.gör gets the arithmetic average of existing active ar.görs' points (admin + user roles)
-    // This prevents unfair disadvantage for newly joining ar.görs
+    // New ar.gör gets the arithmetic average of the SAME department's active ar.görs' points
+    // (admin + user roles). This prevents unfair disadvantage for newly joining ar.görs.
     let initialPoints = 0;
     const userRole = role || 'user';
     if (userRole === 'user') {
       const existingArGors = await db.researchAssistant.findMany({
-        where: { role: { in: ['admin', 'user'] }, isActive: true },
+        where: { role: { in: ['admin', 'user'] }, isActive: true, department: dept },
         select: { totalPoints: true },
       });
       if (existingArGors.length > 0) {
@@ -50,7 +52,7 @@ export async function POST(request: Request) {
         email,
         phone: phone || null,
         faculty: faculty || 'DZ',
-        department: department || 'GMI',
+        department: dept,
         password: password || email.split('@')[0] + '2026',
         role: userRole,
         order: (maxOrder?.order || 0) + 1,
@@ -59,9 +61,15 @@ export async function POST(request: Request) {
       },
     });
 
-    // Notify all managers
+    // Notify managers of this department (admin/baskan) plus the faculty-wide dekan
     const managers = await db.researchAssistant.findMany({
-      where: { role: { in: ['admin', 'dekan', 'baskan'] }, isActive: true },
+      where: {
+        isActive: true,
+        OR: [
+          { role: { in: ['admin', 'baskan'] }, department: dept },
+          { role: 'dekan' },
+        ],
+      },
     });
     for (const m of managers) {
       await db.notification.create({

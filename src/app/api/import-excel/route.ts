@@ -6,6 +6,7 @@ export async function POST(request: Request) {
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
     const importType = formData.get('type') as string || 'tasks';
+    const department = (formData.get('department') as string) || 'GMIM';
 
     if (!file) {
       return NextResponse.json({ error: 'Dosya yüklenemedi' }, { status: 400 });
@@ -42,7 +43,7 @@ export async function POST(request: Request) {
         const pointsIdx = headers.findIndex(h => h.toLowerCase().includes('puan') || h.toLowerCase().includes('point'));
         const hoursIdx = headers.findIndex(h => h.toLowerCase().includes('saat') || h.toLowerCase().includes('hour'));
 
-        const assistants = await db.researchAssistant.findMany();
+        const assistants = await db.researchAssistant.findMany({ where: { department } });
 
         for (let i = 1; i < lines.length; i++) {
           const cols = lines[i].split(/[,;\t]/).map(c => c.trim().replace(/"/g, ''));
@@ -117,6 +118,7 @@ export async function POST(request: Request) {
               date: dateIdx >= 0 && cols[dateIdx] ? new Date(cols[dateIdx]) : new Date(),
               day: dayIdx >= 0 ? cols[dayIdx] : '',
               timeSlot: timeIdx >= 0 ? cols[timeIdx] : '',
+              department,
               requiredSupervisors: supIdx >= 0 ? parseInt(cols[supIdx]) || 1 : 1,
             },
           });

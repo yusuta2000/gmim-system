@@ -17,7 +17,7 @@ model ResearchAssistant {
   email     String   @unique
   phone     String?
   faculty   String   @default("DZ")
-  department String  @default("GMI")
+  department String  @default("GMIM")
   totalPoints Int     @default(0)
   order     Int      @default(0)
   isActive  Boolean  @default(true)
@@ -88,6 +88,7 @@ model Exam {
   date          DateTime
   day           String
   timeSlot      String
+  department    String   @default("GMIM")
   classroom     String?
   requiredSupervisors Int  @default(1)
   notes         String?
@@ -136,6 +137,7 @@ model Announcement {
   id          String   @id @default(cuid())
   title       String
   content     String
+  department  String   @default("GMIM")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

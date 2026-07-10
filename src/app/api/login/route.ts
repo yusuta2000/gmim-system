@@ -4,7 +4,7 @@ import { db } from '@/lib/db';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { email, password } = body;
+    const { email, password, department } = body;
 
     if (!email || !password) {
       return NextResponse.json({ error: 'E-posta ve şifre gerekli' }, { status: 400 });
@@ -20,6 +20,12 @@ export async function POST(request: Request) {
 
     if (assistant.password !== password) {
       return NextResponse.json({ error: 'Şifre hatalı' }, { status: 401 });
+    }
+
+    // Department gate: users/temsilci/başkan may only sign in to their own department.
+    // Dekan is faculty-wide and may sign in to either.
+    if (department && assistant.role !== 'dekan' && assistant.department !== department) {
+      return NextResponse.json({ error: 'Bu bölüme ait bir hesabınız yok. Lütfen doğru bölümü seçin.' }, { status: 403 });
     }
 
     // Return user info (without password)

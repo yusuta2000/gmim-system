@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const department = searchParams.get('department');
     const exams = await db.exam.findMany({
+      where: department ? { department } : {},
       orderBy: { date: 'asc' },
       include: {
         supervisors: {
@@ -23,7 +26,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { courseCode, courseName, instructor, date, day, timeSlot, requiredSupervisors, classroom, notes } = body;
+    const { courseCode, courseName, instructor, date, day, timeSlot, requiredSupervisors, classroom, notes, department } = body;
 
     const exam = await db.exam.create({
       data: {
@@ -33,6 +36,7 @@ export async function POST(request: Request) {
         date: new Date(date),
         day,
         timeSlot,
+        department: department || 'GMIM',
         requiredSupervisors: requiredSupervisors || 1,
         classroom: classroom || null,
         notes: notes || null,

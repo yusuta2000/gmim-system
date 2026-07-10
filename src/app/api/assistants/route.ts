@@ -1,9 +1,17 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const department = searchParams.get('department');
+    // Department-scoped: return the department's members. Dekan is faculty-wide,
+    // so it appears in every department's management view.
+    const where = department
+      ? { OR: [{ department }, { role: 'dekan' }] }
+      : {};
     const assistants = await db.researchAssistant.findMany({
+      where,
       orderBy: { order: 'asc' },
       include: {
         tasks: {

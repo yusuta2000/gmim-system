@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const department = searchParams.get('department');
     const schedules = await db.weeklySchedule.findMany({
+      where: department ? { assistant: { department } } : {},
       orderBy: [{ dayOfWeek: 'asc' }, { timeSlot: 'asc' }],
       include: { assistant: true },
     });

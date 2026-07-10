@@ -5,12 +5,13 @@ import { db } from '@/lib/db';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { action, carryOverPoints } = body;
+    const { action, carryOverPoints, department } = body;
 
     // action: 'reset' = zero all points, 'archive' = save current as archive and reset
     if (action === 'reset') {
-      // Zero out all points
+      // Zero out points for this department only
       await db.researchAssistant.updateMany({
+        where: department ? { department } : {},
         data: { totalPoints: 0 },
       });
 

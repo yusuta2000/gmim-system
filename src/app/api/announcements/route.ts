@@ -2,9 +2,12 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
 // GET: List all announcements with comments
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const department = searchParams.get('department');
     const announcements = await db.announcement.findMany({
+      where: department ? { department } : {},
       orderBy: { createdAt: 'desc' },
       include: {
         author: true,
@@ -25,7 +28,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { title, content, authorId } = body;
+    const { title, content, authorId, department } = body;
 
     if (!title || !content || !authorId) {
       return NextResponse.json({ error: 'Başlık, içerik ve yazar gerekli' }, { status: 400 });
@@ -37,14 +40,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Duyuru oluşturma yetkiniz yok' }, { status: 403 });
     }
 
+    // Announcement belongs to the department it was posted in.
+    // Dekan is faculty-wide, so use the department they posted from; others use their own.
+    const annDept = department || author.department;
+
     const announcement = await db.announcement.create({
-      data: { title, content, authorId },
+      data: { title, content, authorId, department: annDept },
       include: { author: true },
     });
 
-    // Notify all active ar.gör and managers about new announcement
+    // Notify active ar.gör and temsilci of that department about the new announcement
     const recipients = await db.researchAssistant.findMany({
-      where: { isActive: true, role: { in: ['user', 'admin'] } },
+      where: { isActive: true, role: { in: ['user', 'admin'] }, department: annDept },
     });
     for (const r of recipients) {
       if (r.id !== authorId) {

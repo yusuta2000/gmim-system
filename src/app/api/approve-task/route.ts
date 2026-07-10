@@ -72,10 +72,14 @@ export async function PUT(request: Request) {
 }
 
 // Get pending tasks (for temsilci dashboard)
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const department = searchParams.get('department');
     const pendingTasks = await db.task.findMany({
-      where: { status: 'pending' },
+      where: department
+        ? { status: 'pending', assistant: { department } }
+        : { status: 'pending' },
       orderBy: { createdAt: 'desc' },
       include: { assistant: true, category: true },
     });

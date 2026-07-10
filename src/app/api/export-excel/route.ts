@@ -6,11 +6,13 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type') || 'tasks';
+    const department = searchParams.get('department');
 
     const wb = XLSX.utils.book_new();
 
     if (type === 'tasks') {
       const tasks = await db.task.findMany({
+        where: department ? { assistant: { department } } : {},
         orderBy: { date: 'desc' },
         include: { assistant: true, category: true },
       });
@@ -33,6 +35,7 @@ export async function GET(request: Request) {
 
     if (type === 'ranking') {
       const assistants = await db.researchAssistant.findMany({
+        where: department ? { department, role: { in: ['admin', 'user'] } } : {},
         orderBy: { totalPoints: 'asc' },
         include: { permanentDuties: true },
       });
@@ -54,6 +57,7 @@ export async function GET(request: Request) {
 
     if (type === 'exams') {
       const exams = await db.exam.findMany({
+        where: department ? { department } : {},
         orderBy: { date: 'desc' },
         include: { supervisors: { include: { assistant: true } } },
       });
@@ -79,7 +83,7 @@ export async function GET(request: Request) {
       status: 200,
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'Content-Disposition': `attachment; filename="gmim_${type}_${new Date().toISOString().slice(0, 10)}.xlsx"`,
+        'Content-Disposition': `attachment; filename="${(department || 'export').toLowerCase()}_${type}_${new Date().toISOString().slice(0, 10)}.xlsx"`,
       },
     });
   } catch (error) {

@@ -24,9 +24,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'Bu sınav için yeterli gözetmen zaten atanmış', exam }, { status: 200 });
     }
 
-    // Get all assistants sorted by totalPoints ascending
+    // Get eligible assistants (ar.gör + temsilci) of the exam's department, lowest points first.
+    // Dekan/başkan are excluded — they are not supervised staff.
     const assistants = await db.researchAssistant.findMany({
-      where: { isActive: true },
+      where: { isActive: true, department: exam.department, role: { in: ['user', 'admin'] } },
       orderBy: { totalPoints: 'asc' },
     });
 

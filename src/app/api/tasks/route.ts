@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const department = searchParams.get('department');
     const tasks = await db.task.findMany({
+      where: department ? { assistant: { department } } : {},
       orderBy: { date: 'desc' },
       include: {
         assistant: true,
@@ -75,9 +78,15 @@ export async function POST(request: Request) {
 
     // Create notification
     if (status === 'pending') {
-      // Notify ALL managers about the pending task
+      // Notify managers of this task's department (admin/baskan) plus the faculty-wide dekan
       const managers = await db.researchAssistant.findMany({
-        where: { role: { in: ['admin', 'dekan', 'baskan'] }, isActive: true },
+        where: {
+          isActive: true,
+          OR: [
+            { role: { in: ['admin', 'baskan'] }, department: task.assistant.department },
+            { role: 'dekan' },
+          ],
+        },
       });
       for (const m of managers) {
         await db.notification.create({

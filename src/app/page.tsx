@@ -66,6 +66,24 @@ interface AIClassifyResult {
 
 const DAY_NAMES: Record<number, string> = { 1: 'Pazartesi', 2: 'Salı', 3: 'Çarşamba', 4: 'Perşembe', 5: 'Cuma', 6: 'Cumartesi', 7: 'Pazar' }
 
+// Faculty departments. The system is department-scoped: each department manages
+// its own ar.görs, tasks, exams, schedule and announcements independently.
+interface DeptInfo { code: string; short: string; full: string; accent: string; badge: string }
+const DEPARTMENTS: Record<string, DeptInfo> = {
+  GMIM: { code: 'GMIM', short: 'GMİM', full: 'Gemi Makineleri İşletme Mühendisliği', accent: 'emerald', badge: 'bg-emerald-100 text-emerald-800' },
+  DUIM: { code: 'DUIM', short: 'DUİM', full: 'Deniz Ulaştırma İşletme Mühendisliği', accent: 'sky', badge: 'bg-sky-100 text-sky-800' },
+}
+const DEPT_LIST = Object.values(DEPARTMENTS)
+
+// Role label. The dekan is faculty-wide; in DUİM the same person (Özcan Arslan) is
+// also the department head, so show "Dekan & Bölüm Bşk." when viewing DUİM.
+function roleLabel(role: string, viewDept?: string | null): string {
+  if (role === 'admin') return 'Temsilci'
+  if (role === 'dekan') return viewDept === 'DUIM' ? 'Dekan & Bölüm Bşk.' : 'Dekan'
+  if (role === 'baskan') return 'Bölüm Bşk.'
+  return 'Ar.Gör'
+}
+
 export default function Home() {
   const [assistants, setAssistants] = useState<ResearchAssistant[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
@@ -90,6 +108,20 @@ export default function Home() {
   const [loginEmail, setLoginEmail] = useState('')
   const [loginPassword, setLoginPassword] = useState('')
   const [showLoginDialog, setShowLoginDialog] = useState(false)
+
+  // Selected department (landing choice). For logged-in non-dekan users this always
+  // equals their own department; the dekan can switch between departments.
+  const [selectedDept, setSelectedDept] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null
+    try {
+      const stored = localStorage.getItem('gmim_current_user')
+      if (stored) { const u = JSON.parse(stored); return u.role === 'dekan' ? (localStorage.getItem('gmim_selected_dept') || u.department) : u.department }
+      return localStorage.getItem('gmim_selected_dept')
+    } catch { return null }
+  })
+  // Normalize any legacy short code to the canonical one used throughout.
+  const viewDept = selectedDept === 'GMI' ? 'GMIM' : selectedDept
+  const deptInfo = viewDept ? DEPARTMENTS[viewDept] : null
 
   // Task form
   const [taskDesc, setTaskDesc] = useState('')
@@ -150,12 +182,17 @@ export default function Home() {
   const [commentText, setCommentText] = useState<Record<string, string>>({})
 
   const fetchData = useCallback(async () => {
+    // No department context yet (department not chosen) → nothing to load.
+    if (!viewDept) { setLoading(false); return }
     setLoading(true)
+    const q = `?department=${viewDept}`
     try {
       const [assRes, taskRes, catRes, examRes, notifRes, schedRes, pendRes, annRes] = await Promise.all([
-        fetch('/api/assistants'), fetch('/api/tasks'), fetch('/api/categories'),
-        fetch('/api/exams'), fetch('/api/notifications'), fetch('/api/weekly-schedule'),
-        fetch('/api/approve-task'), fetch('/api/announcements'),
+        fetch(`/api/assistants${q}`), fetch(`/api/tasks${q}`), fetch('/api/categories'),
+        fetch(`/api/exams${q}`),
+        fetch(currentUser ? `/api/notifications?assistantId=${currentUser.id}` : '/api/notifications?assistantId=__none__'),
+        fetch(`/api/weekly-schedule${q}`),
+        fetch(`/api/approve-task${q}`), fetch(`/api/announcements${q}`),
       ])
       setAssistants(await assRes.json())
       setTasks(await taskRes.json())
@@ -169,7 +206,7 @@ export default function Home() {
       setAnnouncements(await annRes.json())
     } catch (err) { console.error(err); toast.error('Veriler yüklenirken hata') }
     finally { setLoading(false) }
-  }, [])
+  }, [viewDept, currentUser])
 
   useEffect(() => { fetchData() }, [fetchData])
 
@@ -189,15 +226,18 @@ export default function Home() {
     try {
       const res = await fetch('/api/login', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: loginEmail, password: loginPassword }),
+        body: JSON.stringify({ email: loginEmail, password: loginPassword, department: viewDept }),
       })
       const data = await res.json()
       if (res.ok) {
         setCurrentUser(data.user)
         try { localStorage.setItem('gmim_current_user', JSON.stringify(data.user)) } catch {}
+        // Lock the view to the user's own department (dekan keeps the chosen one).
+        const effectiveDept = data.user.role === 'dekan' ? (viewDept || data.user.department) : data.user.department
+        setSelectedDept(effectiveDept)
+        try { localStorage.setItem('gmim_selected_dept', effectiveDept) } catch {}
         setShowLoginDialog(false); setLoginEmail(''); setLoginPassword('')
-        const roleLabel = data.user.role === 'admin' ? 'Temsilci' : data.user.role === 'dekan' ? 'Dekan' : data.user.role === 'baskan' ? 'Bölüm Başkanı' : 'Araş Gör'
-        toast.success(`Hoş geldiniz, ${data.user.name}!`, { description: roleLabel })
+        toast.success(`Hoş geldiniz, ${data.user.name}!`, { description: roleLabel(data.user.role, effectiveDept) })
         // Rol bazlı default tab
         const role = data.user.role
         setActiveTab(role === 'admin' || role === 'dekan' || role === 'baskan' ? 'dashboard' : 'tasks')
@@ -276,6 +316,7 @@ export default function Home() {
           courseCode: examCourseCode, courseName: examCourseName, instructor: examInstructor,
           date: examDate, day: examDay, timeSlot: examTime,
           requiredSupervisors: parseInt(examSupervisors), notes: examNotes || null,
+          department: viewDept,
         }),
       })
       if (res.ok) {
@@ -322,7 +363,7 @@ export default function Home() {
     if (!importFile) { toast.error('Dosya seçin'); return }
     setIsImporting(true)
     try {
-      const formData = new FormData(); formData.append('file', importFile); formData.append('type', importType)
+      const formData = new FormData(); formData.append('file', importFile); formData.append('type', importType); formData.append('department', viewDept || '')
       const res = await fetch('/api/import-excel', { method: 'POST', body: formData })
       const data = await res.json()
       if (res.ok) { toast.success(data.message); setImportFile(null); fetchData() }
@@ -350,7 +391,7 @@ export default function Home() {
         : undefined
       const res = await fetch('/api/reset-period', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, carryOverPoints }),
+        body: JSON.stringify({ action, carryOverPoints, department: viewDept }),
       })
       const data = await res.json()
       if (res.ok) { toast.success(data.message); setShowResetDialog(false); fetchData() }
@@ -445,6 +486,7 @@ export default function Home() {
         body: JSON.stringify({
           name: newPersonName, email: newPersonEmail, phone: newPersonPhone || null,
           password: newPersonPassword || undefined, requesterId: currentUser.id,
+          department: viewDept,
         }),
       })
       const data = await res.json()
@@ -468,7 +510,7 @@ export default function Home() {
   // Export Excel
   const handleExportExcel = async (type: string) => {
     try {
-      const res = await fetch(`/api/export-excel?type=${type}`)
+      const res = await fetch(`/api/export-excel?type=${type}&department=${viewDept}`)
       if (!res.ok) throw new Error()
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
@@ -487,7 +529,7 @@ export default function Home() {
     try {
       const res = await fetch('/api/announcements', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: annTitle, content: annContent, authorId: currentUser.id }),
+        body: JSON.stringify({ title: annTitle, content: annContent, authorId: currentUser.id, department: viewDept }),
       })
       const data = await res.json()
       if (res.ok) { toast.success('Duyuru oluşturuldu'); setAnnTitle(''); setAnnContent(''); fetchData() }
@@ -601,20 +643,59 @@ export default function Home() {
     </div>
   }
 
-  // Giriş ekranı - kullanıcı girişi yapmadan içerik gösterilmez
-  if (!currentUser) {
+  // Bölüm seçim ekranı - hangi bölüme giriş yapılacağı seçilir
+  if (!currentUser && !viewDept) {
+    const chooseDept = (code: string) => { setSelectedDept(code); try { localStorage.setItem('gmim_selected_dept', code) } catch {} }
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-white to-teal-50 p-4">
-        <div className="w-full max-w-md">
-          <div className="text-center mb-8">
-            <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-200 mx-auto mb-4">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-slate-100 p-4">
+        <div className="w-full max-w-2xl">
+          <div className="text-center mb-10">
+            <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center shadow-lg mx-auto mb-4">
               <Ship className="h-8 w-8 text-white" />
             </div>
-            <h1 className="text-2xl font-bold text-slate-900">GMIM Ar.Gör Yönetim</h1>
-            <p className="text-sm text-slate-500 mt-1">İTÜ Denizcilik Fakültesi · GMI</p>
+            <h1 className="text-2xl font-bold text-slate-900">İTÜ Denizcilik Fakültesi</h1>
+            <p className="text-sm text-slate-500 mt-1">Ar.Gör Yönetim Sistemi · Bölüm seçin</p>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <button onClick={() => chooseDept('GMIM')} className="group text-left rounded-2xl border-2 border-emerald-200 bg-white p-6 shadow-sm hover:shadow-xl hover:border-emerald-400 transition-all">
+              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow mb-4"><Ship className="h-6 w-6 text-white" /></div>
+              <h2 className="text-xl font-bold text-slate-900">GMİM</h2>
+              <p className="text-sm text-slate-500 mt-1">Gemi Makineleri İşletme Mühendisliği</p>
+              <span className="inline-flex items-center gap-1 text-emerald-700 text-sm font-medium mt-4 group-hover:gap-2 transition-all">Giriş yap <ChevronRight className="h-4 w-4" /></span>
+            </button>
+            <button onClick={() => chooseDept('DUIM')} className="group text-left rounded-2xl border-2 border-sky-200 bg-white p-6 shadow-sm hover:shadow-xl hover:border-sky-400 transition-all">
+              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center shadow mb-4"><Ship className="h-6 w-6 text-white" /></div>
+              <h2 className="text-xl font-bold text-slate-900">DUİM</h2>
+              <p className="text-sm text-slate-500 mt-1">Deniz Ulaştırma İşletme Mühendisliği</p>
+              <span className="inline-flex items-center gap-1 text-sky-700 text-sm font-medium mt-4 group-hover:gap-2 transition-all">Giriş yap <ChevronRight className="h-4 w-4" /></span>
+            </button>
+          </div>
+          <p className="text-center text-[11px] text-slate-400 mt-8">İTÜ DF Ar.Gör Yönetim Sistemi · AI Destekli v3.1</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Giriş ekranı - kullanıcı girişi yapmadan içerik gösterilmez
+  if (!currentUser) {
+    const isDuim = viewDept === 'DUIM'
+    const grad = isDuim ? 'from-sky-500 to-indigo-600' : 'from-emerald-500 to-teal-600'
+    const shadowColor = isDuim ? 'shadow-sky-200' : 'shadow-emerald-200'
+    const pageGrad = isDuim ? 'from-sky-50 via-white to-indigo-50' : 'from-emerald-50 via-white to-teal-50'
+    const iconColor = isDuim ? 'text-sky-600' : 'text-emerald-600'
+    const btnColor = isDuim ? 'bg-sky-600 hover:bg-sky-700' : 'bg-emerald-600 hover:bg-emerald-700'
+    return (
+      <div className={`min-h-screen flex items-center justify-center bg-gradient-to-br ${pageGrad} p-4`}>
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <div className={`h-16 w-16 rounded-2xl bg-gradient-to-br ${grad} flex items-center justify-center shadow-lg ${shadowColor} mx-auto mb-4`}>
+              <Ship className="h-8 w-8 text-white" />
+            </div>
+            <h1 className="text-2xl font-bold text-slate-900">{deptInfo?.short} Ar.Gör Yönetim</h1>
+            <p className="text-sm text-slate-500 mt-1">İTÜ Denizcilik Fakültesi · {deptInfo?.full}</p>
           </div>
           <Card className="border-0 shadow-xl">
-            <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2 text-lg"><LogIn className="h-5 w-5 text-emerald-600" /> Sisteme Giriş</CardTitle></CardHeader>
+            <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2 text-lg"><LogIn className={`h-5 w-5 ${iconColor}`} /> Sisteme Giriş</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label>E-posta</Label>
@@ -624,10 +705,11 @@ export default function Home() {
                 <Label>Şifre</Label>
                 <Input type="password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleLogin()} />
               </div>
-              <Button onClick={handleLogin} className="w-full bg-emerald-600 hover:bg-emerald-700 gap-2"><LogIn className="h-4 w-4" /> Giriş Yap</Button>
+              <Button onClick={handleLogin} className={`w-full ${btnColor} gap-2`}><LogIn className="h-4 w-4" /> Giriş Yap</Button>
+              <Button variant="ghost" onClick={() => { setSelectedDept(null); try { localStorage.removeItem('gmim_selected_dept') } catch {} }} className="w-full text-slate-500 gap-2 text-xs"><RotateCcw className="h-3.5 w-3.5" /> Bölüm değiştir</Button>
             </CardContent>
           </Card>
-          <p className="text-center text-[11px] text-slate-400 mt-6">GMIM Ar.Gör Yönetim Sistemi · AI Destekli v3.0</p>
+          <p className="text-center text-[11px] text-slate-400 mt-6">{deptInfo?.short} Ar.Gör Yönetim Sistemi · AI Destekli v3.1</p>
         </div>
       </div>
     )
@@ -639,13 +721,24 @@ export default function Home() {
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-200">
+            <div className={`h-10 w-10 rounded-xl bg-gradient-to-br ${viewDept === 'DUIM' ? 'from-sky-500 to-indigo-600 shadow-sky-200' : 'from-emerald-500 to-teal-600 shadow-emerald-200'} flex items-center justify-center shadow-lg`}>
               <Ship className="h-5 w-5 text-white" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-slate-900">GMIM Ar.Gör Yönetim</h1>
-              <p className="text-xs text-slate-500">İTÜ Denizcilik Fakültesi</p>
+              <h1 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                {deptInfo?.short} Ar.Gör Yönetim
+                <Badge className={`${deptInfo?.badge} text-[10px]`}>{deptInfo?.short}</Badge>
+              </h1>
+              <p className="text-xs text-slate-500">İTÜ Denizcilik Fakültesi · {deptInfo?.full}</p>
             </div>
+            {isDekan && (
+              <Select value={viewDept || 'GMIM'} onValueChange={(v) => { setSelectedDept(v); try { localStorage.setItem('gmim_selected_dept', v) } catch {} }}>
+                <SelectTrigger className="h-8 w-[110px] text-xs ml-2"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {DEPT_LIST.map(d => <SelectItem key={d.code} value={d.code} className="text-xs">{d.short}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            )}
           </div>
           <div className="flex items-center gap-2">
             {pendingCount > 0 && canSeeAll && (
@@ -686,7 +779,7 @@ export default function Home() {
             {currentUser ? (
               <div className="flex items-center gap-2">
                 <Badge className={`gap-1 text-xs ${isAdmin ? 'bg-emerald-100 text-emerald-800' : isDekan ? 'bg-violet-100 text-violet-800' : isBaskan ? 'bg-blue-100 text-blue-800' : 'bg-slate-100 text-slate-700'}`}>
-                  <Shield className="h-3 w-3" />{isAdmin ? 'Temsilci' : isDekan ? 'Dekan' : isBaskan ? 'Bölüm Bşk.' : 'Ar.Gör'}
+                  <Shield className="h-3 w-3" />{roleLabel(currentUser.role, viewDept)}
                 </Badge>
                 <span className="text-xs text-slate-600 hidden sm:inline">{currentUser.name}</span>
                 <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
@@ -1496,7 +1589,7 @@ export default function Home() {
                             <div className="flex items-center gap-2 flex-wrap">
                               <h3 className="font-bold truncate">{ra.name}</h3>
                               <Badge className={`text-[10px] gap-0.5 ${ra.role === 'dekan' ? 'bg-violet-100 text-violet-700' : 'bg-blue-100 text-blue-700'}`}>
-                                <Shield className="h-2.5 w-2.5" /> {ra.role === 'dekan' ? 'Dekan' : 'Bölüm Başkanı'}
+                                <Shield className="h-2.5 w-2.5" /> {ra.role === 'dekan' ? roleLabel('dekan', viewDept) : 'Bölüm Başkanı'}
                               </Badge>
                             </div>
                             <p className="text-xs text-slate-500 truncate">{ra.email}</p>
@@ -1666,8 +1759,8 @@ export default function Home() {
 
       <footer className="mt-12 border-t border-slate-200 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between text-xs text-slate-400">
-          <span>GMIM Ar.Gör Yönetim Sistemi · İTÜ Denizcilik Fakültesi</span>
-          <span className="flex items-center gap-1"><Sparkles className="h-3 w-3" /> AI Destekli v3.0</span>
+          <span>{deptInfo?.short} Ar.Gör Yönetim Sistemi · İTÜ Denizcilik Fakültesi</span>
+          <span className="flex items-center gap-1"><Sparkles className="h-3 w-3" /> AI Destekli v3.1</span>
         </div>
       </footer>
     </div>
