@@ -1,4 +1,4 @@
-# GMIM Ar.Gör Yönetim Sistemi — Teknik Dokümantasyon
+# İTÜ DF Ar.Gör Yönetim Sistemi — Teknik Dokümantasyon
 
 Bu doküman, sistemi sıfırdan anlayan bir yazılımcının kodu okumadan önce sistemi kurabilmesi, güncelleyebilmesi ve bakımını yapabilmesi için hazırlanmıştır.
 
@@ -6,10 +6,12 @@ Bu doküman, sistemi sıfırdan anlayan bir yazılımcının kodu okumadan önce
 
 ## 1. Sistem Hakkında
 
-**Amaç:** İTÜ Denizcilik Fakültesi GMI bölümü araştırma görevlilerinin görev dağıtımını, puan takibini, sınav gözetmen atamasını ve haftalık program yönetimini dijitalleştirmek. Daha önce Excel ile yapılan işlemlerin yerini almıştır.
+**Amaç:** İTÜ Denizcilik Fakültesi araştırma görevlilerinin görev dağıtımını, puan takibini, sınav gözetmen atamasını ve haftalık program yönetimini dijitalleştirmek. Daha önce Excel ile yapılan işlemlerin yerini almıştır.
 
-**Canlı Site:** https://itugmimportal.vercel.app  
-**Eski Adres (hala çalışır):** https://my-project-ashy-theta.vercel.app  
+**Bölüm bazlı yapı (2026 Temmuz):** Sistem tek bölümden (GMİM) **fakülte bazına** taşındı. Artık **GMİM** (Gemi Makineleri İşletme Müh.) ve **DUİM** (Deniz Ulaştırma İşletme Müh.) bölümleri paralel çalışır. Giriş öncesi bölüm seçilir; her bölüm kendi verisini (asistan, görev, puan, sınav, program, duyuru) tamamen izole görür. Ayrım `ResearchAssistant.department` alanı ile yapılır: `GMIM` / `DUIM`. Detay için bkz. **Bölüm 14**.
+
+**Canlı Site:** https://itudfportal.vercel.app  
+**Eski Adres (yeni adrese yönlendirir):** https://itugmimportal.vercel.app  
 **GitHub Repo:** https://github.com/yusuta2000/gmim-system
 
 ---
@@ -307,7 +309,7 @@ gmim-system/
 
 #### Açık 2: API'lerde Sunucu Tarafı Kimlik Doğrulama Yok
 **Durum:** Çoğu API route'u (`/api/tasks`, `/api/assistants`, `/api/exams`, `/api/export-excel` vb.) kullanıcının giriş yapmış olduğunu DOĞRULAMIYOR. Frontend `currentUser`'a göre UI gizliyor ama API'ler doğrudan çağrılabilir.
-**Risk:** Sistemin URL'ini bilen biri `https://itugmimportal.vercel.app/api/assistants` çağırıp tüm kullanıcı verilerini (e-posta, puan, telefon) görebilir. `POST /api/tasks` ile sahte görev ekleyebilir.
+**Risk:** Sistemin URL'ini bilen biri `https://itudfportal.vercel.app/api/assistants` çağırıp tüm kullanıcı verilerini (e-posta, puan, telefon) görebilir. `POST /api/tasks` ile sahte görev ekleyebilir.
 **Çözüm:** Her API'ye session token / JWT doğrulama eklenmeli. Cookie tabanlı oturum kullanılmalı.
 
 #### Açık 3: localStorage Tabanlı Oturum
@@ -341,13 +343,13 @@ Bazı API'ler gelen veriyi yeterince doğrulamıyor. SQL injection riski düşü
 **Evet, şu an verileriniz dışarıdan erişilebilir.** Sistemin URL'sini bilen herkes şu API'leri çağırabilir:
 
 ```
-https://itugmimportal.vercel.app/api/assistants    → Tüm kullanıcıların adı, e-postası, telefonu, puanı
-https://itugmimportal.vercel.app/api/tasks         → Tüm görevler (kim ne yapmış, puanı)
-https://itugmimportal.vercel.app/api/exams         → Tüm sınavlar
-https://itugmimportal.vercel.app/api/categories    → Puan baremleri
-https://itugmimportal.vercel.app/api/announcements → Duyurular ve yorumlar
-https://itugmimportal.vercel.app/api/export-excel?type=tasks → Görevleri Excel olarak indir
-https://itugmimportal.vercel.app/api/export-excel?type=ranking → Puan tablosunu Excel olarak indir
+https://itudfportal.vercel.app/api/assistants    → Tüm kullanıcıların adı, e-postası, telefonu, puanı
+https://itudfportal.vercel.app/api/tasks         → Tüm görevler (kim ne yapmış, puanı)
+https://itudfportal.vercel.app/api/exams         → Tüm sınavlar
+https://itudfportal.vercel.app/api/categories    → Puan baremleri
+https://itudfportal.vercel.app/api/announcements → Duyurular ve yorumlar
+https://itudfportal.vercel.app/api/export-excel?type=tasks → Görevleri Excel olarak indir
+https://itudfportal.vercel.app/api/export-excel?type=ranking → Puan tablosunu Excel olarak indir
 ```
 
 **Şifreler de düz metin** olduğu için, veritabanı şifresi (GitHub'da gömülü) ile DB'ye bağlanan biri tüm şifreleri görebilir.
@@ -398,7 +400,7 @@ Eğer Vercel build başarısız olursa:
 
 ### Vercel
 - Project: my-project (yusuta2000s-projects)
-- Production URL: https://itugmimportal.vercel.app
+- Production URL: https://itudfportal.vercel.app
 - Dashboard: https://vercel.com/yusuta2000s-projects/my-project
 - Environment Variables: Dashboard → Settings → Environment Variables
 
@@ -428,4 +430,42 @@ C: Evet. `faculty` ve `department` alanları zaten var. Baremleri, rolleri ve is
 
 ---
 
-*Bu doküman Haziran 2026 itibariyle sistem durumunu yansıtmaktadır. Sistem güncellendikçe bu doküman da güncellenmelidir.*
+## 14. Bölüm Bazlı Yapı (GMİM & DUİM)
+
+2026 Temmuz'da sistem fakülte bazına taşındı. Aynı veritabanı ve kod tabanı iki bölüme hizmet eder; ayrım `department` alanı ile yapılır.
+
+### Bölüm kodları
+- `GMIM` — Gemi Makineleri İşletme Mühendisliği
+- `DUIM` — Deniz Ulaştırma İşletme Mühendisliği
+
+> Not: Eski kayıtlarda `department` değeri `GMI` idi; tümü `GMIM` olarak normalize edildi. `Exam` ve `Announcement` modellerine de `department` alanı eklendi (varsayılan `GMIM`).
+
+### Giriş akışı
+1. Kullanıcı siteye girer → **bölüm seçim ekranı** (GMİM / DUİM).
+2. Seçilen bölümün giriş ekranı gelir; `POST /api/login` gövdesine `department` gönderilir.
+3. Login, kullanıcının kendi bölümü dışında girişini engeller (dekan hariç — fakülte geneli).
+4. Seçilen bölüm `localStorage.gmim_selected_dept` içinde tutulur; giriş yapınca kullanıcının kendi bölümüne sabitlenir.
+
+### Yetki modeli
+| Rol | Kapsam |
+|-----|--------|
+| `admin` (Temsilci) | Yalnızca kendi bölümü |
+| `baskan` (Bölüm Başkanı) | Yalnızca kendi bölümü |
+| `dekan` | **Fakülte geneli** — iki bölümü de görür, başlıktaki seçiciyle geçiş yapar |
+| `user` (Ar.Gör) | Yalnızca kendi bölümü + kendi verisi |
+
+- **Özcan Arslan** (`arslano@itu.edu.tr`) tek `dekan` hesabıdır. E-posta tekil olduğu için DUİM'de ayrı hesap açılmaz; aynı hesap DUİM'de **"Dekan & Bölüm Bşk."** etiketiyle görünür (`roleLabel()` bunu `viewDept === 'DUIM'` iken üretir). DUİM'in ayrı `baskan` kaydı yoktur.
+- **Puan baremleri (`PointCategory`) iki bölümde ortaktır** (bölüm alanı yoktur). Bölüm bazlı barem istenirse `PointCategory`'ye `department` eklenmelidir.
+
+### Uygulama detayı
+- **API GET'leri** `?department=GMIM|DUIM` query parametresiyle filtreler: `assistants`, `tasks`, `exams`, `weekly-schedule`, `approve-task`, `announcements`, `export-excel`. `assistants` sorgusu ayrıca `role: 'dekan'` olanları her bölümde döndürür (`OR`).
+- **Create/işlem** uçları gövdede `department` alır: `exams`, `add-assistant`, `reset-period`, `announcements`, `import-excel`.
+- **Bildirimler** artık kullanıcıya özeldir: frontend `?assistantId=<currentUser.id>` gönderir (önceden tümü çekiliyordu).
+- **Frontend** anahtar noktaları (`src/app/page.tsx`): `DEPARTMENTS` sabiti, `roleLabel()`, `selectedDept`/`viewDept` state'i, bölüm seçim ekranı ve temalı login (GMİM yeşil, DUİM mavi), dekan için başlıkta bölüm seçici.
+
+### Yeni personel ekleme
+İlgili bölümün temsilcisi (veya dekan) o bölüme girip **Personel → Yeni Araş Gör Ekle** ile ekler; kayıt otomatik aktif bölüme (`department`) yazılır. İlk kurulumda DUİM kadrosu `scripts/seed-duim.mjs` ile eklendi (bu script düz-metin şifre içerdiği için repoya **commit edilmedi**, yerelde tutulur; `--commit` ile prod'a yazar, argümansız dry-run).
+
+---
+
+*Bu doküman 2026 Temmuz itibariyle sistem durumunu yansıtmaktadır (GMİM + DUİM bölüm bazlı yapı). Sistem güncellendikçe bu doküman da güncellenmelidir.*
