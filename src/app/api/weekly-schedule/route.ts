@@ -1,17 +1,31 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireSession, UnauthenticatedError } from '@/lib/auth/session';
+import type { SessionUser } from '@/lib/auth/session-repository';
+import { assertDepartmentAccess } from '@/lib/authorization/department';
+import { AuthorizationError } from '@/lib/authorization/errors';
+import { requireRole } from '@/lib/authorization/roles';
 
 export async function GET(request: Request) {
   try {
+    const user = await requireSession();
     const { searchParams } = new URL(request.url);
-    const department = searchParams.get('department');
+    const department = (searchParams.get('department') || user.department) as SessionUser['department'];
+    assertDepartmentAccess(user, department);
     const schedules = await db.weeklySchedule.findMany({
-      where: department ? { assistant: { department } } : {},
+      where: { assistant: { department } },
       orderBy: [{ dayOfWeek: 'asc' }, { timeSlot: 'asc' }],
       include: { assistant: true },
     });
     return NextResponse.json(schedules);
   } catch (error) {
+    if (error instanceof UnauthenticatedError) {
+      return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
+    }
+    if (error instanceof AuthorizationError) {
+      return NextResponse.json({ error: error.code }, { status: 403 });
+    }
+
     console.error('Error fetching weekly schedules:', error);
     return NextResponse.json({ error: 'Failed to fetch schedules' }, { status: 500 });
   }
@@ -19,12 +33,21 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const user = await requireSession();
+    requireRole(user, ['admin', 'dekan', 'baskan']);
+
     const body = await request.json();
     const { assistantId, dayOfWeek, timeSlot, description } = body;
 
     if (!assistantId || !dayOfWeek || !timeSlot || !description) {
       return NextResponse.json({ error: 'All fields are required' }, { status: 400 });
     }
+
+    const assistant = await db.researchAssistant.findUnique({ where: { id: assistantId } });
+    if (!assistant) {
+      return NextResponse.json({ error: 'Kullanıcı bulunamadı' }, { status: 404 });
+    }
+    assertDepartmentAccess(user, assistant.department as SessionUser['department']);
 
     // Check for conflicts
     const conflicts = await checkScheduleConflicts(assistantId, dayOfWeek, timeSlot);
@@ -42,6 +65,13 @@ export async function POST(request: Request) {
 
     return NextResponse.json(schedule, { status: 201 });
   } catch (error) {
+    if (error instanceof UnauthenticatedError) {
+      return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
+    }
+    if (error instanceof AuthorizationError) {
+      return NextResponse.json({ error: error.code }, { status: 403 });
+    }
+
     console.error('Error creating schedule:', error);
     return NextResponse.json({ error: 'Failed to create schedule' }, { status: 500 });
   }
@@ -49,6 +79,9 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
+    const user = await requireSession();
+    requireRole(user, ['admin', 'dekan', 'baskan']);
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
@@ -56,9 +89,25 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'id is required' }, { status: 400 });
     }
 
+    const schedule = await db.weeklySchedule.findUnique({
+      where: { id },
+      include: { assistant: true },
+    });
+    if (!schedule) {
+      return NextResponse.json({ error: 'Program bulunamadı' }, { status: 404 });
+    }
+    assertDepartmentAccess(user, schedule.assistant.department as SessionUser['department']);
+
     await db.weeklySchedule.delete({ where: { id } });
     return NextResponse.json({ message: 'Schedule deleted' });
   } catch (error) {
+    if (error instanceof UnauthenticatedError) {
+      return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
+    }
+    if (error instanceof AuthorizationError) {
+      return NextResponse.json({ error: error.code }, { status: 403 });
+    }
+
     console.error('Error deleting schedule:', error);
     return NextResponse.json({ error: 'Failed to delete schedule' }, { status: 500 });
   }

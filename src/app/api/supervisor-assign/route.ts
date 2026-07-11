@@ -1,9 +1,17 @@
 import { NextResponse } from 'next/server';
 import type { Prisma } from '@prisma/client';
 import { db } from '@/lib/db';
+import { requireSession, UnauthenticatedError } from '@/lib/auth/session';
+import type { SessionUser } from '@/lib/auth/session-repository';
+import { assertDepartmentAccess } from '@/lib/authorization/department';
+import { AuthorizationError } from '@/lib/authorization/errors';
+import { requireRole } from '@/lib/authorization/roles';
 
 export async function POST(request: Request) {
   try {
+    const user = await requireSession();
+    requireRole(user, ['admin', 'dekan', 'baskan']);
+
     const body = await request.json();
     const { examId } = body;
 
@@ -19,6 +27,7 @@ export async function POST(request: Request) {
     if (!exam) {
       return NextResponse.json({ error: 'Sınav bulunamadı' }, { status: 404 });
     }
+    assertDepartmentAccess(user, exam.department as SessionUser['department']);
 
     const needed = exam.requiredSupervisors - exam.supervisors.length;
     if (needed <= 0) {
@@ -26,7 +35,7 @@ export async function POST(request: Request) {
     }
 
     // Get eligible assistants (ar.gör + temsilci) of the exam's department, lowest points first.
-    // Dekan/başkan are excluded — they are not supervised staff.
+    // Dekan/başkan are excluded - they are not supervised staff.
     const assistants = await db.researchAssistant.findMany({
       where: { isActive: true, department: exam.department, role: { in: ['user', 'admin'] } },
       orderBy: { totalPoints: 'asc' },
@@ -138,6 +147,13 @@ export async function POST(request: Request) {
       exam: updatedExam,
     });
   } catch (error) {
+    if (error instanceof UnauthenticatedError) {
+      return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
+    }
+    if (error instanceof AuthorizationError) {
+      return NextResponse.json({ error: error.code }, { status: 403 });
+    }
+
     console.error('Error assigning supervisors:', error);
     return NextResponse.json({ error: 'Failed to assign supervisors' }, { status: 500 });
   }
