@@ -88,9 +88,18 @@ export async function resetPeriod(input: {
     })
 
     if (input.action === 'reset') {
-      await tx.researchAssistant.updateMany({
+      const result = await tx.researchAssistant.updateMany({
         where: { department: input.department },
         data: { totalPoints: 0 },
+      })
+      await tx.importLog.create({
+        data: {
+          fileName: `period:${input.department}:reset:${input.requester.id}`,
+          fileType: 'audit',
+          recordCount: result.count,
+          status: 'completed',
+          error: JSON.stringify({ action: 'reset', department: input.department, requesterId: input.requester.id, affected: result.count }),
+        },
       })
       return { action: input.action, period: nextPeriod }
     }
@@ -103,6 +112,16 @@ export async function resetPeriod(input: {
         })
       )))
     }
+    const affected = Object.keys(input.carryOverPoints ?? {}).length
+    await tx.importLog.create({
+      data: {
+        fileName: `period:${input.department}:archive:${input.requester.id}`,
+        fileType: 'audit',
+        recordCount: affected,
+        status: 'completed',
+        error: JSON.stringify({ action: 'archive', department: input.department, requesterId: input.requester.id, affected }),
+      },
+    })
     return { action: input.action, period: nextPeriod }
   })
 }

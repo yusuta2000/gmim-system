@@ -54,10 +54,11 @@ export async function PUT(request: Request) {
       },
     });
 
+    const { password: _, passwordHash: __, ...safeAssistant } = updated;
     return NextResponse.json({
       message: `${assistant.name} ${newRole === 'admin' ? 'temsilci yapıldı' : 'temsilciliği kaldırıldı'}`,
       newRole,
-      assistant: updated,
+      assistant: safeAssistant,
     });
   } catch (error) {
     if (error instanceof UnauthenticatedError) {

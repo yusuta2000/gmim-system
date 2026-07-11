@@ -5,17 +5,30 @@ import type { SessionUser } from '@/lib/auth/session-repository';
 import { assertDepartmentAccess } from '@/lib/authorization/department';
 import { AuthorizationError } from '@/lib/authorization/errors';
 import { requireRole } from '@/lib/authorization/roles';
+import { z } from 'zod';
+import { createScheduleSchema, departmentSchema } from '@/features/calendar/schemas';
+
+const scheduleSelect = {
+  id: true,
+  assistantId: true,
+  dayOfWeek: true,
+  timeSlot: true,
+  description: true,
+  assistant: { select: { id: true, name: true } },
+} as const;
 
 export async function GET(request: Request) {
   try {
     const user = await requireSession();
     const { searchParams } = new URL(request.url);
-    const department = (searchParams.get('department') || user.department) as SessionUser['department'];
+    const department = departmentSchema.parse(searchParams.get('department') || user.department) as SessionUser['department'];
     assertDepartmentAccess(user, department);
     const schedules = await db.weeklySchedule.findMany({
-      where: { assistant: { department } },
+      where: user.role === 'user'
+        ? { assistantId: user.id, assistant: { department } }
+        : { assistant: { department } },
       orderBy: [{ dayOfWeek: 'asc' }, { timeSlot: 'asc' }],
-      include: { assistant: true },
+      select: scheduleSelect,
     });
     return NextResponse.json(schedules);
   } catch (error) {
@@ -36,12 +49,7 @@ export async function POST(request: Request) {
     const user = await requireSession();
     requireRole(user, ['admin', 'dekan', 'baskan']);
 
-    const body = await request.json();
-    const { assistantId, dayOfWeek, timeSlot, description } = body;
-
-    if (!assistantId || !dayOfWeek || !timeSlot || !description) {
-      return NextResponse.json({ error: 'All fields are required' }, { status: 400 });
-    }
+    const { assistantId, dayOfWeek, timeSlot, description } = createScheduleSchema.parse(await request.json());
 
     const assistant = await db.researchAssistant.findUnique({ where: { id: assistantId } });
     if (!assistant) {
@@ -60,7 +68,7 @@ export async function POST(request: Request) {
 
     const schedule = await db.weeklySchedule.create({
       data: { assistantId, dayOfWeek, timeSlot, description },
-      include: { assistant: true },
+      select: scheduleSelect,
     });
 
     return NextResponse.json(schedule, { status: 201 });
@@ -70,6 +78,9 @@ export async function POST(request: Request) {
     }
     if (error instanceof AuthorizationError) {
       return NextResponse.json({ error: error.code }, { status: 403 });
+    }
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: 'BAD_REQUEST', issues: error.issues }, { status: 400 });
     }
 
     console.error('Error creating schedule:', error);

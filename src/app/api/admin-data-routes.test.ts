@@ -34,6 +34,7 @@ vi.mock('@/lib/db', () => ({
       update: vi.fn(),
     },
     researchAssistant: {
+      findUnique: vi.fn(),
       findMany: vi.fn(),
       update: vi.fn(),
       updateMany: vi.fn(),
@@ -64,8 +65,11 @@ vi.mock('@/lib/auth/session', () => {
   }
 })
 
+vi.mock('@/lib/auth/password', () => ({ verifyPassword: vi.fn() }))
+
 import { db } from '@/lib/db'
 import { requireSession, UnauthenticatedError } from '@/lib/auth/session'
+import { verifyPassword } from '@/lib/auth/password'
 import { GET as getCategories, POST as createCategory } from '@/app/api/categories/route'
 import { POST as importExcel } from '@/app/api/import-excel/route'
 import { GET as exportExcel } from '@/app/api/export-excel/route'
@@ -86,6 +90,7 @@ const academicPeriod = db.academicPeriod as unknown as {
   update: ReturnType<typeof vi.fn>
 }
 const researchAssistant = db.researchAssistant as unknown as {
+  findUnique: ReturnType<typeof vi.fn>
   findMany: ReturnType<typeof vi.fn>
   update: ReturnType<typeof vi.fn>
   updateMany: ReturnType<typeof vi.fn>
@@ -101,6 +106,7 @@ const exam = db.exam as unknown as {
   create: ReturnType<typeof vi.fn>
 }
 const requireSessionMock = requireSession as unknown as ReturnType<typeof vi.fn>
+const verifyPasswordMock = verifyPassword as unknown as ReturnType<typeof vi.fn>
 
 const adminUser: SessionUser = { id: 'admin-1', role: 'admin', department: 'GMIM' }
 const regularUser: SessionUser = { id: 'user-1', role: 'user', department: 'GMIM' }
@@ -112,7 +118,7 @@ function jsonRequest(path: string, body: unknown) {
   })
 }
 
-function importRequest(department: string) {
+function importRequest(department: string, fields: Record<string, string> = {}) {
   const file = { name: 'tasks.csv', arrayBuffer: vi.fn() }
   return {
     formData: async () => ({
@@ -120,6 +126,7 @@ function importRequest(department: string) {
         if (key === 'department') return department
         if (key === 'type') return 'tasks'
         if (key === 'file') return file
+        if (key in fields) return fields[key]
         return null
       },
     }),
@@ -130,6 +137,8 @@ describe('admin data routes', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     requireSessionMock.mockResolvedValue(adminUser)
+    verifyPasswordMock.mockResolvedValue(true)
+    researchAssistant.findUnique.mockResolvedValue({ passwordHash: 'stored-hash' })
     pointCategory.findMany.mockResolvedValue([])
     pointCategory.create.mockResolvedValue({ id: 'cat-1' })
     importLog.create.mockResolvedValue({ id: 'import-1' })
@@ -175,6 +184,14 @@ describe('admin data routes', () => {
     expect(importLog.create).not.toHaveBeenCalled()
   })
 
+  it('import-excel rejects commit without a matching preview hash', async () => {
+    const response = await importExcel(importRequest('GMIM', { mode: 'commit' }))
+
+    expect(response.status).toBe(400)
+    await expect(response.json()).resolves.toEqual(expect.objectContaining({ error: 'PREVIEW_REQUIRED' }))
+    expect(importLog.create).not.toHaveBeenCalled()
+  })
+
   it('export-excel requires manager department access and filters by department', async () => {
     requireSessionMock.mockResolvedValue(regularUser)
     expect((await exportExcel(new Request('http://localhost/api/export-excel?type=tasks&department=GMIM'))).status).toBe(403)
@@ -196,11 +213,32 @@ describe('admin data routes', () => {
     requireSessionMock.mockResolvedValue(adminUser)
     expect((await resetPeriod(jsonRequest('/api/reset-period', { action: 'reset', department: 'DUIM' }))).status).toBe(403)
 
-    const response = await resetPeriod(jsonRequest('/api/reset-period', { action: 'reset', department: 'GMIM' }))
+    const response = await resetPeriod(jsonRequest('/api/reset-period', {
+      action: 'reset', department: 'GMIM', confirmation: 'GMIM SIFIRLA', currentPassword: 'correct-password',
+    }))
     expect(response.status).toBe(200)
+    expect(verifyPasswordMock).toHaveBeenCalledWith('stored-hash', 'correct-password')
     expect(researchAssistant.updateMany).toHaveBeenCalledWith({
       where: { department: 'GMIM' },
       data: { totalPoints: 0 },
     })
+    expect(importLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ fileType: 'audit', status: 'completed' }),
+    })
+  })
+
+  it('reset-period rejects missing confirmation and failed re-auth before writes', async () => {
+    const missingConfirmation = await resetPeriod(jsonRequest('/api/reset-period', {
+      action: 'reset', department: 'GMIM', currentPassword: 'correct-password',
+    }))
+    expect(missingConfirmation.status).toBe(400)
+
+    verifyPasswordMock.mockResolvedValue(false)
+    const failedReauth = await resetPeriod(jsonRequest('/api/reset-period', {
+      action: 'reset', department: 'GMIM', confirmation: 'GMIM SIFIRLA', currentPassword: 'wrong-password',
+    }))
+    expect(failedReauth.status).toBe(401)
+    expect(researchAssistant.updateMany).not.toHaveBeenCalled()
+    expect(importLog.create).not.toHaveBeenCalled()
   })
 })

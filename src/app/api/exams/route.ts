@@ -5,23 +5,39 @@ import type { SessionUser } from '@/lib/auth/session-repository';
 import { assertDepartmentAccess } from '@/lib/authorization/department';
 import { AuthorizationError } from '@/lib/authorization/errors';
 import { requireRole } from '@/lib/authorization/roles';
+import { z } from 'zod';
+import { createExamSchema, departmentSchema } from '@/features/calendar/schemas';
+
+const examSelect = {
+  id: true,
+  courseCode: true,
+  courseName: true,
+  instructor: true,
+  date: true,
+  day: true,
+  timeSlot: true,
+  classroom: true,
+  requiredSupervisors: true,
+  notes: true,
+  supervisors: {
+    select: {
+      id: true,
+      assistantId: true,
+      assistant: { select: { id: true, name: true } },
+    },
+  },
+} as const;
 
 export async function GET(request: Request) {
   try {
     const user = await requireSession();
     const { searchParams } = new URL(request.url);
-    const department = (searchParams.get('department') || user.department) as SessionUser['department'];
+    const department = departmentSchema.parse(searchParams.get('department') || user.department) as SessionUser['department'];
     assertDepartmentAccess(user, department);
     const exams = await db.exam.findMany({
       where: { department },
       orderBy: { date: 'asc' },
-      include: {
-        supervisors: {
-          include: {
-            assistant: true,
-          },
-        },
-      },
+      select: examSelect,
     });
     return NextResponse.json(exams);
   } catch (error) {
@@ -43,7 +59,9 @@ export async function POST(request: Request) {
     requireRole(user, ['admin', 'dekan', 'baskan']);
 
     const body = await request.json();
-    const { courseCode, courseName, instructor, date, day, timeSlot, requiredSupervisors, classroom, notes, department } = body;
+    const requestedDepartment = departmentSchema.parse(body.department || user.department) as SessionUser['department'];
+    assertDepartmentAccess(user, requestedDepartment);
+    const { courseCode, courseName, instructor, date, day, timeSlot, requiredSupervisors, classroom, notes, department } = createExamSchema.parse(body);
     const dept = (department || user.department) as SessionUser['department'];
     assertDepartmentAccess(user, dept);
 
@@ -52,11 +70,11 @@ export async function POST(request: Request) {
         courseCode,
         courseName,
         instructor,
-        date: new Date(date),
+        date,
         day,
         timeSlot,
         department: dept,
-        requiredSupervisors: requiredSupervisors || 1,
+        requiredSupervisors,
         classroom: classroom || null,
         notes: notes || null,
       },
@@ -69,6 +87,9 @@ export async function POST(request: Request) {
     }
     if (error instanceof AuthorizationError) {
       return NextResponse.json({ error: error.code }, { status: 403 });
+    }
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: 'BAD_REQUEST', issues: error.issues }, { status: 400 });
     }
 
     console.error('Error creating exam:', error);

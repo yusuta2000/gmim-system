@@ -158,4 +158,17 @@ describe('personnel admin routes', () => {
       data: { role: 'admin' },
     })
   })
+
+  it.each([
+    ['toggle-active', toggleActive, { assistantId: 'target-1', isActive: false }],
+    ['toggle-role', toggleRole, { assistantId: 'target-1' }],
+  ])('%s never returns password material', async (_name, route, body) => {
+    researchAssistant.update.mockResolvedValue({ ...targetAssistant, password: 'plain', passwordHash: 'hash' })
+
+    const response = await route(request(body))
+    const data = await response.json()
+
+    expect(data.assistant).not.toHaveProperty('password')
+    expect(data.assistant).not.toHaveProperty('passwordHash')
+  })
 })

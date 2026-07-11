@@ -1,5 +1,5 @@
-import Home from '@/app/portal-client'
+import { ApprovalsScreen } from '@/features/approvals/components/approvals-screen'
 
 export default function ApprovalsPage() {
-  return <Home initialView="approvals" />
+  return <ApprovalsScreen />
 }

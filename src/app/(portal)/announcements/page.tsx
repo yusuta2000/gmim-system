@@ -1,5 +1,5 @@
-import Home from '@/app/portal-client'
+import { AnnouncementsScreen } from '@/features/announcements/components/announcements-screen'
 
 export default function AnnouncementsPage() {
-  return <Home initialView="announcements" />
+  return <AnnouncementsScreen />
 }

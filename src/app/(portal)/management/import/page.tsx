@@ -1,5 +1,5 @@
-import Home from '@/app/portal-client'
+import { ImportScreen } from '@/features/management/import/import-screen'
 
 export default function ImportPage() {
-  return <Home initialView="import" />
+  return <ImportScreen />
 }

@@ -1,5 +1,5 @@
-import Home from '@/app/portal-client'
+import { PeriodsScreen } from '@/features/management/periods/periods-screen'
 
 export default function PeriodsPage() {
-  return <Home initialView="dashboard" openPeriodDialog />
+  return <PeriodsScreen />
 }

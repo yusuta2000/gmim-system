@@ -113,6 +113,38 @@ describe('announcement and notification routes', () => {
     expect(announcement.findMany).not.toHaveBeenCalled()
   })
 
+  it('announcement GET projects authors and comments through a safe DTO', async () => {
+    const response = await getAnnouncements(new Request('http://localhost/api/announcements?department=GMIM'))
+
+    expect(response.status).toBe(200)
+    expect(announcement.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { department: 'GMIM' },
+      select: expect.objectContaining({
+        id: true,
+        title: true,
+        author: { select: { id: true, name: true, role: true } },
+        comments: {
+          orderBy: { createdAt: 'asc' },
+          select: expect.objectContaining({
+            id: true,
+            content: true,
+            author: { select: { id: true, name: true, role: true } },
+          }),
+        },
+      }),
+    }))
+    expect(announcement.findMany.mock.calls[0][0]).not.toHaveProperty('include')
+  })
+
+  it('announcement DELETE rejects regular users even in their own department', async () => {
+    requireSessionMock.mockResolvedValue(regularUser)
+
+    const response = await deleteAnnouncement(new Request('http://localhost/api/announcements?id=announcement-1'))
+
+    expect(response.status).toBe(403)
+    expect(announcement.delete).not.toHaveBeenCalled()
+  })
+
   it('announcement POST ignores forged authorId and requires manager department access', async () => {
     const response = await createAnnouncement(jsonRequest('/api/announcements', {
       title: 'Title',

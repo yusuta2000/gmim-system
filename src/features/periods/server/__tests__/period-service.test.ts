@@ -12,6 +12,9 @@ vi.mock('@/lib/db', () => ({
     researchAssistant: {
       updateMany: vi.fn(),
     },
+    importLog: {
+      create: vi.fn(),
+    },
   },
 }))
 
@@ -28,6 +31,7 @@ const academicPeriod = db.academicPeriod as unknown as {
 const researchAssistant = db.researchAssistant as unknown as {
   updateMany: ReturnType<typeof vi.fn>
 }
+const importLog = db.importLog as unknown as { create: ReturnType<typeof vi.fn> }
 
 const admin: SessionUser = { id: 'admin-1', role: 'admin', department: 'GMIM' }
 
@@ -39,6 +43,7 @@ describe('period service', () => {
     academicPeriod.create.mockResolvedValue({ id: 'period-new' })
     academicPeriod.update.mockResolvedValue({})
     researchAssistant.updateMany.mockResolvedValue({ count: 1 })
+    importLog.create.mockResolvedValue({ id: 'audit-1' })
   })
 
   it('rejects mutations in closed periods', async () => {
@@ -63,6 +68,7 @@ describe('period service', () => {
       where: { department: 'GMIM' },
       data: { totalPoints: 0 },
     })
+    expect(importLog.create).toHaveBeenCalledWith({ data: expect.objectContaining({ fileType: 'audit', recordCount: 1 }) })
   })
 
   it('archive carries explicit points scoped to the department', async () => {
@@ -77,5 +83,6 @@ describe('period service', () => {
       where: { id: 'assistant-1', department: 'GMIM' },
       data: { totalPoints: 12 },
     })
+    expect(importLog.create).toHaveBeenCalledWith({ data: expect.objectContaining({ fileType: 'audit', recordCount: 1 }) })
   })
 })

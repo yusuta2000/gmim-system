@@ -134,6 +134,43 @@ describe('exam and schedule routes', () => {
     expect((await getSchedules(new Request('http://localhost/api/weekly-schedule?department=DUIM'))).status).toBe(403)
   })
 
+  it('exam GET uses an explicit safe DTO projection', async () => {
+    const response = await getExams(new Request('http://localhost/api/exams?department=GMIM'))
+
+    expect(response.status).toBe(200)
+    expect(exam.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { department: 'GMIM' },
+      select: expect.objectContaining({
+        id: true,
+        courseCode: true,
+        supervisors: {
+          select: {
+            id: true,
+            assistantId: true,
+            assistant: { select: { id: true, name: true } },
+          },
+        },
+      }),
+    }))
+    expect(exam.findMany.mock.calls[0][0]).not.toHaveProperty('include')
+  })
+
+  it('weekly-schedule GET limits regular users to their own safe DTO rows', async () => {
+    requireSessionMock.mockResolvedValue(regularUser)
+
+    const response = await getSchedules(new Request('http://localhost/api/weekly-schedule?department=GMIM'))
+
+    expect(response.status).toBe(200)
+    expect(weeklySchedule.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { assistantId: 'user-1', assistant: { department: 'GMIM' } },
+      select: expect.objectContaining({
+        id: true,
+        assistant: { select: { id: true, name: true } },
+      }),
+    }))
+    expect(weeklySchedule.findMany.mock.calls[0][0]).not.toHaveProperty('include')
+  })
+
   it('exams POST requires a manager and writes only an authorized department', async () => {
     requireSessionMock.mockResolvedValue(regularUser)
     const forbidden = await createExam(jsonRequest('/api/exams', { department: 'GMIM' }))

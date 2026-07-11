@@ -1,10 +1,5 @@
-import Home from '@/app/portal-client'
+import { CalendarScreen } from '@/features/calendar/components/calendar-screen'
 
-export default async function CalendarPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ view?: string }>
-}) {
-  const { view } = await searchParams
-  return <Home initialView={view === 'schedule' ? 'schedule' : 'exams'} />
+export default function CalendarPage() {
+  return <CalendarScreen />
 }

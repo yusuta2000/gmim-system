@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { createHash } from 'node:crypto';
 import { db } from '@/lib/db';
 import { requireSession, UnauthenticatedError } from '@/lib/auth/session';
 import type { SessionUser } from '@/lib/auth/session-repository';
@@ -121,7 +122,8 @@ export async function POST(request: Request) {
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
     const importType = importTypeSchema.parse((formData.get('type') as string) || 'tasks');
-    const mode = ((formData.get('mode') as string) || 'commit') as 'preview' | 'commit';
+    const mode = formData.get('mode') as string | null;
+    const previewHash = formData.get('previewHash') as string | null;
     const department = ((formData.get('department') as string) || user.department) as SessionUser['department'];
     assertDepartmentAccess(user, department);
 
@@ -129,7 +131,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Dosya yüklenemedi' }, { status: 400 });
     }
 
+    if (mode !== 'preview' && mode !== 'commit') {
+      return NextResponse.json({ error: 'PREVIEW_REQUIRED', message: 'Önce dosya önizlemesi oluşturun' }, { status: 400 });
+    }
+    if (mode === 'commit' && !previewHash) {
+      return NextResponse.json({ error: 'PREVIEW_REQUIRED', message: 'Onaylı önizleme olmadan içe aktarma yapılamaz' }, { status: 400 });
+    }
+
     const buffer = Buffer.from(await file.arrayBuffer());
+
+    if (mode === 'commit' && createHash('sha256').update(buffer).digest('hex') !== previewHash) {
+      return NextResponse.json({ error: 'PREVIEW_MISMATCH', message: 'Dosya önizlemeden sonra değişti; yeniden önizleyin' }, { status: 409 });
+    }
 
     if (mode === 'preview') {
       const preview = await previewImport({ fileName: file.name, buffer, importType, department });
