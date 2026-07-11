@@ -1,13 +1,15 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireSession, UnauthenticatedError } from '@/lib/auth/session';
 
 // Ar.gör accepts or rejects an assigned task
 export async function PUT(request: Request) {
   try {
+    const user = await requireSession();
     const body = await request.json();
-    const { taskId, action, responderId } = body; // action: 'accept' or 'reject'
+    const { taskId, action } = body; // action: 'accept' or 'reject'
 
-    if (!taskId || !action || !responderId) {
+    if (!taskId || !action) {
       return NextResponse.json({ error: 'Eksik bilgi' }, { status: 400 });
     }
 
@@ -21,7 +23,7 @@ export async function PUT(request: Request) {
     }
 
     // Only the assigned ar.gör can respond
-    if (task.assistantId !== responderId) {
+    if (task.assistantId !== user.id) {
       return NextResponse.json({ error: 'Bu göreve yanıt verme yetkiniz yok' }, { status: 403 });
     }
 
@@ -44,9 +46,15 @@ export async function PUT(request: Request) {
         });
       }
 
-      // Notify all managers
+      // Notify managers of this task's department plus the faculty-wide dekan
       const managers = await db.researchAssistant.findMany({
-        where: { role: { in: ['admin', 'dekan', 'baskan'] }, isActive: true },
+        where: {
+          isActive: true,
+          OR: [
+            { role: { in: ['admin', 'baskan'] }, department: task.assistant.department },
+            { role: 'dekan' },
+          ],
+        },
       });
       for (const m of managers) {
         await db.notification.create({
@@ -70,9 +78,15 @@ export async function PUT(request: Request) {
         data: { status: 'rejected' },
       });
 
-      // Notify all managers
+      // Notify managers of this task's department plus the faculty-wide dekan
       const managers = await db.researchAssistant.findMany({
-        where: { role: { in: ['admin', 'dekan', 'baskan'] }, isActive: true },
+        where: {
+          isActive: true,
+          OR: [
+            { role: { in: ['admin', 'baskan'] }, department: task.assistant.department },
+            { role: 'dekan' },
+          ],
+        },
       });
       for (const m of managers) {
         await db.notification.create({
@@ -91,6 +105,10 @@ export async function PUT(request: Request) {
 
     return NextResponse.json({ error: 'Geçersiz işlem' }, { status: 400 });
   } catch (error) {
+    if (error instanceof UnauthenticatedError) {
+      return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
+    }
+
     console.error('Error responding to task:', error);
     return NextResponse.json({ error: 'İşlem hatası' }, { status: 500 });
   }

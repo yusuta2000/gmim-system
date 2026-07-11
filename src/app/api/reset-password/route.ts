@@ -1,13 +1,22 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { hashPassword } from '@/lib/auth/password';
+import { requireSession, UnauthenticatedError } from '@/lib/auth/session';
+import type { SessionUser } from '@/lib/auth/session-repository';
+import { assertDepartmentAccess } from '@/lib/authorization/department';
+import { AuthorizationError } from '@/lib/authorization/errors';
+import { requireRole } from '@/lib/authorization/roles';
 
 // Admin resets a user's password
 export async function PUT(request: Request) {
   try {
-    const body = await request.json();
-    const { assistantId, newPassword, requesterId } = body;
+    const user = await requireSession();
+    requireRole(user, ['admin', 'dekan', 'baskan']);
 
-    if (!assistantId || !newPassword || !requesterId) {
+    const body = await request.json();
+    const { assistantId, newPassword } = body;
+
+    if (!assistantId || !newPassword) {
       return NextResponse.json({ error: 'Eksik bilgi' }, { status: 400 });
     }
 
@@ -15,20 +24,15 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'Yeni şifre en az 4 karakter olmalı' }, { status: 400 });
     }
 
-    // Verify requester is admin
-    const requester = await db.researchAssistant.findUnique({ where: { id: requesterId } });
-    if (!requester || !['admin', 'dekan', 'baskan'].includes(requester.role)) {
-      return NextResponse.json({ error: 'Bu işlem için yetkiniz yok' }, { status: 403 });
-    }
-
     const assistant = await db.researchAssistant.findUnique({ where: { id: assistantId } });
     if (!assistant) {
       return NextResponse.json({ error: 'Kullanıcı bulunamadı' }, { status: 404 });
     }
+    assertDepartmentAccess(user, assistant.department as SessionUser['department']);
 
     await db.researchAssistant.update({
       where: { id: assistantId },
-      data: { password: newPassword },
+      data: { passwordHash: await hashPassword(newPassword) },
     });
 
     // Notify the user
@@ -43,6 +47,13 @@ export async function PUT(request: Request) {
 
     return NextResponse.json({ message: `${assistant.name} adlı kullanıcının şifresi sıfırlandı` });
   } catch (error) {
+    if (error instanceof UnauthenticatedError) {
+      return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
+    }
+    if (error instanceof AuthorizationError) {
+      return NextResponse.json({ error: error.code }, { status: 403 });
+    }
+
     console.error('Error resetting password:', error);
     return NextResponse.json({ error: 'Şifre sıfırlama hatası' }, { status: 500 });
   }

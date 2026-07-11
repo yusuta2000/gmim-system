@@ -1,14 +1,22 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireSession, UnauthenticatedError } from '@/lib/auth/session';
+import type { SessionUser } from '@/lib/auth/session-repository';
+import { assertDepartmentAccess } from '@/lib/authorization/department';
+import { AuthorizationError } from '@/lib/authorization/errors';
+import { requireRole } from '@/lib/authorization/roles';
 
 // Approve or reject a pending task
 export async function PUT(request: Request) {
   try {
-    const body = await request.json();
-    const { taskId, action, reviewerId } = body; // action: 'approve' or 'reject'
+    const user = await requireSession();
+    requireRole(user, ['admin', 'dekan', 'baskan']);
 
-    if (!taskId || !action || !reviewerId) {
-      return NextResponse.json({ error: 'taskId, action, and reviewerId are required' }, { status: 400 });
+    const body = await request.json();
+    const { taskId, action } = body; // action: 'approve' or 'reject'
+
+    if (!taskId || !action) {
+      return NextResponse.json({ error: 'taskId and action are required' }, { status: 400 });
     }
 
     if (!['approve', 'reject'].includes(action)) {
@@ -23,6 +31,7 @@ export async function PUT(request: Request) {
     if (!task) {
       return NextResponse.json({ error: 'Görev bulunamadı' }, { status: 404 });
     }
+    assertDepartmentAccess(user, task.assistant.department as SessionUser['department']);
 
     if (task.status !== 'pending') {
       return NextResponse.json({ error: 'Bu görev zaten işlenmiş' }, { status: 400 });
@@ -34,7 +43,7 @@ export async function PUT(request: Request) {
       where: { id: taskId },
       data: {
         status: newStatus,
-        assignedBy: reviewerId,
+        assignedBy: user.id,
       },
       include: { assistant: true, category: true },
     });
@@ -48,7 +57,6 @@ export async function PUT(request: Request) {
     }
 
     // Create notification for the assistant
-    const reviewer = await db.researchAssistant.findUnique({ where: { id: reviewerId } });
     await db.notification.create({
       data: {
         title: action === 'approve' ? 'Görev Onaylandı' : 'Görev Reddedildi',
@@ -66,6 +74,13 @@ export async function PUT(request: Request) {
       task: updatedTask,
     });
   } catch (error) {
+    if (error instanceof UnauthenticatedError) {
+      return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
+    }
+    if (error instanceof AuthorizationError) {
+      return NextResponse.json({ error: error.code }, { status: 403 });
+    }
+
     console.error('Error updating task:', error);
     return NextResponse.json({ error: 'Failed to update task' }, { status: 500 });
   }
@@ -74,17 +89,26 @@ export async function PUT(request: Request) {
 // Get pending tasks (for temsilci dashboard)
 export async function GET(request: Request) {
   try {
+    const user = await requireSession();
+    requireRole(user, ['admin', 'dekan', 'baskan']);
+
     const { searchParams } = new URL(request.url);
-    const department = searchParams.get('department');
+    const department = (searchParams.get('department') || user.department) as SessionUser['department'];
+    assertDepartmentAccess(user, department);
     const pendingTasks = await db.task.findMany({
-      where: department
-        ? { status: 'pending', assistant: { department } }
-        : { status: 'pending' },
+      where: { status: 'pending', assistant: { department } },
       orderBy: { createdAt: 'desc' },
       include: { assistant: true, category: true },
     });
     return NextResponse.json(pendingTasks);
   } catch (error) {
+    if (error instanceof UnauthenticatedError) {
+      return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
+    }
+    if (error instanceof AuthorizationError) {
+      return NextResponse.json({ error: error.code }, { status: 403 });
+    }
+
     console.error('Error fetching pending tasks:', error);
     return NextResponse.json({ error: 'Failed to fetch pending tasks' }, { status: 500 });
   }

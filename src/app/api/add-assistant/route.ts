@@ -1,20 +1,26 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { hashPassword } from '@/lib/auth/password';
+import { requireSession, UnauthenticatedError } from '@/lib/auth/session';
+import type { SessionUser } from '@/lib/auth/session-repository';
+import { assertDepartmentAccess } from '@/lib/authorization/department';
+import { AuthorizationError } from '@/lib/authorization/errors';
+import { requireRole } from '@/lib/authorization/roles';
 
 export async function POST(request: Request) {
   try {
+    const user = await requireSession();
+    requireRole(user, ['admin', 'dekan', 'baskan']);
+
     const body = await request.json();
-    const { name, email, phone, faculty, department, password, role, requesterId } = body;
+    const { name, email, phone, faculty, department, password, role } = body;
 
-    if (!name || !email || !requesterId) {
-      return NextResponse.json({ error: 'Ad, e-posta ve istekci ID gerekli' }, { status: 400 });
+    if (!name || !email) {
+      return NextResponse.json({ error: 'Ad ve e-posta gerekli' }, { status: 400 });
     }
 
-    // Verify requester is admin
-    const requester = await db.researchAssistant.findUnique({ where: { id: requesterId } });
-    if (!requester || !['admin', 'dekan', 'baskan'].includes(requester.role)) {
-      return NextResponse.json({ error: 'Bu işlem için yetkiniz yok' }, { status: 403 });
-    }
+    const dept = (department || user.department) as SessionUser['department'];
+    assertDepartmentAccess(user, dept);
 
     // Check if email already exists
     const existing = await db.researchAssistant.findUnique({ where: { email } });
@@ -28,13 +34,11 @@ export async function POST(request: Request) {
       select: { order: true },
     });
 
-    const dept = department || 'GMIM';
-
     // Calculate average points for new ar.gör
     // New ar.gör gets the arithmetic average of the SAME department's active ar.görs' points
     // (admin + user roles). This prevents unfair disadvantage for newly joining ar.görs.
     let initialPoints = 0;
-    const userRole = role || 'user';
+    const userRole = role === 'admin' ? 'admin' : 'user';
     if (userRole === 'user') {
       const existingArGors = await db.researchAssistant.findMany({
         where: { role: { in: ['admin', 'user'] }, isActive: true, department: dept },
@@ -46,6 +50,7 @@ export async function POST(request: Request) {
       }
     }
 
+    const initialPassword = password || email.split('@')[0] + '2026';
     const assistant = await db.researchAssistant.create({
       data: {
         name,
@@ -53,7 +58,7 @@ export async function POST(request: Request) {
         phone: phone || null,
         faculty: faculty || 'DZ',
         department: dept,
-        password: password || email.split('@')[0] + '2026',
+        passwordHash: await hashPassword(initialPassword),
         role: userRole,
         order: (maxOrder?.order || 0) + 1,
         isActive: true,
@@ -82,9 +87,16 @@ export async function POST(request: Request) {
       });
     }
 
-    const { password: _, ...safe } = assistant;
+    const { password: _, passwordHash: __, ...safe } = assistant;
     return NextResponse.json({ message: `${name} başarıyla eklendi`, assistant: safe }, { status: 201 });
   } catch (error) {
+    if (error instanceof UnauthenticatedError) {
+      return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
+    }
+    if (error instanceof AuthorizationError) {
+      return NextResponse.json({ error: error.code }, { status: 403 });
+    }
+
     console.error('Error adding assistant:', error);
     return NextResponse.json({ error: 'Araş gör ekleme hatası' }, { status: 500 });
   }

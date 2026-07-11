@@ -1,26 +1,29 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireSession, UnauthenticatedError } from '@/lib/auth/session';
+import type { SessionUser } from '@/lib/auth/session-repository';
+import { assertDepartmentAccess } from '@/lib/authorization/department';
+import { AuthorizationError } from '@/lib/authorization/errors';
+import { requireRole } from '@/lib/authorization/roles';
 
 // Toggle user role between 'admin' and 'user' (admin only)
 export async function PUT(request: Request) {
   try {
+    const user = await requireSession();
+    requireRole(user, ['admin', 'dekan', 'baskan']);
+
     const body = await request.json();
-    const { assistantId, requesterId } = body;
+    const { assistantId } = body;
 
-    if (!assistantId || !requesterId) {
+    if (!assistantId) {
       return NextResponse.json({ error: 'Eksik bilgi' }, { status: 400 });
-    }
-
-    // Verify requester is admin
-    const requester = await db.researchAssistant.findUnique({ where: { id: requesterId } });
-    if (!requester || !['admin', 'dekan', 'baskan'].includes(requester.role)) {
-      return NextResponse.json({ error: 'Bu işlem için yetkiniz yok' }, { status: 403 });
     }
 
     const assistant = await db.researchAssistant.findUnique({ where: { id: assistantId } });
     if (!assistant) {
       return NextResponse.json({ error: 'Kullanıcı bulunamadı' }, { status: 404 });
     }
+    assertDepartmentAccess(user, assistant.department as SessionUser['department']);
 
     // Dekan ve Bölüm Başkanı rolü değiştirilemez
     if (assistant.role === 'dekan' || assistant.role === 'baskan') {
@@ -28,7 +31,7 @@ export async function PUT(request: Request) {
     }
 
     // Prevent self-demotion (admin can't remove own admin role)
-    if (assistantId === requesterId) {
+    if (assistantId === user.id) {
       return NextResponse.json({ error: 'Kendi temsilci rolünüzü kaldıramazsınız' }, { status: 400 });
     }
 
@@ -54,8 +57,16 @@ export async function PUT(request: Request) {
     return NextResponse.json({
       message: `${assistant.name} ${newRole === 'admin' ? 'temsilci yapıldı' : 'temsilciliği kaldırıldı'}`,
       newRole,
+      assistant: updated,
     });
   } catch (error) {
+    if (error instanceof UnauthenticatedError) {
+      return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
+    }
+    if (error instanceof AuthorizationError) {
+      return NextResponse.json({ error: error.code }, { status: 403 });
+    }
+
     console.error('Error toggling role:', error);
     return NextResponse.json({ error: 'Rol değiştirme hatası' }, { status: 500 });
   }

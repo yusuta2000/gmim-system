@@ -1,22 +1,21 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireSession, UnauthenticatedError } from '@/lib/auth/session';
+import type { SessionUser } from '@/lib/auth/session-repository';
+import { assertDepartmentAccess } from '@/lib/authorization/department';
+import { AuthorizationError } from '@/lib/authorization/errors';
+import { requireRole } from '@/lib/authorization/roles';
 
 export async function DELETE(request: Request) {
   try {
+    const user = await requireSession();
+    requireRole(user, ['admin', 'dekan', 'baskan']);
+
     const { searchParams } = new URL(request.url);
     const taskId = searchParams.get('id');
-    const requesterId = searchParams.get('requesterId');
 
     if (!taskId) {
       return NextResponse.json({ error: 'Görev ID gerekli' }, { status: 400 });
-    }
-
-    // Only admins can delete tasks
-    if (requesterId) {
-      const requester = await db.researchAssistant.findUnique({ where: { id: requesterId } });
-      if (!requester || !['admin', 'dekan', 'baskan'].includes(requester.role)) {
-        return NextResponse.json({ error: 'Bu işlem için yetkiniz yok' }, { status: 403 });
-      }
     }
 
     // Find the task
@@ -28,6 +27,7 @@ export async function DELETE(request: Request) {
     if (!task) {
       return NextResponse.json({ error: 'Görev bulunamadı' }, { status: 404 });
     }
+    assertDepartmentAccess(user, task.assistant.department as SessionUser['department']);
 
     // If the task was approved, subtract its points from the assistant
     if (task.status === 'approved' && task.points > 0) {
@@ -55,6 +55,13 @@ export async function DELETE(request: Request) {
       message: `"${task.description}" görevi silindi${task.status === 'approved' ? `, ${task.points} puan düşürüldü` : ''}`,
     });
   } catch (error) {
+    if (error instanceof UnauthenticatedError) {
+      return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
+    }
+    if (error instanceof AuthorizationError) {
+      return NextResponse.json({ error: error.code }, { status: 403 });
+    }
+
     console.error('Error deleting task:', error);
     return NextResponse.json({ error: 'Failed to delete task' }, { status: 500 });
   }

@@ -1,12 +1,24 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireSession, UnauthenticatedError } from '@/lib/auth/session';
+import type { SessionUser } from '@/lib/auth/session-repository';
+import { assertDepartmentAccess } from '@/lib/authorization/department';
+import { AuthorizationError } from '@/lib/authorization/errors';
+import { requireRole } from '@/lib/authorization/roles';
+
+function isManager(user: SessionUser) {
+  return user.role === 'admin' || user.role === 'dekan' || user.role === 'baskan';
+}
 
 export async function GET(request: Request) {
   try {
+    const user = await requireSession();
     const { searchParams } = new URL(request.url);
-    const department = searchParams.get('department');
+    const department = (searchParams.get('department') || user.department) as SessionUser['department'];
+    assertDepartmentAccess(user, department);
+
     const tasks = await db.task.findMany({
-      where: department ? { assistant: { department } } : {},
+      where: isManager(user) ? { assistant: { department } } : { assistantId: user.id },
       orderBy: { date: 'desc' },
       include: {
         assistant: true,
@@ -15,6 +27,13 @@ export async function GET(request: Request) {
     });
     return NextResponse.json(tasks);
   } catch (error) {
+    if (error instanceof UnauthenticatedError) {
+      return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
+    }
+    if (error instanceof AuthorizationError) {
+      return NextResponse.json({ error: error.code }, { status: 403 });
+    }
+
     console.error('Error fetching tasks:', error);
     return NextResponse.json({ error: 'Failed to fetch tasks' }, { status: 500 });
   }
@@ -22,8 +41,22 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const user = await requireSession();
     const body = await request.json();
-    const { description, hoursWorked, date, assistantId, categoryId, points, source, notes, assignedBy, submittedBy } = body;
+    const { description, hoursWorked, date, assistantId, categoryId, points, source, notes } = body;
+
+    if (!description || !date || !assistantId) {
+      return NextResponse.json({ error: 'Eksik bilgi' }, { status: 400 });
+    }
+
+    const assistant = await db.researchAssistant.findUnique({ where: { id: assistantId } });
+    if (!assistant) {
+      return NextResponse.json({ error: 'Kullanıcı bulunamadı' }, { status: 404 });
+    }
+    assertDepartmentAccess(user, assistant.department as SessionUser['department']);
+    if (!isManager(user) && assistantId !== user.id) {
+      return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 });
+    }
 
     // Get the max task number for this assistant
     const maxTask = await db.task.findFirst({
@@ -39,9 +72,9 @@ export async function POST(request: Request) {
     // - If auto-assigned (exam supervisor): APPROVED directly
     // - If imported: APPROVED directly
     let status = 'pending';
-    if (source === 'auto_assigned' || source === 'import') {
+    if (isManager(user) && (source === 'auto_assigned' || source === 'import')) {
       status = 'approved';
-    } else if (source === 'temsilci_assigned') {
+    } else if (isManager(user) && source === 'temsilci_assigned') {
       status = 'assigned'; // ar.gör must accept/reject
     } else {
       // Self-reported by ar.gör → needs approval
@@ -58,7 +91,7 @@ export async function POST(request: Request) {
         status,
         source: source || 'external',
         notes: notes || null,
-        assignedBy: assignedBy || null,
+        assignedBy: isManager(user) ? user.id : null,
         assistantId,
         categoryId: categoryId || null,
       },
@@ -135,6 +168,13 @@ export async function POST(request: Request) {
 
     return NextResponse.json(task, { status: 201 });
   } catch (error) {
+    if (error instanceof UnauthenticatedError) {
+      return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
+    }
+    if (error instanceof AuthorizationError) {
+      return NextResponse.json({ error: error.code }, { status: 403 });
+    }
+
     console.error('Error creating task:', error);
     return NextResponse.json({ error: 'Failed to create task' }, { status: 500 });
   }
