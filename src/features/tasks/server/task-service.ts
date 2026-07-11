@@ -30,6 +30,28 @@ function approvedPoints(task: Pick<Task, 'status' | 'points'>) {
   return task.status === 'approved' && task.points > 0 ? task.points : 0
 }
 
+async function assertTaskPeriodOpen(taskId: string, tx: TaskTransaction) {
+  const hasPeriodColumn = await tx.$queryRaw<Array<{ exists: boolean }>>`
+    SELECT EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_name = 'Task' AND column_name = 'periodId'
+    ) AS "exists"
+  `
+  if (!hasPeriodColumn[0]?.exists) return
+
+  const rows = await tx.$queryRaw<Array<{ status: string | null }>>`
+    SELECT p.status
+    FROM "Task" t
+    LEFT JOIN "AcademicPeriod" p ON p.id = t."periodId"
+    WHERE t.id = ${taskId}
+    LIMIT 1
+  `
+  if (rows[0]?.status === 'closed') {
+    throw new TaskServiceError('CONFLICT', 'Kapalı dönemde görev değişikliği yapılamaz')
+  }
+}
+
 export async function approveTask(input: {
   taskId: string
   action: 'approve' | 'reject'
@@ -45,6 +67,7 @@ export async function approveTask(input: {
   return db.$transaction(async (tx) => {
     const task = await getTaskForMutation(tx, input.taskId)
     assertTaskDepartment(input.reviewer, task)
+    await assertTaskPeriodOpen(input.taskId, tx)
 
     const newStatus = input.action === 'approve' ? 'approved' : 'rejected'
     const updated = await tx.task.updateMany({
@@ -92,6 +115,7 @@ export async function respondToTask(input: {
 
   return db.$transaction(async (tx) => {
     const task = await getTaskForMutation(tx, input.taskId)
+    await assertTaskPeriodOpen(input.taskId, tx)
     if (task.assistantId !== input.responder.id) {
       throw new TaskServiceError('FORBIDDEN', 'Bu göreve yanıt verme yetkiniz yok')
     }
@@ -148,6 +172,7 @@ export async function deleteTask(input: { taskId: string; requester: SessionUser
   await db.$transaction(async (tx) => {
     const task = await getTaskForMutation(tx, input.taskId)
     assertTaskDepartment(input.requester, task)
+    await assertTaskPeriodOpen(input.taskId, tx)
 
     const pointsToRemove = approvedPoints(task)
     if (pointsToRemove > 0) {

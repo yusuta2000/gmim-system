@@ -41,7 +41,11 @@ async function main() {
           status: 'open',
         },
       })
-      await tx.task.update({ where: { id: item.taskId }, data: { periodId: period.id } })
+      await tx.$executeRaw`
+        UPDATE "Task"
+        SET "periodId" = ${period.id}
+        WHERE "id" = ${item.taskId}
+      `
     }
   })
 }

@@ -1,5 +1,10 @@
--- P03/P04 rehearsal migration. Do not apply to production without a fresh
--- inventory-enums dry-run and duplicate ExamSupervisor check.
+-- P03/P04 draft/rehearsal migration.
+-- This file intentionally lives outside prisma/migrations so it cannot be
+-- applied by prisma migrate deploy. Before promoting it, run:
+--   1. bun run typecheck
+--   2. bunx tsx scripts/inventory-enums.ts
+--   3. duplicate ExamSupervisor scan
+--   4. a staging migration rehearsal against a DB clone
 
 CREATE TYPE "Department" AS ENUM ('GMIM', 'DUIM');
 CREATE TYPE "Role" AS ENUM ('user', 'admin', 'baskan', 'dekan');

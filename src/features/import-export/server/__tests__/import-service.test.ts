@@ -16,6 +16,7 @@ vi.mock('@/lib/db', () => ({
       create: vi.fn(),
     },
     task: {
+      findUnique: vi.fn(),
       findFirst: vi.fn(),
       create: vi.fn(),
       delete: vi.fn(),
@@ -40,6 +41,7 @@ const importBatchRow = db.importBatchRow as unknown as {
   create: ReturnType<typeof vi.fn>
 }
 const task = db.task as unknown as {
+  findUnique: ReturnType<typeof vi.fn>
   findFirst: ReturnType<typeof vi.fn>
   create: ReturnType<typeof vi.fn>
   delete: ReturnType<typeof vi.fn>
@@ -57,6 +59,7 @@ describe('import service', () => {
     importBatch.create.mockResolvedValue({ id: 'batch-1' })
     importBatch.update.mockResolvedValue({})
     importBatchRow.create.mockResolvedValue({})
+    task.findUnique.mockResolvedValue({ id: 'task-1', status: 'approved', points: 5, assistantId: 'assistant-1' })
     task.findFirst.mockResolvedValue(null)
     task.create.mockResolvedValue({ id: 'task-1' })
     task.delete.mockResolvedValue({})
@@ -107,7 +110,7 @@ describe('import service', () => {
     importBatch.findUnique.mockResolvedValue({
       id: 'batch-1',
       status: 'committed',
-      rows: [{ task: { id: 'task-1', status: 'approved', points: 5, assistantId: 'assistant-1' } }],
+      rows: [{ taskId: 'task-1' }],
     })
 
     const result = await rollbackImportBatch({ batchId: 'batch-1', requester: admin })

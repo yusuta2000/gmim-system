@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 vi.mock('@/lib/db', () => ({
   db: {
     $transaction: vi.fn(async (callback) => callback(db)),
+    $queryRaw: vi.fn(),
     task: {
       findMany: vi.fn(),
       findFirst: vi.fn(),
@@ -57,6 +58,7 @@ const task = db.task as unknown as {
   delete: ReturnType<typeof vi.fn>
   deleteMany: ReturnType<typeof vi.fn>
 }
+const queryRaw = db.$queryRaw as unknown as ReturnType<typeof vi.fn>
 const researchAssistant = db.researchAssistant as unknown as {
   findUnique: ReturnType<typeof vi.fn>
   findMany: ReturnType<typeof vi.fn>
@@ -108,6 +110,7 @@ describe('task routes', () => {
     task.updateMany.mockResolvedValue({ count: 1 })
     task.delete.mockResolvedValue({})
     task.deleteMany.mockResolvedValue({ count: 1 })
+    queryRaw.mockResolvedValue([{ exists: false }])
     researchAssistant.findUnique.mockResolvedValue(targetAssistant)
     researchAssistant.findMany.mockResolvedValue([{ id: 'manager-1' }])
     researchAssistant.update.mockResolvedValue({})
@@ -230,6 +233,22 @@ describe('task routes', () => {
     }))
 
     expect(response.status).toBe(409)
+    expect(researchAssistant.update).not.toHaveBeenCalled()
+    expect(notification.create).not.toHaveBeenCalled()
+  })
+
+  it('approve-task PUT rejects closed-period tasks before changing points', async () => {
+    queryRaw
+      .mockResolvedValueOnce([{ exists: true }])
+      .mockResolvedValueOnce([{ status: 'closed' }])
+
+    const response = await approveTask(jsonRequest('/api/approve-task', {
+      taskId: 'task-1',
+      action: 'approve',
+    }))
+
+    expect(response.status).toBe(409)
+    expect(task.updateMany).not.toHaveBeenCalled()
     expect(researchAssistant.update).not.toHaveBeenCalled()
     expect(notification.create).not.toHaveBeenCalled()
   })
