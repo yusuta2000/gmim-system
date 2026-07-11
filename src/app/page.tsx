@@ -758,31 +758,33 @@ export default function Home() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
       {/* Header */}
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className={`h-10 w-10 rounded-xl bg-gradient-to-br ${viewDept === 'DUIM' ? 'from-sky-500 to-indigo-600 shadow-sky-200' : 'from-emerald-500 to-teal-600 shadow-emerald-200'} flex items-center justify-center shadow-lg`}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-x-3 gap-y-2 flex-wrap">
+          {/* Sol: logo + başlık (daralabilir) */}
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className={`h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-gradient-to-br ${viewDept === 'DUIM' ? 'from-sky-500 to-indigo-600 shadow-sky-200' : 'from-emerald-500 to-teal-600 shadow-emerald-200'} flex items-center justify-center shadow-lg flex-shrink-0`}>
               <Ship className="h-5 w-5 text-white" />
             </div>
-            <div>
-              <h1 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                {deptInfo?.short} Ar.Gör Yönetim
-                <Badge className={`${deptInfo?.badge} text-[10px]`}>{deptInfo?.short}</Badge>
+            <div className="min-w-0">
+              <h1 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2 min-w-0">
+                <span className="truncate">{deptInfo?.short} Ar.Gör Yönetim</span>
+                <Badge className={`${deptInfo?.badge} text-[10px] flex-shrink-0`}>{deptInfo?.short}</Badge>
               </h1>
-              <p className="text-xs text-slate-500">İTÜ Denizcilik Fakültesi · {deptInfo?.full}</p>
+              <p className="text-xs text-slate-500 hidden sm:block">İTÜ Denizcilik Fakültesi · {deptInfo?.full}</p>
             </div>
             {isDekan && (
               <Select value={viewDept || 'GMIM'} onValueChange={(v) => { setSelectedDept(v); try { localStorage.setItem('gmim_selected_dept', v) } catch {} }}>
-                <SelectTrigger className="h-8 w-[110px] text-xs ml-2"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-8 w-[100px] text-xs flex-shrink-0"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {DEPT_LIST.map(d => <SelectItem key={d.code} value={d.code} className="text-xs">{d.short}</SelectItem>)}
                 </SelectContent>
               </Select>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          {/* Sağ: aksiyonlar (taşmasın) */}
+          <div className="flex items-center gap-1.5 flex-shrink-0">
             {pendingCount > 0 && canSeeAll && (
               <Badge className="bg-amber-100 text-amber-800 gap-1 text-xs animate-pulse">
-                <Clock className="h-3 w-3" /> {pendingCount} Onay Bekliyor
+                <Clock className="h-3 w-3" /><span className="hidden sm:inline">{pendingCount} Onay Bekliyor</span><span className="sm:hidden">{pendingCount}</span>
               </Badge>
             )}
             <Dialog open={showNotifDialog} onOpenChange={setShowNotifDialog}>
@@ -816,25 +818,25 @@ export default function Home() {
               </DialogContent>
             </Dialog>
             {currentUser ? (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 sm:gap-2">
                 <Badge className={`gap-1 text-xs ${isAdmin ? 'bg-emerald-100 text-emerald-800' : isDekan ? 'bg-violet-100 text-violet-800' : isBaskan ? 'bg-blue-100 text-blue-800' : 'bg-slate-100 text-slate-700'}`}>
-                  <Shield className="h-3 w-3" />{roleLabel(currentUser.role, viewDept)}
+                  <Shield className="h-3 w-3" /><span className="hidden sm:inline">{roleLabel(currentUser.role, viewDept)}</span>
                 </Badge>
-                <span className="text-xs text-slate-600 hidden sm:inline">{currentUser.name}</span>
+                <span className="text-xs text-slate-600 hidden md:inline">{currentUser.name}</span>
                 <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
                   <DialogTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" title="Şifre Değiştir"><Settings2 className="h-3.5 w-3.5" /></Button>
+                    <Button variant="ghost" size="icon" className="h-9 w-9" title="Şifre Değiştir" aria-label="Şifre değiştir"><Settings2 className="h-4 w-4" /></Button>
                   </DialogTrigger>
                   <DialogContent className="max-w-sm">
                     <DialogHeader><DialogTitle>Şifre Değiştir</DialogTitle></DialogHeader>
                     <div className="space-y-4">
-                      <div className="space-y-2"><Label>Mevcut Şifre</Label><Input type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} /></div>
-                      <div className="space-y-2"><Label>Yeni Şifre</Label><Input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="En az 4 karakter" /></div>
+                      <div className="space-y-2"><Label htmlFor="pwd-current">Mevcut Şifre</Label><Input id="pwd-current" type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} autoComplete="current-password" /></div>
+                      <div className="space-y-2"><Label htmlFor="pwd-new">Yeni Şifre</Label><Input id="pwd-new" type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="En az 4 karakter" autoComplete="new-password" /></div>
                       <Button onClick={handleChangePassword} className="w-full bg-emerald-600 hover:bg-emerald-700 gap-2"><Check className="h-4 w-4" /> Değiştir</Button>
                     </div>
                   </DialogContent>
                 </Dialog>
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setCurrentUser(null); try { localStorage.removeItem('gmim_current_user') } catch {}; setActiveTab('dashboard'); toast.info('Çıkış yapıldı') }}><LogOut className="h-3.5 w-3.5" /></Button>
+                <Button variant="ghost" size="icon" className="h-9 w-9" aria-label="Çıkış yap" onClick={() => { setCurrentUser(null); try { localStorage.removeItem('gmim_current_user') } catch {}; setActiveTab('dashboard'); toast.info('Çıkış yapıldı') }}><LogOut className="h-4 w-4" /></Button>
               </div>
             ) : (
               <Dialog open={showLoginDialog} onOpenChange={setShowLoginDialog}>
