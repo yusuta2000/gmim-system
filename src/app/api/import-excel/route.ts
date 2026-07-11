@@ -1,12 +1,21 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireSession, UnauthenticatedError } from '@/lib/auth/session';
+import type { SessionUser } from '@/lib/auth/session-repository';
+import { assertDepartmentAccess } from '@/lib/authorization/department';
+import { AuthorizationError } from '@/lib/authorization/errors';
+import { requireRole } from '@/lib/authorization/roles';
 
 export async function POST(request: Request) {
   try {
+    const user = await requireSession();
+    requireRole(user, ['admin', 'dekan', 'baskan']);
+
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
     const importType = formData.get('type') as string || 'tasks';
-    const department = (formData.get('department') as string) || 'GMIM';
+    const department = ((formData.get('department') as string) || user.department) as SessionUser['department'];
+    assertDepartmentAccess(user, department);
 
     if (!file) {
       return NextResponse.json({ error: 'Dosya yüklenemedi' }, { status: 400 });
@@ -147,6 +156,13 @@ export async function POST(request: Request) {
       throw parseError;
     }
   } catch (error) {
+    if (error instanceof UnauthenticatedError) {
+      return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
+    }
+    if (error instanceof AuthorizationError) {
+      return NextResponse.json({ error: error.code }, { status: 403 });
+    }
+
     console.error('Error importing file:', error);
     return NextResponse.json({ error: 'Dosya içe aktarma hatası: ' + String(error) }, { status: 500 });
   }

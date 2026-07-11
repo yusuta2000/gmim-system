@@ -1,12 +1,21 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import * as XLSX from 'xlsx';
+import { requireSession, UnauthenticatedError } from '@/lib/auth/session';
+import type { SessionUser } from '@/lib/auth/session-repository';
+import { assertDepartmentAccess } from '@/lib/authorization/department';
+import { AuthorizationError } from '@/lib/authorization/errors';
+import { requireRole } from '@/lib/authorization/roles';
 
 export async function GET(request: Request) {
   try {
+    const user = await requireSession();
+    requireRole(user, ['admin', 'dekan', 'baskan']);
+
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type') || 'tasks';
-    const department = searchParams.get('department');
+    const department = (searchParams.get('department') || user.department) as SessionUser['department'];
+    assertDepartmentAccess(user, department);
 
     const wb = XLSX.utils.book_new();
 
@@ -83,10 +92,17 @@ export async function GET(request: Request) {
       status: 200,
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'Content-Disposition': `attachment; filename="${(department || 'export').toLowerCase()}_${type}_${new Date().toISOString().slice(0, 10)}.xlsx"`,
+        'Content-Disposition': `attachment; filename="${department.toLowerCase()}_${type}_${new Date().toISOString().slice(0, 10)}.xlsx"`,
       },
     });
   } catch (error) {
+    if (error instanceof UnauthenticatedError) {
+      return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
+    }
+    if (error instanceof AuthorizationError) {
+      return NextResponse.json({ error: error.code }, { status: 403 });
+    }
+
     console.error('Error exporting Excel:', error);
     return NextResponse.json({ error: 'Excel oluşturma hatası' }, { status: 500 });
   }
