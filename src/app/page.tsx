@@ -721,7 +721,7 @@ export default function Home() {
               <span className="inline-flex items-center gap-1 text-sky-700 text-sm font-medium mt-4 group-hover:gap-2 transition-all">Giriş yap <ChevronRight className="h-4 w-4" /></span>
             </button>
           </div>
-          <p className="text-center text-[11px] text-slate-400 mt-8">İTÜ DF Ar.Gör Yönetim Sistemi · AI Destekli v3.1</p>
+          <p className="text-center text-[11px] text-slate-500 mt-8">İTÜ DF Ar.Gör Yönetim Sistemi · AI Destekli v3.1</p>
         </div>
       </div>
     )
@@ -749,18 +749,18 @@ export default function Home() {
             <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2 text-lg"><LogIn className={`h-5 w-5 ${iconColor}`} /> Sisteme Giriş</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label>E-posta</Label>
-                <Input placeholder="isim@itu.edu.tr" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleLogin()} />
+                <Label htmlFor="login-email">E-posta</Label>
+                <Input id="login-email" placeholder="isim@itu.edu.tr" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleLogin()} autoComplete="email" />
               </div>
               <div className="space-y-2">
-                <Label>Şifre</Label>
-                <Input type="password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleLogin()} />
+                <Label htmlFor="login-password">Şifre</Label>
+                <Input id="login-password" type="password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleLogin()} autoComplete="current-password" />
               </div>
               <Button onClick={handleLogin} className={`w-full ${btnColor} gap-2`}><LogIn className="h-4 w-4" /> Giriş Yap</Button>
               <Button variant="ghost" onClick={() => { setSelectedDept(null); try { localStorage.removeItem('gmim_selected_dept') } catch {} }} className="w-full text-slate-500 gap-2 text-xs"><RotateCcw className="h-3.5 w-3.5" /> Bölüm değiştir</Button>
             </CardContent>
           </Card>
-          <p className="text-center text-[11px] text-slate-400 mt-6">{deptInfo?.short} Ar.Gör Yönetim Sistemi · AI Destekli v3.1</p>
+          <p className="text-center text-[11px] text-slate-500 mt-6">{deptInfo?.short} Ar.Gör Yönetim Sistemi · AI Destekli v3.1</p>
         </div>
       </div>
     )
@@ -801,7 +801,7 @@ export default function Home() {
             )}
             <Dialog open={showNotifDialog} onOpenChange={setShowNotifDialog}>
               <DialogTrigger asChild>
-                <Button variant="ghost" size="icon" className="relative h-9 w-9">
+                <Button variant="ghost" size="icon" className="relative h-9 w-9" aria-label="Bildirimler">
                   {unreadCount > 0 ? <BellRing className="h-4 w-4 text-amber-500" /> : <Bell className="h-4 w-4 text-slate-500" />}
                   {unreadCount > 0 && <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-red-500 text-[10px] text-white flex items-center justify-center font-bold">{unreadCount}</span>}
                 </Button>
@@ -809,7 +809,7 @@ export default function Home() {
               <DialogContent className="max-w-md">
                 <DialogHeader><DialogTitle className="flex items-center gap-2"><Bell className="h-5 w-5" /> Bildirimler</DialogTitle></DialogHeader>
                 <ScrollArea className="h-[400px]">
-                  {notifications.length === 0 ? <p className="text-sm text-slate-400 text-center py-8">Bildirim yok</p> : (
+                  {notifications.length === 0 ? <p className="text-sm text-slate-500 text-center py-8">Bildirim yok</p> : (
                     <div className="space-y-2">
                       {notifications.map(n => (
                         <div key={n.id} className={`p-3 rounded-lg border ${n.isRead ? 'bg-white border-slate-200' : 'bg-blue-50 border-blue-200'}`}>
@@ -817,7 +817,7 @@ export default function Home() {
                             <div>
                               <p className="text-sm font-semibold text-slate-900">{n.title}</p>
                               <p className="text-xs text-slate-600 mt-0.5">{n.message}</p>
-                              <p className="text-[10px] text-slate-400 mt-1">{new Date(n.createdAt).toLocaleString('tr-TR')}</p>
+                              <p className="text-[10px] text-slate-500 mt-1">{new Date(n.createdAt).toLocaleString('tr-TR')}</p>
                             </div>
                             {!n.isRead && <Button variant="ghost" size="sm" className="h-6 text-[10px]" onClick={() => handleMarkRead(n.id)}>Okundu</Button>}
                           </div>
@@ -856,8 +856,8 @@ export default function Home() {
                 <DialogContent className="max-w-sm">
                   <DialogHeader><DialogTitle className="flex items-center gap-2"><LogIn className="h-5 w-5" /> Sisteme Giriş</DialogTitle></DialogHeader>
                   <div className="space-y-4">
-                    <div className="space-y-2"><Label>E-posta</Label><Input placeholder="isim@itu.edu.tr" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} /></div>
-                    <div className="space-y-2"><Label>Şifre</Label><Input type="password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleLogin()} /></div>
+                    <div className="space-y-2"><Label htmlFor="login-email-2">E-posta</Label><Input id="login-email-2" placeholder="isim@itu.edu.tr" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} autoComplete="email" /></div>
+                    <div className="space-y-2"><Label htmlFor="login-password-2">Şifre</Label><Input id="login-password-2" type="password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleLogin()} autoComplete="current-password" /></div>
                     <Button onClick={handleLogin} className="w-full bg-emerald-600 hover:bg-emerald-700 gap-2"><LogIn className="h-4 w-4" /> Giriş Yap</Button>
                   </div>
                 </DialogContent>
@@ -885,7 +885,7 @@ export default function Home() {
                   <TabsTrigger key={tab.v} value={tab.v} className="rounded-lg text-xs sm:text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm py-2 px-3 whitespace-nowrap relative">
                     <tab.icon className="h-4 w-4 mr-1 sm:mr-2" />
                     <span className="hidden sm:inline">{tab.label}</span><span className="sm:hidden">{tab.short}</span>
-                    {tab.badge && tab.badge > 0 && <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-amber-500 text-[10px] text-white flex items-center justify-center font-bold">{tab.badge}</span>}
+                    {tab.badge && tab.badge > 0 && <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-amber-600 text-[10px] text-white flex items-center justify-center font-bold">{tab.badge}</span>}
                   </TabsTrigger>
                 ))}
                 {/* Düşük sıklıklı yönetim araçları tek menüde — sekme sayısını azaltır */}
@@ -1022,14 +1022,19 @@ export default function Home() {
                       <div
                         className={`flex items-center gap-4 p-3 ${canSeeAll ? 'cursor-pointer' : ''}`}
                         onClick={() => canSeeAll && setExpandedAssistantId(isExpanded ? null : ra.id)}
+                        onKeyDown={(e) => { if (canSeeAll && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setExpandedAssistantId(isExpanded ? null : ra.id) } }}
+                        role={canSeeAll ? 'button' : undefined}
+                        tabIndex={canSeeAll ? 0 : undefined}
+                        aria-expanded={canSeeAll ? isExpanded : undefined}
+                        aria-label={canSeeAll ? `${ra.name} detayları (${isExpanded ? 'kapat' : 'aç'})` : undefined}
                       >
-                        <div className={`flex-shrink-0 h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold ${idx === 0 ? 'bg-emerald-500 text-white' : idx === 1 ? 'bg-amber-500 text-white' : idx === 2 ? 'bg-orange-400 text-white' : 'bg-slate-200 text-slate-600'}`}>{idx + 1}</div>
+                        <div className={`flex-shrink-0 h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold ${idx === 0 ? 'bg-emerald-600 text-white' : idx === 1 ? 'bg-amber-600 text-white' : idx === 2 ? 'bg-orange-500 text-white' : 'bg-slate-200 text-slate-600'}`}>{idx + 1}</div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="font-semibold text-slate-900 truncate">{ra.name}</span>
-                            {idx === 0 && <Badge className="bg-emerald-500 text-white text-[10px] px-1.5 py-0 h-5 gap-0.5"><Zap className="h-2.5 w-2.5" /> ÖNCELİKLİ</Badge>}
+                            {idx === 0 && <Badge className="bg-emerald-600 text-white text-[10px] px-1.5 py-0 h-5 gap-0.5"><Zap className="h-2.5 w-2.5" /> ÖNCELİKLİ</Badge>}
                             {ra.role === 'admin' && <Badge className="bg-slate-700 text-white text-[10px] px-1.5 py-0 h-5 gap-0.5"><Shield className="h-2.5 w-2.5" /> TEMSİLCİ</Badge>}
-                            {canSeeAll && <ChevronRight className={`h-3.5 w-3.5 text-slate-400 ml-auto transition-transform ${isExpanded ? 'rotate-90' : ''}`} />}
+                            {canSeeAll && <ChevronRight className={`h-3.5 w-3.5 text-slate-500 ml-auto transition-transform ${isExpanded ? 'rotate-90' : ''}`} />}
                           </div>
                           <Progress value={(ra.totalPoints / maxPoints) * 100} className="h-2 mt-1.5" />
                         </div>
@@ -1070,7 +1075,7 @@ export default function Home() {
                                     return (
                                       <div key={cat.name}>
                                         <div className="flex justify-between text-[11px] text-slate-600 mb-0.5">
-                                          <span className="truncate">{cat.name} <span className="text-slate-400">({cat.count} görev)</span></span>
+                                          <span className="truncate">{cat.name} <span className="text-slate-500">({cat.count} görev)</span></span>
                                           <span className="font-semibold">{cat.points}p</span>
                                         </div>
                                         <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
@@ -1080,7 +1085,7 @@ export default function Home() {
                                     )
                                   })}
                                 </div>
-                              ) : <p className="text-[11px] text-slate-400">Henüz onaylı görev yok</p>}
+                              ) : <p className="text-[11px] text-slate-500">Henüz onaylı görev yok</p>}
                             </div>
 
                             {/* Sistem payı pasta grafik */}
@@ -1102,7 +1107,7 @@ export default function Home() {
                                 </div>
                                 <div className="text-xs text-slate-600 space-y-1">
                                   <p><span className="font-semibold text-slate-900">{stats.taskCount}</span> görev / toplam {tasks.filter(t => t.status === 'approved').length}</p>
-                                  <p className="text-[11px] text-slate-400">Bu kişi sistemdeki tüm onaylı görevlerin %{stats.taskCountPct.toFixed(1)}'ine sahip</p>
+                                  <p className="text-[11px] text-slate-500">Bu kişi sistemdeki tüm onaylı görevlerin %{stats.taskCountPct.toFixed(1)}'ine sahip</p>
                                   <p className="text-[11px] text-slate-500">Puan payı: %{stats.mySharePct.toFixed(1)}</p>
                                 </div>
                               </div>
@@ -1131,7 +1136,7 @@ export default function Home() {
                               <Badge className="bg-red-100 text-red-600 text-[10px] px-1.5 py-0 h-5">Pasif</Badge>
                             </div>
                           </div>
-                          <div className="text-right flex-shrink-0"><span className="text-lg font-bold text-slate-400">{ra.totalPoints}</span><span className="text-xs text-slate-400 ml-1">puan</span></div>
+                          <div className="text-right flex-shrink-0"><span className="text-lg font-bold text-slate-500">{ra.totalPoints}</span><span className="text-xs text-slate-500 ml-1">puan</span></div>
                         </div>
                       ))}
                     </div>
@@ -1178,7 +1183,7 @@ export default function Home() {
                           </CardDescription>
                         </div>
                         {canEdit && ann.authorId === currentUser?.id && (
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-red-400 hover:text-red-600 hover:bg-red-50" onClick={() => setDeleteAnnouncementTarget(ann.id)} aria-label="Duyuruyu sil">
+                          <Button variant="ghost" size="icon" className="h-9 w-9 text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => setDeleteAnnouncementTarget(ann.id)} aria-label="Duyuruyu sil">
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         )}
@@ -1188,7 +1193,7 @@ export default function Home() {
                       <p className="text-sm text-slate-700 whitespace-pre-wrap">{ann.content}</p>
                       {ann.comments.length > 0 && (
                         <div className="pt-3 border-t border-slate-100 space-y-2">
-                          <p className="text-xs font-medium text-slate-400 flex items-center gap-1"><MessageSquare className="h-3 w-3" /> Yorumlar ({ann.comments.length})</p>
+                          <p className="text-xs font-medium text-slate-500 flex items-center gap-1"><MessageSquare className="h-3 w-3" /> Yorumlar ({ann.comments.length})</p>
                           {ann.comments.map(c => (
                             <div key={c.id} className="flex items-start gap-2 p-2 rounded-lg bg-slate-50">
                               <div className={`h-6 w-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0 ${c.author.role === 'admin' ? 'bg-emerald-500' : c.author.role === 'dekan' ? 'bg-violet-500' : c.author.role === 'baskan' ? 'bg-blue-500' : 'bg-slate-400'}`}>
@@ -1197,7 +1202,7 @@ export default function Home() {
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-1">
                                   <span className="text-xs font-semibold text-slate-700">{c.author.name}</span>
-                                  <span className="text-[10px] text-slate-400">{new Date(c.createdAt).toLocaleString('tr-TR')}</span>
+                                  <span className="text-[10px] text-slate-500">{new Date(c.createdAt).toLocaleString('tr-TR')}</span>
                                 </div>
                                 <p className="text-xs text-slate-600 mt-0.5">{c.content}</p>
                               </div>
@@ -1254,7 +1259,7 @@ export default function Home() {
                         <div className="flex-1 space-y-2">
                           <div className="flex items-center gap-2">
                             <Badge variant="outline" className="text-xs">{task.assistant?.name}</Badge>
-                            <span className="text-xs text-slate-400">{new Date(task.date).toLocaleDateString('tr-TR')}</span>
+                            <span className="text-xs text-slate-500">{new Date(task.date).toLocaleDateString('tr-TR')}</span>
                           </div>
                           <p className="font-medium text-slate-900">{task.description}</p>
                           {task.hoursWorked && <p className="text-xs text-slate-500">Saat: {task.hoursWorked}</p>}
@@ -1262,7 +1267,7 @@ export default function Home() {
                             <Badge className="bg-amber-100 text-amber-800 text-xs">{task.points} puan</Badge>
                             {task.category && <Badge variant="outline" className="text-xs">{task.category.name}</Badge>}
                           </div>
-                          {task.notes && <p className="text-xs text-slate-400 italic">Not: {task.notes}</p>}
+                          {task.notes && <p className="text-xs text-slate-500 italic">Not: {task.notes}</p>}
                         </div>
                         <div className="flex flex-col gap-2 flex-shrink-0">
                           <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 gap-1" onClick={() => handleApproveTask(task.id, 'approve')}>
@@ -1395,10 +1400,10 @@ export default function Home() {
                               )}
                               <div className="text-right">
                                 <span className="text-lg font-bold text-slate-900">{task.points}</span>
-                                <span className="text-xs text-slate-400 ml-0.5">p</span>
+                                <span className="text-xs text-slate-500 ml-0.5">p</span>
                               </div>
                               {canEdit && (
-                                <Button variant="ghost" size="icon" className="h-7 w-7 text-red-400 hover:text-red-600 hover:bg-red-50" onClick={() => setDeleteTaskTarget(task)} aria-label="Görevi sil">
+                                <Button variant="ghost" size="icon" className="h-9 w-9 text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => setDeleteTaskTarget(task)} aria-label="Görevi sil">
                                   <Trash2 className="h-3.5 w-3.5" />
                                 </Button>
                               )}
@@ -1410,7 +1415,7 @@ export default function Home() {
                         ? taskFilterAssistant === 'all' ? tasks : tasks.filter(t => t.assistantId === taskFilterAssistant)
                         : tasks.filter(t => t.assistantId === currentUser?.id)
                       ).length === 0 && (
-                        <div className="text-center py-12 text-slate-400">
+                        <div className="text-center py-12 text-slate-500">
                           <ListChecks className="h-12 w-12 mx-auto mb-3 opacity-30" />
                           <p className="text-sm">Henüz görev kaydı yok</p>
                         </div>
@@ -1431,11 +1436,11 @@ export default function Home() {
                     <Label className="text-sm font-medium">Görev Açıklaması</Label>
                     <div className="flex gap-2">
                       <Textarea placeholder={canEdit ? "Örn: MÜDEK toplantısı" : "Örn: Dün MÜDEK toplantısına 3 saat katıldım"} value={taskDesc} onChange={e => setTaskDesc(e.target.value)} className="resize-none" rows={2} />
-                      <Button size="icon" variant="outline" className="flex-shrink-0 h-auto border-emerald-300 hover:bg-emerald-50" onClick={handleClassifyTask} disabled={isClassifying || !taskDesc.trim()}>
+                      <Button size="icon" variant="outline" className="flex-shrink-0 h-auto min-h-[40px] border-emerald-300 hover:bg-emerald-50" aria-label="AI ile kategori eşleştir" onClick={handleClassifyTask} disabled={isClassifying || !taskDesc.trim()}>
                         {isClassifying ? <div className="animate-spin h-4 w-4 border-2 border-emerald-500 border-t-transparent rounded-full" /> : <Sparkles className="h-4 w-4 text-emerald-600" />}
                       </Button>
                     </div>
-                    <p className="text-[11px] text-slate-400 flex items-center gap-1"><Brain className="h-3 w-3" /> AI otomatik kategori eşleştirme</p>
+                    <p className="text-[11px] text-slate-500 flex items-center gap-1"><Brain className="h-3 w-3" /> AI otomatik kategori eşleştirme</p>
                   </div>
                   {classifyResult && (
                     <div className={`p-3 rounded-xl text-sm ${classifyResult.matched ? 'bg-emerald-50 border border-emerald-200' : 'bg-amber-50 border border-amber-200'}`}>
@@ -1517,7 +1522,7 @@ export default function Home() {
                           {exam.supervisors.length < exam.requiredSupervisors && <Button size="sm" variant="outline" className="text-xs gap-1 border-emerald-300 text-emerald-700 hover:bg-emerald-50" onClick={() => handleAutoAssign(exam.id)}><Zap className="h-3 w-3" /> Otomatik Ata</Button>}
                         </div>
                       </div>
-                      {exam.supervisors.length > 0 && <div className="mt-3 pt-3 border-t border-slate-100"><p className="text-xs text-slate-400 mb-2">Atanan Gözetmenler:</p><div className="flex flex-wrap gap-2">{exam.supervisors.map(s => <Badge key={s.id} variant="secondary" className="gap-1"><CheckCircle2 className="h-3 w-3 text-emerald-500" />{s.assistant.name}</Badge>)}</div></div>}
+                      {exam.supervisors.length > 0 && <div className="mt-3 pt-3 border-t border-slate-100"><p className="text-xs text-slate-500 mb-2">Atanan Gözetmenler:</p><div className="flex flex-wrap gap-2">{exam.supervisors.map(s => <Badge key={s.id} variant="secondary" className="gap-1"><CheckCircle2 className="h-3 w-3 text-emerald-500" />{s.assistant.name}</Badge>)}</div></div>}
                     </div>
                   ))}
                 </div></ScrollArea></CardContent>
@@ -1562,7 +1567,7 @@ export default function Home() {
                         <TableCell><Badge variant="outline" className="text-xs">{DAY_NAMES[s.dayOfWeek]}</Badge></TableCell>
                         <TableCell className="text-sm font-mono">{s.timeSlot}</TableCell>
                         <TableCell className="text-sm">{s.description}</TableCell>
-                        {canEdit && <TableCell><Button variant="ghost" size="icon" className="h-7 w-7 text-red-400 hover:text-red-600 hover:bg-red-50" onClick={() => handleDeleteSchedule(s.id)}><Trash2 className="h-3.5 w-3.5" /></Button></TableCell>}
+                        {canEdit && <TableCell><Button variant="ghost" size="icon" className="h-9 w-9 text-red-500 hover:text-red-700 hover:bg-red-50" aria-label="Programı sil" onClick={() => handleDeleteSchedule(s.id)}><Trash2 className="h-4 w-4" /></Button></TableCell>}
                       </TableRow>
                     ))}</TableBody>
                   </Table>
@@ -1584,7 +1589,7 @@ export default function Home() {
                         )}
                       </SelectContent>
                     </Select>
-                    {!canEdit && <p className="text-[11px] text-slate-400">Sadece kendinize program ekleyebilirsiniz</p>}
+                    {!canEdit && <p className="text-[11px] text-slate-500">Sadece kendinize program ekleyebilirsiniz</p>}
                   </div>
                   <div className="space-y-2"><Label className="text-sm">Gün</Label><Select value={schedDay} onValueChange={setSchedDay}><SelectTrigger /><SelectContent>{Object.entries(DAY_NAMES).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent></Select></div>
                   <div className="space-y-2"><Label className="text-sm">Saat</Label><Input placeholder="09:00-12:00" value={schedTime} onChange={e => setSchedTime(e.target.value)} /></div>
@@ -1608,7 +1613,7 @@ export default function Home() {
                       <Input type="file" accept=".csv,.txt" onChange={e => setImportFile(e.target.files?.[0] || null)} className="max-w-xs mx-auto" />
                     </div>
                   </div>
-                  <Button onClick={handleImport} disabled={!importFile || isImporting} className="w-full bg-orange-600 hover:bg-orange-700 gap-2">
+                  <Button onClick={handleImport} disabled={!importFile || isImporting} className="w-full bg-orange-700 hover:bg-orange-800 gap-2">
                     {isImporting ? <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" /> : <Upload className="h-4 w-4" />}
                     {isImporting ? 'Aktarılıyor...' : 'İçe Aktar'}
                   </Button>
@@ -1673,7 +1678,7 @@ export default function Home() {
                     <div className="space-y-2">
                       <Label>Şifre</Label>
                       <Input placeholder="Boş bırakırsanız otomatik oluşturulur (eposta+2026)" value={newPersonPassword} onChange={e => setNewPersonPassword(e.target.value)} />
-                      <p className="text-[11px] text-slate-400">Boş bırakılırsa varsayılan: e-posta önek + 2026</p>
+                      <p className="text-[11px] text-slate-500">Boş bırakılırsa varsayılan: e-posta önek + 2026</p>
                     </div>
                     <Button onClick={handleAddAssistant} className="w-full bg-emerald-600 hover:bg-emerald-700 gap-2"><Plus className="h-4 w-4" /> Ekle</Button>
                   </div>
@@ -1700,7 +1705,7 @@ export default function Home() {
                               </Badge>
                             </div>
                             <p className="text-xs text-slate-500 truncate">{ra.email}</p>
-                            <p className="text-[11px] text-slate-400 mt-1">Yönetim seviyesi — kontrol amaçlı erişim</p>
+                            <p className="text-[11px] text-slate-500 mt-1">Yönetim seviyesi — kontrol amaçlı erişim</p>
                           </div>
                         </div>
                       </CardContent>
@@ -1736,7 +1741,7 @@ export default function Home() {
                     {/* Daimi Görevler */}
                     <div className="mt-4 pt-3 border-t border-slate-100">
                       <div className="flex items-center justify-between mb-2">
-                        <p className="text-xs font-medium text-slate-400">Daimi Görevler:</p>
+                        <p className="text-xs font-medium text-slate-500">Daimi Görevler:</p>
                         {(canEdit || currentUser?.id === ra.id) && (
                           <Button variant="ghost" size="sm" className="h-6 text-[10px] gap-1 text-emerald-600 hover:bg-emerald-50" onClick={() => { setEditingDutyAssistantId(editingDutyAssistantId === ra.id ? null : ra.id); setNewDutyName('') }}>
                             <Plus className="h-3 w-3" /> Düzenle
@@ -1752,14 +1757,14 @@ export default function Home() {
                             </div>
                             {editingDutyAssistantId === ra.id && (
                               <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Button variant="ghost" size="icon" className="h-5 w-5 text-red-400 hover:text-red-600 hover:bg-red-50" onClick={() => handleDutyChange(ra.id, 'delete', pd.name, pd.id)}>
-                                  <Trash2 className="h-3 w-3" />
+                                <Button variant="ghost" size="icon" className="h-9 w-9 text-red-500 hover:text-red-700 hover:bg-red-50" aria-label="Daimi görevi sil" onClick={() => handleDutyChange(ra.id, 'delete', pd.name, pd.id)}>
+                                  <Trash2 className="h-3.5 w-3.5" />
                                 </Button>
                               </div>
                             )}
                           </div>
                         ))}
-                        {ra.permanentDuties.length === 0 && <p className="text-xs text-slate-400 italic">Daimi görev yok</p>}
+                        {ra.permanentDuties.length === 0 && <p className="text-xs text-slate-500 italic">Daimi görev yok</p>}
                         {/* Pending changes indicator for this assistant */}
                         {(ra.pendingDutyChanges || []).filter(c => c.status === 'pending').length > 0 && !canEdit && currentUser?.id === ra.id && (
                           <div className="mt-2 p-2 rounded-lg bg-amber-50 border border-amber-200">
@@ -1961,7 +1966,7 @@ export default function Home() {
       </Dialog>
 
       <footer className="mt-12 border-t border-slate-200 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between text-xs text-slate-400">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between text-xs text-slate-500">
           <span>{deptInfo?.short} Ar.Gör Yönetim Sistemi · İTÜ Denizcilik Fakültesi</span>
           <span className="flex items-center gap-1"><Sparkles className="h-3 w-3" /> AI Destekli v3.1</span>
         </div>
