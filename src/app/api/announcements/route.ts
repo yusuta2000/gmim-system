@@ -1,13 +1,20 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireSession, UnauthenticatedError } from '@/lib/auth/session';
+import type { SessionUser } from '@/lib/auth/session-repository';
+import { assertDepartmentAccess } from '@/lib/authorization/department';
+import { AuthorizationError } from '@/lib/authorization/errors';
+import { requireRole } from '@/lib/authorization/roles';
 
 // GET: List all announcements with comments
 export async function GET(request: Request) {
   try {
+    const user = await requireSession();
     const { searchParams } = new URL(request.url);
-    const department = searchParams.get('department');
+    const department = (searchParams.get('department') || user.department) as SessionUser['department'];
+    assertDepartmentAccess(user, department);
     const announcements = await db.announcement.findMany({
-      where: department ? { department } : {},
+      where: { department },
       orderBy: { createdAt: 'desc' },
       include: {
         author: true,
@@ -19,6 +26,13 @@ export async function GET(request: Request) {
     });
     return NextResponse.json(announcements);
   } catch (error) {
+    if (error instanceof UnauthenticatedError) {
+      return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
+    }
+    if (error instanceof AuthorizationError) {
+      return NextResponse.json({ error: error.code }, { status: 403 });
+    }
+
     console.error('Error fetching announcements:', error);
     return NextResponse.json({ error: 'Failed to fetch' }, { status: 500 });
   }
@@ -27,25 +41,23 @@ export async function GET(request: Request) {
 // POST: Create new announcement (manager only)
 export async function POST(request: Request) {
   try {
+    const user = await requireSession();
+    requireRole(user, ['admin', 'dekan', 'baskan']);
+
     const body = await request.json();
-    const { title, content, authorId, department } = body;
+    const { title, content, department } = body;
 
-    if (!title || !content || !authorId) {
-      return NextResponse.json({ error: 'Başlık, içerik ve yazar gerekli' }, { status: 400 });
-    }
-
-    // Verify author is a manager (admin, dekan, baskan)
-    const author = await db.researchAssistant.findUnique({ where: { id: authorId } });
-    if (!author || !['admin', 'dekan', 'baskan'].includes(author.role)) {
-      return NextResponse.json({ error: 'Duyuru oluşturma yetkiniz yok' }, { status: 403 });
+    if (!title || !content) {
+      return NextResponse.json({ error: 'Başlık ve içerik gerekli' }, { status: 400 });
     }
 
     // Announcement belongs to the department it was posted in.
     // Dekan is faculty-wide, so use the department they posted from; others use their own.
-    const annDept = department || author.department;
+    const annDept = (department || user.department) as SessionUser['department'];
+    assertDepartmentAccess(user, annDept);
 
     const announcement = await db.announcement.create({
-      data: { title, content, authorId, department: annDept },
+      data: { title, content, authorId: user.id, department: annDept },
       include: { author: true },
     });
 
@@ -54,11 +66,11 @@ export async function POST(request: Request) {
       where: { isActive: true, role: { in: ['user', 'admin'] }, department: annDept },
     });
     for (const r of recipients) {
-      if (r.id !== authorId) {
+      if (r.id !== user.id) {
         await db.notification.create({
           data: {
             title: 'Yeni Duyuru',
-            message: `"${title}" - ${author.name} yeni bir duyuru paylaştı`,
+            message: `"${title}" - yeni bir duyuru paylaşıldı`,
             type: 'info',
             assistantId: r.id,
             relatedId: announcement.id,
@@ -69,6 +81,13 @@ export async function POST(request: Request) {
 
     return NextResponse.json(announcement, { status: 201 });
   } catch (error) {
+    if (error instanceof UnauthenticatedError) {
+      return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
+    }
+    if (error instanceof AuthorizationError) {
+      return NextResponse.json({ error: error.code }, { status: 403 });
+    }
+
     console.error('Error creating announcement:', error);
     return NextResponse.json({ error: 'Failed' }, { status: 500 });
   }
@@ -77,29 +96,34 @@ export async function POST(request: Request) {
 // PUT: Add comment to announcement
 export async function PUT(request: Request) {
   try {
+    const user = await requireSession();
     const body = await request.json();
-    const { announcementId, content, authorId } = body;
+    const { announcementId, content } = body;
 
-    if (!announcementId || !content || !authorId) {
+    if (!announcementId || !content) {
       return NextResponse.json({ error: 'Eksik bilgi' }, { status: 400 });
     }
 
-    const comment = await db.announcementComment.create({
-      data: { announcementId, content, authorId },
-      include: { author: true },
-    });
-
-    // Notify announcement author about the comment
     const announcement = await db.announcement.findUnique({
       where: { id: announcementId },
       include: { author: true },
     });
-    if (announcement && announcement.authorId !== authorId) {
-      const commenter = await db.researchAssistant.findUnique({ where: { id: authorId } });
+    if (!announcement) {
+      return NextResponse.json({ error: 'Duyuru bulunamadı' }, { status: 404 });
+    }
+    assertDepartmentAccess(user, announcement.department as SessionUser['department']);
+
+    const comment = await db.announcementComment.create({
+      data: { announcementId, content, authorId: user.id },
+      include: { author: true },
+    });
+
+    // Notify announcement author about the comment
+    if (announcement.authorId !== user.id) {
       await db.notification.create({
         data: {
           title: 'Duyurunuza Yorum Geldi',
-          message: `${commenter?.name} "${announcement.title}" duyurusuna yorum yaptı: "${content}"`,
+          message: `"${announcement.title}" duyurusuna yorum yapıldı: "${content}"`,
           type: 'info',
           assistantId: announcement.authorId,
           relatedId: announcementId,
@@ -109,6 +133,13 @@ export async function PUT(request: Request) {
 
     return NextResponse.json(comment, { status: 201 });
   } catch (error) {
+    if (error instanceof UnauthenticatedError) {
+      return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
+    }
+    if (error instanceof AuthorizationError) {
+      return NextResponse.json({ error: error.code }, { status: 403 });
+    }
+
     console.error('Error adding comment:', error);
     return NextResponse.json({ error: 'Failed' }, { status: 500 });
   }
@@ -117,22 +148,32 @@ export async function PUT(request: Request) {
 // DELETE: Delete announcement (manager only)
 export async function DELETE(request: Request) {
   try {
+    const user = await requireSession();
+    requireRole(user, ['admin', 'dekan', 'baskan']);
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
-    const requesterId = searchParams.get('requesterId');
 
-    if (!id || !requesterId) {
+    if (!id) {
       return NextResponse.json({ error: 'ID gerekli' }, { status: 400 });
     }
 
-    const requester = await db.researchAssistant.findUnique({ where: { id: requesterId } });
-    if (!requester || !['admin', 'dekan', 'baskan'].includes(requester.role)) {
-      return NextResponse.json({ error: 'Yetkiniz yok' }, { status: 403 });
+    const announcement = await db.announcement.findUnique({ where: { id } });
+    if (!announcement) {
+      return NextResponse.json({ error: 'Duyuru bulunamadı' }, { status: 404 });
     }
+    assertDepartmentAccess(user, announcement.department as SessionUser['department']);
 
     await db.announcement.delete({ where: { id } });
     return NextResponse.json({ message: 'Duyuru silindi' });
   } catch (error) {
+    if (error instanceof UnauthenticatedError) {
+      return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
+    }
+    if (error instanceof AuthorizationError) {
+      return NextResponse.json({ error: error.code }, { status: 403 });
+    }
+
     console.error('Error deleting announcement:', error);
     return NextResponse.json({ error: 'Failed' }, { status: 500 });
   }
