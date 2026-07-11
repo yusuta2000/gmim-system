@@ -23,6 +23,7 @@ model ResearchAssistant {
   isActive  Boolean  @default(true)
   role      String   @default("user")
   password  String?
+  passwordHash String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -34,6 +35,7 @@ model ResearchAssistant {
   notifications Notification[]
   announcements Announcement[]
   announcementComments AnnouncementComment[]
+  sessions  Session[]
 }
 
 model PointCategory {
@@ -182,4 +184,17 @@ model ImportLog {
   status      String   @default("processing")
   error       String?
   createdAt   DateTime @default(now())
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  userId String
+  user   ResearchAssistant @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
 }
