@@ -49,6 +49,10 @@ dev.out.log
 test
 prompt
 
+# Vitest setup dosyası
+!src/test/
+!src/test/**
+
 server.log
 # Skills directory
 /skills/
