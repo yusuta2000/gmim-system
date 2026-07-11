@@ -4,13 +4,23 @@ import tailwindcssAnimate from "tailwindcss-animate";
 const config: Config = {
     darkMode: "class",
     content: [
-    "./pages/**/*.{js,ts,jsx,tsx,mdx}",
-    "./components/**/*.{js,ts,jsx,tsx,mdx}",
-    "./app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
   	extend: {
-  		colors: {
+		colors: {
+			surface: {
+				DEFAULT: 'var(--surface)',
+				muted: 'var(--surface-muted)'
+			},
+			department: {
+				DEFAULT: 'var(--department)',
+				foreground: 'var(--department-foreground)'
+			},
+			brand: {
+				navy: 'var(--brand-navy)',
+				gold: 'var(--brand-gold)'
+			},
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
   			card: {

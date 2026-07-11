@@ -30,11 +30,11 @@ describe('session repository', () => {
     const client = createClient()
     const repository = createSessionRepository(client as never)
     client.session.findFirst.mockResolvedValue({
-      user: { id: 'user-1', role: 'admin', department: 'GMIM' },
+      user: { id: 'user-1', name: 'Ada Lovelace', role: 'admin', department: 'GMIM' },
     })
 
     await expect(repository.findSessionUser('digest', new Date('2029-01-01T00:00:00.000Z')))
-      .resolves.toEqual({ id: 'user-1', role: 'admin', department: 'GMIM' })
+      .resolves.toEqual({ id: 'user-1', name: 'Ada Lovelace', role: 'admin', department: 'GMIM' })
     expect(client.session.findFirst).toHaveBeenCalledWith(expect.objectContaining({
       where: { tokenHash: 'digest', expiresAt: { gt: new Date('2029-01-01T00:00:00.000Z') } },
     }))

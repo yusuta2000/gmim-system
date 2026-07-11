@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers'
 import { hashSessionToken } from '@/lib/auth/session-token'
-import { sessionRepository, type SessionUser } from '@/lib/auth/session-repository'
+import { sessionRepository, type PortalSessionUser } from '@/lib/auth/session-repository'
 
 export const SESSION_COOKIE = 'itudf_session'
 
@@ -34,14 +34,14 @@ export function expiredSessionCookie() {
   }
 }
 
-export async function getSessionUser(): Promise<SessionUser | null> {
+export async function getSessionUser(): Promise<PortalSessionUser | null> {
   const token = (await cookies()).get(SESSION_COOKIE)?.value
   if (!token) return null
 
   return sessionRepository.findSessionUser(await hashSessionToken(token))
 }
 
-export async function requireSession(): Promise<SessionUser> {
+export async function requireSession(): Promise<PortalSessionUser> {
   const user = await getSessionUser()
   if (!user) throw new UnauthenticatedError()
   return user
