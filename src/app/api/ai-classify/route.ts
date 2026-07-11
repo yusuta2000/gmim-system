@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireSession, UnauthenticatedError } from '@/lib/auth/session';
 
 // GET /api/ai-classify - LLM-powered task classification
 export async function POST(request: Request) {
   try {
+    await requireSession();
     const body = await request.json();
     const { taskDescription } = body;
 
@@ -102,6 +104,10 @@ Eğer görev baremdeki hiçbir kategoriye uymuyorsa:
       })),
     });
   } catch (error) {
+    if (error instanceof UnauthenticatedError) {
+      return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
+    }
+
     console.error('Error classifying task:', error);
     return NextResponse.json({ error: 'Failed to classify task' }, { status: 500 });
   }
