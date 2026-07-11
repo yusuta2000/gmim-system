@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Progress } from '@/components/ui/progress'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
@@ -169,6 +170,15 @@ export default function Home() {
   const [showResetDialog, setShowResetDialog] = useState(false)
   const [showPasswordDialog, setShowPasswordDialog] = useState(false)
   const [showAddPersonDialog, setShowAddPersonDialog] = useState(false)
+
+  // Confirm dialogs (replace native confirm/prompt — FAZ 1)
+  const [deleteTaskTarget, setDeleteTaskTarget] = useState<Task | null>(null)
+  const [deleteAnnouncementTarget, setDeleteAnnouncementTarget] = useState<string | null>(null)
+  const [removeAssistantTarget, setRemoveAssistantTarget] = useState<{ id: string; name: string } | null>(null)
+  const [resetPasswordTarget, setResetPasswordTarget] = useState<{ id: string; name: string } | null>(null)
+  const [resetPasswordValue, setResetPasswordValue] = useState('')
+  const [resetConfirmText, setResetConfirmText] = useState('') // kullanıcı "SIFIRLA" yazar
+
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [newPersonName, setNewPersonName] = useState('')
@@ -394,19 +404,45 @@ export default function Home() {
         body: JSON.stringify({ action, carryOverPoints, department: viewDept }),
       })
       const data = await res.json()
-      if (res.ok) { toast.success(data.message); setShowResetDialog(false); fetchData() }
+      if (res.ok) {
+        toast.success(data.message)
+        setShowResetDialog(false); setResetConfirmText(''); fetchData()
+      }
       else { toast.error(data.error) }
     } catch { toast.error('Bağlantı hatası') }
   }
 
-  // Delete task (admin only)
-  const handleDeleteTask = async (taskId: string) => {
+  // Delete task (admin only) — opt.
+  const performDeleteTask = async (task: Task) => {
     if (!currentUser || !canEdit) return
     try {
-      const res = await fetch(`/api/delete-task?id=${taskId}&requesterId=${currentUser.id}`, { method: 'DELETE' })
+      const res = await fetch(`/api/delete-task?id=${task.id}&requesterId=${currentUser.id}`, { method: 'DELETE' })
       const data = await res.json()
-      if (res.ok) { toast.success(data.message); fetchData() }
+      if (res.ok) {
+        toast.success('Görev silindi', {
+          description: `${task.assistant?.name || 'Kişi'} · ${task.description}`,
+          action: { label: 'Geri Al', onClick: () => restoreTask(task) },
+        })
+        fetchData()
+      }
       else { toast.error(data.error) }
+    } catch { toast.error('Bağlantı hatası') }
+  }
+
+  // Undo task deletion — re-create the task with its original attributes.
+  const restoreTask = async (task: Task) => {
+    try {
+      const res = await fetch('/api/tasks', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          description: task.description, date: task.date, hoursWorked: task.hoursWorked || null,
+          assistantId: task.assistantId, categoryId: task.categoryId || null,
+          points: task.points, source: task.source, notes: task.notes || null,
+          assignedBy: currentUser?.id || null,
+        }),
+      })
+      if (res.ok) { toast.success('Görev geri yüklendi'); fetchData() }
+      else { toast.error('Geri yükleme başarısız') }
     } catch { toast.error('Bağlantı hatası') }
   }
 
@@ -460,18 +496,23 @@ export default function Home() {
     } catch { toast.error('Bağlantı hatası') }
   }
 
-  // Admin reset password
-  const handleResetPassword = async (assistantId: string, assistantName: string) => {
-    if (!currentUser || !canEdit) return
-    const newPass = prompt(`${assistantName} için yeni şifre girin (en az 4 karakter):`)
-    if (!newPass || newPass.length < 4) { toast.error('Şifre en az 4 karakter olmalı'); return }
+  // Admin reset password — opens a Dialog (replaces native prompt)
+  const openResetPasswordDialog = (assistantId: string, assistantName: string) => {
+    setResetPasswordTarget({ id: assistantId, name: assistantName }); setResetPasswordValue('')
+  }
+  const performResetPassword = async () => {
+    if (!currentUser || !resetPasswordTarget) return
+    if (!resetPasswordValue || resetPasswordValue.length < 4) { toast.error('Şifre en az 4 karakter olmalı'); return }
     try {
       const res = await fetch('/api/reset-password', {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ assistantId, newPassword: newPass, requesterId: currentUser.id }),
+        body: JSON.stringify({ assistantId: resetPasswordTarget.id, newPassword: resetPasswordValue, requesterId: currentUser.id }),
       })
       const data = await res.json()
-      if (res.ok) { toast.success(data.message) }
+      if (res.ok) {
+        toast.success(data.message)
+        setResetPasswordTarget(null); setResetPasswordValue('')
+      }
       else { toast.error(data.error) }
     } catch { toast.error('Bağlantı hatası') }
   }
@@ -495,14 +536,13 @@ export default function Home() {
     } catch { toast.error('Bağlantı hatası') }
   }
 
-  // Remove assistant
-  const handleRemoveAssistant = async (assistantId: string, assistantName: string) => {
-    if (!currentUser || !canEdit) return
-    if (!confirm(`${assistantName} adlı kişiyi sistemden kaldırmak istediğinize emin misiniz? Tüm görev ve kayıtları silinecek.`)) return
+  // Remove assistant — opt. confirmation now via AlertDialog (replaces native confirm)
+  const performRemoveAssistant = async () => {
+    if (!currentUser || !removeAssistantTarget) return
     try {
-      const res = await fetch(`/api/remove-assistant?id=${assistantId}&requesterId=${currentUser.id}`, { method: 'DELETE' })
+      const res = await fetch(`/api/remove-assistant?id=${removeAssistantTarget.id}&requesterId=${currentUser.id}`, { method: 'DELETE' })
       const data = await res.json()
-      if (res.ok) { toast.success(data.message); fetchData() }
+      if (res.ok) { toast.success(data.message); setRemoveAssistantTarget(null); fetchData() }
       else { toast.error(data.error) }
     } catch { toast.error('Bağlantı hatası') }
   }
@@ -555,14 +595,13 @@ export default function Home() {
     } catch { toast.error('Bağlantı hatası') }
   }
 
-  // Delete announcement
-  const handleDeleteAnnouncement = async (id: string) => {
-    if (!currentUser || !canEdit) return
-    if (!confirm('Bu duyuruyu silmek istediğinize emin misiniz?')) return
+  // Delete announcement — opt. confirmation now via AlertDialog (replaces native confirm)
+  const performDeleteAnnouncement = async () => {
+    if (!currentUser || !deleteAnnouncementTarget) return
     try {
-      const res = await fetch(`/api/announcements?id=${id}&requesterId=${currentUser.id}`, { method: 'DELETE' })
+      const res = await fetch(`/api/announcements?id=${deleteAnnouncementTarget}&requesterId=${currentUser.id}`, { method: 'DELETE' })
       const data = await res.json()
-      if (res.ok) { toast.success(data.message); fetchData() }
+      if (res.ok) { toast.success(data.message); setDeleteAnnouncementTarget(null); fetchData() }
       else { toast.error(data.error) }
     } catch { toast.error('Bağlantı hatası') }
   }
@@ -854,10 +893,23 @@ export default function Home() {
             </div>
 
             {canEdit && (
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                {/* Güvenli indirme aksiyonları */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Button variant="outline" size="sm" className="gap-1 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-50" onClick={() => handleExportExcel('ranking')}>
+                    <FileSpreadsheet className="h-3.5 w-3.5" /> Puanları İndir
+                  </Button>
+                  <Button variant="outline" size="sm" className="gap-1 text-xs border-blue-300 text-blue-700 hover:bg-blue-50" onClick={() => handleExportExcel('tasks')}>
+                    <FileSpreadsheet className="h-3.5 w-3.5" /> Görevleri İndir
+                  </Button>
+                  <Button variant="outline" size="sm" className="gap-1 text-xs border-violet-300 text-violet-700 hover:bg-violet-50" onClick={() => handleExportExcel('exams')}>
+                    <FileSpreadsheet className="h-3.5 w-3.5" /> Sınavları İndir
+                  </Button>
+                </div>
+                {/* Yıkıcı işlem — görsel ayrı (kırmızı vurgu) */}
                 <Dialog open={showResetDialog} onOpenChange={setShowResetDialog}>
                   <DialogTrigger asChild>
-                    <Button variant="outline" size="sm" className="gap-1 text-xs border-orange-300 text-orange-700 hover:bg-orange-50">
+                    <Button variant="outline" size="sm" className="gap-1 text-xs border-red-300 text-red-700 hover:bg-red-50">
                       <RotateCcw className="h-3.5 w-3.5" /> Dönem Yönetimi
                     </Button>
                   </DialogTrigger>
@@ -873,28 +925,43 @@ export default function Home() {
                           ))}
                         </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <Button variant="outline" className="h-auto py-3 flex-col gap-1 border-emerald-300 hover:bg-emerald-50" onClick={() => handleResetPeriod('archive')}>
-                          <span className="text-xs font-semibold text-emerald-800">Puanları Taşı</span>
-                          <span className="text-[10px] text-emerald-600">Mevcut puanlar yeni döneme aktarılır</span>
-                        </Button>
-                        <Button variant="outline" className="h-auto py-3 flex-col gap-1 border-orange-300 hover:bg-orange-50" onClick={() => handleResetPeriod('reset')}>
-                          <span className="text-xs font-semibold text-orange-800">Sıfırla</span>
-                          <span className="text-[10px] text-orange-600">Herkesin puanı 0 olur</span>
+
+                      {/* Taşı — güvenli */}
+                      <Button variant="outline" className="w-full h-auto py-3 flex-col gap-1 border-emerald-300 hover:bg-emerald-50" onClick={() => handleResetPeriod('archive')}>
+                        <span className="text-xs font-semibold text-emerald-800">Puanları Taşı</span>
+                        <span className="text-[10px] text-emerald-600">Mevcut puanlar yeni döneme aktarılır</span>
+                      </Button>
+
+                      {/* Sıfırla — yazılı onay (yıkıcı) */}
+                      <div className="rounded-xl border border-red-200 bg-red-50/50 p-3 space-y-2">
+                        <div className="flex items-start gap-2">
+                          <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
+                          <p className="text-xs text-red-700">
+                            <strong className="font-semibold">Bu işlem {activeAssistants.length} aktif araş. görün tüm puanını kalıcı olarak 0 yapacak.</strong> Geri alınamaz.
+                          </p>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs text-red-700 font-medium">Onaylamak için <span className="font-mono font-bold">SIFIRLA</span> yazın</Label>
+                          <Input
+                            value={resetConfirmText}
+                            onChange={e => setResetConfirmText(e.target.value)}
+                            placeholder="SIFIRLA"
+                            autoComplete="off"
+                            className="h-8"
+                          />
+                        </div>
+                        <Button
+                          variant="destructive"
+                          className="w-full gap-1"
+                          disabled={resetConfirmText.trim().toUpperCase() !== 'SIFIRLA'}
+                          onClick={() => handleResetPeriod('reset')}
+                        >
+                          <RotateCcw className="h-4 w-4" /> Tüm Puanları Sıfırla
                         </Button>
                       </div>
                     </div>
                   </DialogContent>
                 </Dialog>
-                <Button variant="outline" size="sm" className="gap-1 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-50" onClick={() => handleExportExcel('ranking')}>
-                  <FileSpreadsheet className="h-3.5 w-3.5" /> Puanları İndir
-                </Button>
-                <Button variant="outline" size="sm" className="gap-1 text-xs border-blue-300 text-blue-700 hover:bg-blue-50" onClick={() => handleExportExcel('tasks')}>
-                  <FileSpreadsheet className="h-3.5 w-3.5" /> Görevleri İndir
-                </Button>
-                <Button variant="outline" size="sm" className="gap-1 text-xs border-violet-300 text-violet-700 hover:bg-violet-50" onClick={() => handleExportExcel('exams')}>
-                  <FileSpreadsheet className="h-3.5 w-3.5" /> Sınavları İndir
-                </Button>
               </div>
             )}
 
@@ -1071,7 +1138,7 @@ export default function Home() {
                           </CardDescription>
                         </div>
                         {canEdit && ann.authorId === currentUser?.id && (
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-red-400 hover:text-red-600 hover:bg-red-50" onClick={() => handleDeleteAnnouncement(ann.id)}>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-red-400 hover:text-red-600 hover:bg-red-50" onClick={() => setDeleteAnnouncementTarget(ann.id)} aria-label="Duyuruyu sil">
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         )}
@@ -1291,7 +1358,7 @@ export default function Home() {
                                 <span className="text-xs text-slate-400 ml-0.5">p</span>
                               </div>
                               {canEdit && (
-                                <Button variant="ghost" size="icon" className="h-7 w-7 text-red-400 hover:text-red-600 hover:bg-red-50" onClick={() => handleDeleteTask(task.id)}>
+                                <Button variant="ghost" size="icon" className="h-7 w-7 text-red-400 hover:text-red-600 hover:bg-red-50" onClick={() => setDeleteTaskTarget(task)} aria-label="Görevi sil">
                                   <Trash2 className="h-3.5 w-3.5" />
                                 </Button>
                               )}
@@ -1705,7 +1772,7 @@ export default function Home() {
                             >
                               {ra.isActive ? 'Pasif Yap' : 'Aktif Yap'}
                             </Button>
-                            <Button size="sm" variant="outline" className="text-xs gap-1 border-blue-300 text-blue-700 hover:bg-blue-50" onClick={() => handleResetPassword(ra.id, ra.name)}>
+                            <Button size="sm" variant="outline" className="text-xs gap-1 border-blue-300 text-blue-700 hover:bg-blue-50" onClick={() => openResetPasswordDialog(ra.id, ra.name)}>
                               Şifre Sıfırla
                             </Button>
                           </div>
@@ -1725,7 +1792,7 @@ export default function Home() {
                             }}>
                               <Shield className="h-3 w-3" /> Temsilci Yap
                             </Button>
-                            <Button size="sm" variant="outline" className="text-xs gap-1 border-red-300 text-red-600 hover:bg-red-50" onClick={() => handleRemoveAssistant(ra.id, ra.name)}>
+                            <Button size="sm" variant="outline" className="text-xs gap-1 border-red-300 text-red-600 hover:bg-red-50" onClick={() => setRemoveAssistantTarget({ id: ra.id, name: ra.name })}>
                               <Trash2 className="h-3 w-3" /> Kaldır
                             </Button>
                           </div>
@@ -1756,6 +1823,102 @@ export default function Home() {
           </TabsContent>
         </Tabs>
       </main>
+
+      {/* Confirmation dialogs (replace native confirm/prompt — FAZ 1) */}
+      {/* Görev silme onayı */}
+      <AlertDialog open={!!deleteTaskTarget} onOpenChange={(o) => !o && setDeleteTaskTarget(null)}>
+        <AlertDialogContent className="max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2"><Trash2 className="h-5 w-5 text-red-600" /> Görevi Sil?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTaskTarget && (
+                <span className="space-y-1 block">
+                  <span className="block text-slate-900 font-medium">{deleteTaskTarget.description}</span>
+                  <span className="block">{deleteTaskTarget.assistant?.name} · {deleteTaskTarget.points} puan</span>
+                  <span className="block">Bu işlem görevi kalıcı olarak siler. Silindikten sonra &quot;Geri Al&quot; ile yeniden oluşturabilirsiniz.</span>
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>İptal</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={() => { if (deleteTaskTarget) performDeleteTask(deleteTaskTarget) }}
+            >
+              <Trash2 className="h-4 w-4 mr-1" /> Sil
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Duyuru silme onayı */}
+      <AlertDialog open={!!deleteAnnouncementTarget} onOpenChange={(o) => !o && setDeleteAnnouncementTarget(null)}>
+        <AlertDialogContent className="max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2"><Trash2 className="h-5 w-5 text-red-600" /> Duyuruyu Sil?</AlertDialogTitle>
+            <AlertDialogDescription>Bu duyuru kalıcı olarak silinecek. Yorumlarıyla birlikte kaldırılır. Bu işlem geri alınamaz.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>İptal</AlertDialogCancel>
+            <AlertDialogAction className="bg-red-600 hover:bg-red-700 text-white" onClick={performDeleteAnnouncement}>
+              <Trash2 className="h-4 w-4 mr-1" /> Sil
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Kişi kaldırma onayı */}
+      <AlertDialog open={!!removeAssistantTarget} onOpenChange={(o) => !o && setRemoveAssistantTarget(null)}>
+        <AlertDialogContent className="max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2"><Trash2 className="h-5 w-5 text-red-600" /> Kişiyi Kaldır?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {removeAssistantTarget && (
+                <span className="block"><strong className="text-slate-900">{removeAssistantTarget.name}</strong> adlı kişi sistemden kaldırılacak. Tüm görev ve kayıtları silinecek. Bu işlem geri alınamaz.</span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>İptal</AlertDialogCancel>
+            <AlertDialogAction className="bg-red-600 hover:bg-red-700 text-white" onClick={performRemoveAssistant}>
+              <Trash2 className="h-4 w-4 mr-1" /> Kalıcı Olarak Kaldır
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Şifre sıfırlama (prompt yerine Dialog) */}
+      <Dialog open={!!resetPasswordTarget} onOpenChange={(o) => { if (!o) { setResetPasswordTarget(null); setResetPasswordValue('') } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Shield className="h-5 w-5 text-blue-600" /> Şifre Sıfırla</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-slate-600">
+              <strong className="text-slate-900">{resetPasswordTarget?.name}</strong> için yeni şifre belirleyin (en az 4 karakter).
+            </p>
+            <div className="space-y-2">
+              <Label htmlFor="reset-pass-input">Yeni Şifre</Label>
+              <Input
+                id="reset-pass-input"
+                type="text"
+                value={resetPasswordValue}
+                onChange={e => setResetPasswordValue(e.target.value)}
+                placeholder="En az 4 karakter"
+                onKeyDown={e => { if (e.key === 'Enter' && resetPasswordValue.length >= 4) performResetPassword() }}
+                autoFocus
+              />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" size="sm" onClick={() => { setResetPasswordTarget(null); setResetPasswordValue('') }}>İptal</Button>
+              <Button size="sm" className="bg-blue-600 hover:bg-blue-700 gap-1" disabled={resetPasswordValue.length < 4} onClick={performResetPassword}>
+                <Check className="h-4 w-4" /> Sıfırla
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <footer className="mt-12 border-t border-slate-200 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between text-xs text-slate-400">
