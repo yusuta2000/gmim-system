@@ -77,14 +77,14 @@ describe('remaining API surface routes', () => {
     expect(researchAssistant.findMany).not.toHaveBeenCalled()
   })
 
-  it('assistants GET limits regular users to themselves and strips password material', async () => {
+  it('assistants GET lets regular users see their department point table and strips password material', async () => {
     requireSessionMock.mockResolvedValue(regularUser)
 
     const response = await getAssistants(new Request('http://localhost/api/assistants?department=GMIM'))
 
     expect(response.status).toBe(200)
     expect(researchAssistant.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: { id: 'user-1' },
+      where: { department: 'GMIM', role: { in: ['admin', 'user'] } },
     }))
     await expect(response.json()).resolves.toEqual([{
       id: 'user-1',

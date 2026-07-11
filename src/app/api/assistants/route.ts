@@ -17,11 +17,11 @@ export async function GET(request: Request) {
     const department = (searchParams.get('department') || user.department) as SessionUser['department'];
     assertDepartmentAccess(user, department);
 
-    // Department-scoped: managers see the department's members. Dekan is faculty-wide,
-    // so it appears in every department's management view. Users see only themselves.
+    // Department-scoped: the point table is visible to every assistant in the
+    // department. Mutating personnel actions stay protected by their own routes.
     const where: Prisma.ResearchAssistantWhereInput = isManager(user)
       ? { OR: [{ department }, { role: 'dekan' }] }
-      : { id: user.id };
+      : { department, role: { in: ['admin', 'user'] } };
     const assistants = await db.researchAssistant.findMany({
       where,
       orderBy: { order: 'asc' },
