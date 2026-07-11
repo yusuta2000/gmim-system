@@ -152,7 +152,7 @@ describe('task routes', () => {
       orderBy: [{ date: 'desc' }, { id: 'desc' }],
     }))
     await expect(response.json()).resolves.toEqual({
-      items: [baseTask],
+      items: [{ ...baseTask, notes: null, rejectionReason: null }],
       page: 1,
       pageSize: 20,
       total: 1,
@@ -356,6 +356,51 @@ describe('task routes', () => {
       where: { id: 'task-1', assistantId: 'user-1', status: 'assigned' },
       data: { status: 'approved' },
     })
+  })
+
+  it('respond-task PUT requires a rejection reason before changing the task', async () => {
+    requireSessionMock.mockResolvedValue(regularUser)
+
+    const response = await respondTask(jsonRequest('/api/respond-task', {
+      taskId: 'task-1',
+      action: 'reject',
+      rejectionReason: '   ',
+    }))
+
+    expect(response.status).toBe(400)
+    expect(task.updateMany).not.toHaveBeenCalled()
+  })
+
+  it('respond-task PUT stores and notifies managers about the rejection reason', async () => {
+    requireSessionMock.mockResolvedValue(regularUser)
+    task.findUnique.mockResolvedValue({
+      ...baseTask,
+      notes: 'Planlama notu',
+      status: 'assigned',
+      assistantId: 'user-1',
+      assistant: { id: 'user-1', name: 'User One', department: 'GMIM' },
+    })
+
+    const response = await respondTask(jsonRequest('/api/respond-task', {
+      taskId: 'task-1',
+      action: 'reject',
+      rejectionReason: 'Ders programımla çakışıyor',
+    }))
+
+    expect(response.status).toBe(200)
+    expect(task.updateMany).toHaveBeenCalledWith({
+      where: { id: 'task-1', assistantId: 'user-1', status: 'assigned' },
+      data: {
+        status: 'rejected',
+        notes: 'Planlama notu\n\n[RET_SEBEBI]\nDers programımla çakışıyor',
+      },
+    })
+    expect(notification.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        type: 'task_rejected',
+        message: expect.stringContaining('Ders programımla çakışıyor'),
+      }),
+    }))
   })
 
   it('respond-task PUT rejects already processed assigned tasks without points', async () => {

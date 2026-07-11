@@ -35,12 +35,14 @@ const pendingDutyChanges = db.pendingDutyChange as unknown as { count: ReturnTyp
 describe('dashboard route', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    assistants.findUnique.mockResolvedValue({ id: 'user-1', name: 'Ada', role: 'user', department: 'GMIM', totalPoints: 14 })
+    assistants.findUnique.mockResolvedValue({ id: 'user-1', name: 'Ada', role: 'user', department: 'GMIM', totalPoints: 14, order: 1 })
     assistants.findMany.mockResolvedValue([
       { id: 'user-1', name: 'Ada', totalPoints: 14, order: 1 },
       { id: 'user-2', name: 'Bora', totalPoints: 20, order: 2 },
     ])
-    assistants.count.mockResolvedValue(1)
+    assistants.count
+      .mockResolvedValueOnce(1)
+      .mockResolvedValueOnce(8)
     tasks.count.mockResolvedValue(2)
     tasks.findMany.mockResolvedValue([{
       id: 'task-1', description: 'Rapor', status: 'approved', date: new Date('2026-07-10'), points: 4,
@@ -62,6 +64,7 @@ describe('dashboard route', () => {
     expect(data.kind).toBe('assistant')
     expect(data.priority).toEqual(expect.objectContaining({ href: '/tasks', label: 'Görevi incele' }))
     expect(data.metrics).toEqual(expect.arrayContaining([expect.objectContaining({ label: 'Toplam puan', value: 14 })]))
+    expect(data.metrics).toEqual(expect.arrayContaining([expect.objectContaining({ label: 'Görevlendirme önceliği', value: '2 / 8' })]))
     expect(tasks.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { assistantId: 'user-1' }, take: 5 }))
   })
 

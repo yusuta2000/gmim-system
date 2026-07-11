@@ -96,7 +96,7 @@ export function AnnouncementsScreen() {
       )}
 
       {announcements.isLoading ? (
-        <div className="space-y-4" aria-label="Duyurular yükleniyor"><Skeleton className="h-48 w-full" /><Skeleton className="h-48 w-full" /></div>
+        <div role="status" className="space-y-4" aria-label="Duyurular yükleniyor"><Skeleton className="h-48 w-full" /><Skeleton className="h-48 w-full" /></div>
       ) : announcements.isError ? (
         <Alert variant="destructive"><AlertCircle className="size-4" /><AlertTitle>Duyurular yüklenemedi</AlertTitle><AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><span>{announcements.error.message}</span><Button variant="outline" className="w-fit gap-2" onClick={() => announcements.refetch()}><RefreshCw className="size-4" />Yeniden dene</Button></AlertDescription></Alert>
       ) : announcements.data?.length ? (

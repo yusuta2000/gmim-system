@@ -49,7 +49,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
 import { calendarKeys } from '@/features/calendar/queries/calendar-keys'
@@ -287,12 +286,10 @@ export function CalendarScreen() {
         )}
       </header>
 
-      <Tabs value={domain} onValueChange={(value) => replaceParams({ domain: value === 'schedule' ? 'schedule' : null })}>
-        <TabsList aria-label="Takvim veri alanı" className="h-auto min-h-11 w-full justify-start sm:w-auto">
-          <TabsTrigger value="exams" className="min-h-9 gap-2"><GraduationCap className="size-4" aria-hidden="true" />Sınavlar</TabsTrigger>
-          <TabsTrigger value="schedule" className="min-h-9 gap-2"><CalendarDays className="size-4" aria-hidden="true" />Haftalık program</TabsTrigger>
-        </TabsList>
-      </Tabs>
+      <div role="group" aria-label="Takvim veri alanı" className="inline-flex min-h-11 w-full rounded-lg bg-muted p-[3px] sm:w-fit">
+        <Button type="button" variant={domain === 'exams' ? 'secondary' : 'ghost'} className="flex-1 gap-2 shadow-none sm:flex-none" aria-pressed={domain === 'exams'} onClick={() => replaceParams({ domain: null })}><GraduationCap className="size-4" aria-hidden="true" />Sınavlar</Button>
+        <Button type="button" variant={domain === 'schedule' ? 'secondary' : 'ghost'} className="flex-1 gap-2 shadow-none sm:flex-none" aria-pressed={domain === 'schedule'} onClick={() => replaceParams({ domain: 'schedule' })}><CalendarDays className="size-4" aria-hidden="true" />Haftalık program</Button>
+      </div>
 
       {domain === 'exams' ? (
         <>
@@ -303,12 +300,14 @@ export function CalendarScreen() {
               <Button type="button" variant="ghost" size="icon" className="size-11" aria-label="Sonraki dönem" onClick={() => navigateDate(1)}><ChevronRight className="size-5" /></Button>
               <h2 className="ml-2 text-sm font-semibold capitalize sm:text-base">{view === 'week' ? `${format(weekDays[0], 'd MMM', { locale: tr })} – ${format(weekDays[6], 'd MMM yyyy', { locale: tr })}` : format(selectedDate, 'MMMM yyyy', { locale: tr })}</h2>
             </div>
-            <Tabs value={view} onValueChange={(value) => replaceParams({ view: value === 'month' ? null : value })}>
-              <TabsList className="h-auto min-h-11 w-full sm:w-auto"><TabsTrigger value="month">Ay</TabsTrigger><TabsTrigger value="week">Hafta</TabsTrigger><TabsTrigger value="agenda" className="gap-1.5"><List className="size-4" />Ajanda</TabsTrigger></TabsList>
-            </Tabs>
+            <div role="group" aria-label="Takvim görünümü" className="inline-flex min-h-11 w-full rounded-lg bg-muted p-[3px] sm:w-fit">
+              <Button type="button" variant={view === 'month' ? 'secondary' : 'ghost'} className="flex-1 shadow-none" aria-pressed={view === 'month'} onClick={() => replaceParams({ view: null })}>Ay</Button>
+              <Button type="button" variant={view === 'week' ? 'secondary' : 'ghost'} className="flex-1 shadow-none" aria-pressed={view === 'week'} onClick={() => replaceParams({ view: 'week' })}>Hafta</Button>
+              <Button type="button" variant={view === 'agenda' ? 'secondary' : 'ghost'} className="flex-1 gap-1.5 shadow-none" aria-pressed={view === 'agenda'} onClick={() => replaceParams({ view: 'agenda' })}><List className="size-4" aria-hidden="true" />Ajanda</Button>
+            </div>
           </div>
 
-          {exams.isLoading ? <div className="space-y-3" aria-label="Sınavlar yükleniyor"><Skeleton className="h-32 w-full" /><Skeleton className="h-32 w-full" /><Skeleton className="h-32 w-full" /></div> : exams.isError ? (
+          {exams.isLoading ? <div role="status" className="space-y-3" aria-label="Sınavlar yükleniyor"><Skeleton className="h-32 w-full" /><Skeleton className="h-32 w-full" /><Skeleton className="h-32 w-full" /></div> : exams.isError ? (
             <Alert variant="destructive"><AlertCircle className="size-4" /><AlertTitle>Sınavlar yüklenemedi</AlertTitle><AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><span>{exams.error.message}</span><Button variant="outline" className="w-fit gap-2" onClick={() => exams.refetch()}><RefreshCw className="size-4" />Yeniden dene</Button></AlertDescription></Alert>
           ) : view === 'month' ? (
             <>
@@ -316,7 +315,7 @@ export function CalendarScreen() {
                 <div className="grid grid-cols-7 border-b border-border bg-surface-muted">{Object.values(DAY_NAMES).map((day) => <div key={day} className="px-2 py-2 text-center text-xs font-medium text-text-secondary">{day}</div>)}</div>
                 <div className="grid grid-cols-7">{monthDays.map((day) => {
                   const dayExams = sortedExams.filter((exam) => isSameDay(parseISO(exam.date), day))
-                  return <div key={day.toISOString()} className="min-h-28 border-b border-r border-border p-2 last:border-r-0"><span className={isSameMonth(day, selectedDate) ? 'text-sm font-medium' : 'text-sm text-text-secondary/60'}>{format(day, 'd')}</span><div className="mt-2 space-y-1">{dayExams.slice(0, 3).map((exam) => <div key={exam.id} className="rounded-md bg-department-soft px-2 py-1 text-xs text-department"><span className="font-semibold">{exam.timeSlot.split('-')[0]}</span> {exam.courseCode}</div>)}{dayExams.length > 3 && <p className="px-1 text-xs text-text-secondary">+{dayExams.length - 3} sınav</p>}</div></div>
+                  return <div key={day.toISOString()} className="min-h-28 border-b border-r border-border p-2 last:border-r-0"><span className={isSameMonth(day, selectedDate) ? 'text-sm font-medium' : 'text-sm text-text-secondary'}>{format(day, 'd')}</span><div className="mt-2 space-y-1">{dayExams.slice(0, 3).map((exam) => <div key={exam.id} className="rounded-md bg-department-soft px-2 py-1 text-xs text-department"><span className="font-semibold">{exam.timeSlot.split('-')[0]}</span> {exam.courseCode}</div>)}{dayExams.length > 3 && <p className="px-1 text-xs text-text-secondary">+{dayExams.length - 3} sınav</p>}</div></div>
                 })}</div>
               </div>
               <div className="space-y-3 md:hidden">{visibleAgenda.length ? visibleAgenda.map((exam) => <ExamCard key={exam.id} exam={exam} schedules={schedule.data || []} canManage={canManage} assigning={assign.isPending && assign.variables === exam.id} onAssign={assign.mutate} />) : <EmptyState domain="exams" />}</div>
@@ -331,7 +330,7 @@ export function CalendarScreen() {
           )}
           {schedule.isError && <Alert><AlertTriangle className="size-4" /><AlertTitle>Çakışma bilgisi eksik olabilir</AlertTitle><AlertDescription>Haftalık program alınamadığı için sınav çakışmaları gösterilemiyor.</AlertDescription></Alert>}
         </>
-      ) : schedule.isLoading ? <div className="space-y-3"><Skeleton className="h-24 w-full" /><Skeleton className="h-24 w-full" /></div> : schedule.isError ? (
+      ) : schedule.isLoading ? <div role="status" aria-label="Haftalık program yükleniyor" className="space-y-3"><Skeleton className="h-24 w-full" /><Skeleton className="h-24 w-full" /></div> : schedule.isError ? (
         <Alert variant="destructive"><AlertCircle className="size-4" /><AlertTitle>Haftalık program yüklenemedi</AlertTitle><AlertDescription className="flex items-center justify-between gap-3"><span>{schedule.error.message}</span><Button variant="outline" onClick={() => schedule.refetch()}>Yeniden dene</Button></AlertDescription></Alert>
       ) : schedule.data?.length ? (
         <div className="space-y-5">{Object.entries(DAY_NAMES).map(([dayNumber, dayName]) => {

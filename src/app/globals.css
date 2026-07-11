@@ -206,3 +206,9 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Pasif personel kartları okunabilir kalırken durumları yüzey rengiyle ayrışır. */
+[data-slot='card'].opacity-70 {
+  opacity: 1;
+  background-color: color-mix(in oklch, var(--surface-muted) 45%, var(--card));
+}

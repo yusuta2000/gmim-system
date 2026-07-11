@@ -4,6 +4,7 @@ import type { SessionUser } from '@/lib/auth/session-repository'
 import { assertDepartmentAccess } from '@/lib/authorization/department'
 import { TaskServiceError } from './errors'
 import type { CreateTaskInput } from '@/features/tasks/schemas'
+import { appendRejectionReason } from '@/features/tasks/task-notes'
 
 type TaskWithAssistant = Prisma.TaskGetPayload<{ include: { assistant: true; category: true } }>
 type TaskTransaction = Prisma.TransactionClient
@@ -198,10 +199,18 @@ export async function approveTask(input: {
 export async function respondToTask(input: {
   taskId: string
   action: 'accept' | 'reject'
+  rejectionReason?: string
   responder: SessionUser
 }) {
   if (!['accept', 'reject'].includes(input.action)) {
     throw new TaskServiceError('BAD_REQUEST', 'Geçersiz işlem')
+  }
+  const rejectionReason = input.rejectionReason?.trim()
+  if (input.action === 'reject' && !rejectionReason) {
+    throw new TaskServiceError('BAD_REQUEST', 'Görevi reddetmek için bir sebep yazın')
+  }
+  if (rejectionReason && rejectionReason.length > 500) {
+    throw new TaskServiceError('BAD_REQUEST', 'Ret sebebi en fazla 500 karakter olabilir')
   }
 
   return db.$transaction(async (tx) => {
@@ -214,7 +223,10 @@ export async function respondToTask(input: {
     const newStatus = input.action === 'accept' ? 'approved' : 'rejected'
     const updated = await tx.task.updateMany({
       where: { id: input.taskId, assistantId: input.responder.id, status: 'assigned' },
-      data: { status: newStatus },
+      data: {
+        status: newStatus,
+        ...(input.action === 'reject' ? { notes: appendRejectionReason(task.notes, rejectionReason!) } : {}),
+      },
     })
     if (updated.count !== 1) {
       throw new TaskServiceError('CONFLICT', 'Bu görev zaten yanıtlanmış')
@@ -241,8 +253,8 @@ export async function respondToTask(input: {
         title: input.action === 'accept' ? 'Görev Kabul Edildi' : 'Görev Reddedildi',
         message: input.action === 'accept'
           ? `${task.assistant.name} "${task.description}" görevini kabul etti. ${task.points} puan eklendi.`
-          : `${task.assistant.name} "${task.description}" görevini reddetti. Başka bir araştırma görevlisine atanabilir.`,
-        type: input.action === 'accept' ? 'success' : 'warning',
+          : `${task.assistant.name} "${task.description}" görevini reddetti. Sebep: ${rejectionReason}. Başka bir araştırma görevlisine atanabilir.`,
+        type: input.action === 'accept' ? 'task_accepted' : 'task_rejected',
         assistantId: manager.id,
         relatedId: task.id,
       },

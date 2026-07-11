@@ -8,6 +8,7 @@ import { AuthorizationError } from '@/lib/authorization/errors'
 import { createTaskSchema, taskListQuerySchema } from '@/features/tasks/schemas'
 import { createTask } from '@/features/tasks/server/task-service'
 import { TaskServiceError, taskErrorStatus } from '@/features/tasks/server/errors'
+import { splitTaskNotes } from '@/features/tasks/task-notes'
 
 function isManager(user: SessionUser) {
   return user.role === 'admin' || user.role === 'dekan' || user.role === 'baskan'
@@ -73,7 +74,7 @@ export async function GET(request: Request) {
     ])
 
     return NextResponse.json({
-      items,
+      items: items.map((item) => ({ ...item, ...splitTaskNotes(item.notes) })),
       page: query.page,
       pageSize: query.pageSize,
       total,

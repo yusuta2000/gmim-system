@@ -7,13 +7,19 @@ export async function PUT(request: Request) {
   try {
     const user = await requireSession()
     const body = await request.json()
-    const { taskId, action } = body as { taskId?: string; action?: 'accept' | 'reject' }
+    const { taskId, action, rejectionReason } = body as { taskId?: string; action?: 'accept' | 'reject'; rejectionReason?: string }
 
     if (!taskId || !action) {
       return NextResponse.json({ error: 'Eksik bilgi' }, { status: 400 })
     }
+    if (action === 'reject' && !rejectionReason?.trim()) {
+      return NextResponse.json({ error: 'VALIDATION_ERROR', message: 'Görevi reddetmek için bir sebep yazın' }, { status: 400 })
+    }
+    if (rejectionReason && rejectionReason.trim().length > 500) {
+      return NextResponse.json({ error: 'VALIDATION_ERROR', message: 'Ret sebebi en fazla 500 karakter olabilir' }, { status: 400 })
+    }
 
-    await respondToTask({ taskId, action, responder: user })
+    await respondToTask({ taskId, action, rejectionReason, responder: user })
 
     return NextResponse.json({
       message: action === 'accept' ? 'Görev kabul edildi, puan eklendi' : 'Görev reddedildi',

@@ -81,7 +81,7 @@ export function TaskForm({ onSuccess, onCancel }: TaskFormProps) {
       {manager ? (
         <div className="space-y-2">
           <Label htmlFor="task-assistant">Araştırma görevlisi</Label>
-          <select id="task-assistant" name="assistantId" required disabled={assistants.isPending || assistants.isError} className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm">
+          <select id="task-assistant" name="assistantId" required disabled={assistants.isPending || assistants.isError} className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm">
             <option value="">Kişi seçin</option>
             {assistants.data?.map((assistant) => <option key={assistant.id} value={assistant.id}>{assistant.name}</option>)}
           </select>
@@ -103,7 +103,7 @@ export function TaskForm({ onSuccess, onCancel }: TaskFormProps) {
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="task-category">Puan kategorisi</Label>
-          <select id="task-category" value={categoryId} onChange={(event) => setCategoryId(event.target.value)} disabled={categories.isPending || categories.isError} className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm">
+          <select id="task-category" value={categoryId} onChange={(event) => setCategoryId(event.target.value)} disabled={categories.isPending || categories.isError} className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm">
             <option value="">Kategori yok</option>
             {categories.data?.map((category) => <option key={category.id} value={category.id}>{category.name} ({category.points} puan)</option>)}
           </select>

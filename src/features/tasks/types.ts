@@ -10,6 +10,7 @@ export type TaskDto = {
   status: TaskStatus
   source: string
   notes: string | null
+  rejectionReason: string | null
   assistantId: string
   categoryId: string | null
   createdAt: string

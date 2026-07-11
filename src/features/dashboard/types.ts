@@ -9,7 +9,7 @@ export type DashboardPriority = {
 
 export type DashboardMetric = {
   label: string
-  value: number
+  value: number | string
   detail: string
 }
 

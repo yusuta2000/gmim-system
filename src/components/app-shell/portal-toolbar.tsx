@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Bell, BellRing, Check, LogOut, Moon, Settings2, Sun } from 'lucide-react'
+import { ArrowRight, Bell, BellRing, Check, LogOut, Moon, Settings2, Sun } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { usePortalContext } from '@/components/app-shell/portal-context'
+import { portalHref, usePortalContext } from '@/components/app-shell/portal-context'
+import { notificationHref } from '@/components/app-shell/notification-link'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
@@ -18,7 +19,9 @@ type NotificationItem = {
   id: string
   title: string
   message: string
+  type: string
   isRead: boolean
+  relatedId: string | null
   createdAt: string
 }
 
@@ -39,6 +42,7 @@ export function PortalToolbar() {
     return localStorage.getItem('gmim_theme') === 'dark' ? 'dark' : 'light'
   })
   const [passwordOpen, setPasswordOpen] = useState(false)
+  const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
 
@@ -93,6 +97,14 @@ export function PortalToolbar() {
 
   const unreadCount = notifications.data?.unreadCount || 0
 
+  function openNotification(item: NotificationItem) {
+    const href = notificationHref(item, user.role)
+    if (!href) return
+    if (!item.isRead) markRead.mutate(item.id)
+    setNotificationsOpen(false)
+    router.push(portalHref(href, user, department))
+  }
+
   return (
     <>
       {user.role === 'dekan' && (
@@ -118,7 +130,7 @@ export function PortalToolbar() {
         {theme === 'dark' ? <Sun aria-hidden="true" className="size-4" /> : <Moon aria-hidden="true" className="size-4" />}
       </Button>
 
-      <Dialog>
+      <Dialog open={notificationsOpen} onOpenChange={setNotificationsOpen}>
         <DialogTrigger asChild>
           <Button type="button" variant="ghost" size="icon" className="relative size-11" aria-label="Bildirimler">
             {unreadCount > 0 ? <BellRing aria-hidden="true" className="size-4 text-warning" /> : <Bell aria-hidden="true" className="size-4" />}
@@ -139,20 +151,20 @@ export function PortalToolbar() {
             {notifications.isError && <p className="py-8 text-center text-sm text-destructive">Bildirimler alınamadı.</p>}
             {notifications.data?.notifications.length === 0 && <p className="py-8 text-center text-sm text-text-secondary">Yeni bildiriminiz yok.</p>}
             <div className="space-y-2">
-              {notifications.data?.notifications.map((item) => (
-                <article key={item.id} className={`rounded-lg border p-3 ${item.isRead ? 'bg-surface' : 'bg-info-muted'}`}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
+              {notifications.data?.notifications.map((item) => {
+                const href = notificationHref(item, user.role)
+                return (
+                <article key={item.id} className={`rounded-lg border ${item.isRead ? 'bg-surface' : 'bg-info-muted'}`}>
+                  {href ? <button type="button" className="flex min-h-11 w-full items-start justify-between gap-3 rounded-lg p-3 text-left hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => openNotification(item)}>
+                    <div className="min-w-0">
                       <h3 className="text-sm font-semibold text-text-primary">{item.title}</h3>
                       <p className="mt-1 text-xs leading-relaxed text-text-secondary">{item.message}</p>
                       <time className="mt-2 block text-xs text-text-secondary">{new Date(item.createdAt).toLocaleString('tr-TR')}</time>
                     </div>
-                    {!item.isRead && (
-                      <Button type="button" variant="ghost" size="sm" onClick={() => markRead.mutate(item.id)}>Okundu</Button>
-                    )}
-                  </div>
+                    <span className="mt-0.5 flex shrink-0 items-center gap-1 text-xs font-medium text-primary">Aç<ArrowRight aria-hidden="true" className="size-3.5" /></span>
+                  </button> : <div className="p-3"><h3 className="text-sm font-semibold text-text-primary">{item.title}</h3><p className="mt-1 text-xs leading-relaxed text-text-secondary">{item.message}</p><div className="mt-2 flex items-center justify-between gap-3"><time className="text-xs text-text-secondary">{new Date(item.createdAt).toLocaleString('tr-TR')}</time>{!item.isRead ? <Button type="button" variant="ghost" size="sm" onClick={() => markRead.mutate(item.id)}>Okundu</Button> : null}</div></div>}
                 </article>
-              ))}
+              )})}
             </div>
           </ScrollArea>
           {unreadCount > 0 && (

@@ -142,5 +142,5 @@ function UpcomingExams({ data, examsHref }: { data: DashboardData; examsHref: st
 }
 
 function DashboardSkeleton() {
-  return <div className="mx-auto max-w-7xl space-y-6" aria-label="Özet yükleniyor" aria-busy="true"><div className="space-y-2"><Skeleton className="h-4 w-32" /><Skeleton className="h-9 w-72 max-w-full" /><Skeleton className="h-4 w-96 max-w-full" /></div><Skeleton className="h-32 w-full rounded-xl" /><Skeleton className="h-28 w-full rounded-xl" /><div className="grid gap-6 xl:grid-cols-[1.5fr_0.8fr]"><Skeleton className="h-80 rounded-xl" /><Skeleton className="h-64 rounded-xl" /></div></div>
+  return <div role="status" className="mx-auto max-w-7xl space-y-6" aria-label="Özet yükleniyor" aria-busy="true"><div className="space-y-2"><Skeleton className="h-4 w-32" /><Skeleton className="h-9 w-72 max-w-full" /><Skeleton className="h-4 w-96 max-w-full" /></div><Skeleton className="h-32 w-full rounded-xl" /><Skeleton className="h-28 w-full rounded-xl" /><div className="grid gap-6 xl:grid-cols-[1.5fr_0.8fr]"><Skeleton className="h-80 rounded-xl" /><Skeleton className="h-64 rounded-xl" /></div></div>
 }

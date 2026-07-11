@@ -75,15 +75,27 @@ export async function GET(request: Request) {
 async function assistantDashboard(user: PortalSessionUser, department: SessionUser['department']): Promise<DashboardData> {
   const assistant = await db.researchAssistant.findUnique({
     where: { id: user.id },
-    select: { id: true, name: true, role: true, department: true, totalPoints: true },
+    select: { id: true, name: true, role: true, department: true, totalPoints: true, order: true },
   })
   if (!assistant) throw new UnauthenticatedError()
 
-  const [recentTasks, assignedTask, taskCount, rank, upcomingExams] = await Promise.all([
+  const [recentTasks, assignedTask, taskCount, priorityAhead, activeAssistantCount, upcomingExams] = await Promise.all([
     db.task.findMany({ where: { assistantId: user.id }, orderBy: [{ date: 'desc' }, { id: 'desc' }], take: 5, select: recentTaskSelect }),
     db.task.findFirst({ where: { assistantId: user.id, status: 'assigned' }, orderBy: [{ date: 'desc' }, { id: 'desc' }], select: { id: true, description: true, points: true } }),
     db.task.count({ where: { assistantId: user.id } }),
-    db.researchAssistant.count({ where: { department, isActive: true, role: { in: ['admin', 'user'] }, totalPoints: { lt: assistant.totalPoints } } }),
+    db.researchAssistant.count({
+      where: {
+        department,
+        isActive: true,
+        role: { in: ['admin', 'user'] },
+        OR: [
+          { totalPoints: { lt: assistant.totalPoints } },
+          { totalPoints: assistant.totalPoints, order: { lt: assistant.order } },
+          { totalPoints: assistant.totalPoints, order: assistant.order, id: { lt: assistant.id } },
+        ],
+      },
+    }),
+    db.researchAssistant.count({ where: { department, isActive: true, role: { in: ['admin', 'user'] } } }),
     db.exam.findMany({
       where: { department, date: { gte: new Date() }, supervisors: { some: { assistantId: user.id } } },
       orderBy: [{ date: 'asc' }, { id: 'asc' }],
@@ -106,7 +118,7 @@ async function assistantDashboard(user: PortalSessionUser, department: SessionUs
     },
     metrics: [
       { label: 'Toplam puan', value: assistant.totalPoints, detail: 'Mevcut dönem' },
-      { label: 'Bölüm sırası', value: rank + 1, detail: 'Aktif araştırma görevlileri' },
+      { label: 'Görevlendirme önceliği', value: `${priorityAhead + 1} / ${activeAssistantCount}`, detail: '1 = görevlendirmede ilk öncelik' },
       { label: 'Görev kaydı', value: taskCount, detail: 'Tüm durumlar' },
     ],
     recentTasks: serializeTasks(recentTasks),
