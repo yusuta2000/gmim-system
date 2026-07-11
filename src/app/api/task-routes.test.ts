@@ -2,13 +2,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@/lib/db', () => ({
   db: {
+    $transaction: vi.fn(async (callback) => callback(db)),
     task: {
       findMany: vi.fn(),
       findFirst: vi.fn(),
       findUnique: vi.fn(),
+      findUniqueOrThrow: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
+      updateMany: vi.fn(),
       delete: vi.fn(),
+      deleteMany: vi.fn(),
     },
     researchAssistant: {
       findUnique: vi.fn(),
@@ -46,9 +50,12 @@ const task = db.task as unknown as {
   findMany: ReturnType<typeof vi.fn>
   findFirst: ReturnType<typeof vi.fn>
   findUnique: ReturnType<typeof vi.fn>
+  findUniqueOrThrow: ReturnType<typeof vi.fn>
   create: ReturnType<typeof vi.fn>
   update: ReturnType<typeof vi.fn>
+  updateMany: ReturnType<typeof vi.fn>
   delete: ReturnType<typeof vi.fn>
+  deleteMany: ReturnType<typeof vi.fn>
 }
 const researchAssistant = db.researchAssistant as unknown as {
   findUnique: ReturnType<typeof vi.fn>
@@ -95,9 +102,12 @@ describe('task routes', () => {
     task.findMany.mockResolvedValue([baseTask])
     task.findFirst.mockResolvedValue({ number: 3 })
     task.findUnique.mockResolvedValue(baseTask)
+    task.findUniqueOrThrow.mockResolvedValue(baseTask)
     task.create.mockResolvedValue({ ...baseTask, status: 'assigned' })
     task.update.mockResolvedValue(baseTask)
+    task.updateMany.mockResolvedValue({ count: 1 })
     task.delete.mockResolvedValue({})
+    task.deleteMany.mockResolvedValue({ count: 1 })
     researchAssistant.findUnique.mockResolvedValue(targetAssistant)
     researchAssistant.findMany.mockResolvedValue([{ id: 'manager-1' }])
     researchAssistant.update.mockResolvedValue({})
@@ -188,7 +198,8 @@ describe('task routes', () => {
     }))
 
     expect(response.status).toBe(200)
-    expect(task.update).toHaveBeenCalledWith(expect.objectContaining({
+    expect(task.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'task-1', status: 'pending' },
       data: { status: 'approved', assignedBy: 'admin-1' },
     }))
     expect(researchAssistant.update).toHaveBeenCalledWith({
@@ -207,7 +218,20 @@ describe('task routes', () => {
     }))
 
     expect(response.status).toBe(403)
-    expect(task.update).not.toHaveBeenCalled()
+    expect(task.updateMany).not.toHaveBeenCalled()
+  })
+
+  it('approve-task PUT returns conflict and does not increment points after a previous review', async () => {
+    task.updateMany.mockResolvedValue({ count: 0 })
+
+    const response = await approveTask(jsonRequest('/api/approve-task', {
+      taskId: 'task-1',
+      action: 'approve',
+    }))
+
+    expect(response.status).toBe(409)
+    expect(researchAssistant.update).not.toHaveBeenCalled()
+    expect(notification.create).not.toHaveBeenCalled()
   })
 
   it('respond-task PUT rejects forged responderId when session user is not assigned', async () => {
@@ -240,10 +264,29 @@ describe('task routes', () => {
     }))
 
     expect(response.status).toBe(200)
-    expect(task.update).toHaveBeenCalledWith({
-      where: { id: 'task-1' },
+    expect(task.updateMany).toHaveBeenCalledWith({
+      where: { id: 'task-1', assistantId: 'user-1', status: 'assigned' },
       data: { status: 'approved' },
     })
+  })
+
+  it('respond-task PUT rejects already processed assigned tasks without points', async () => {
+    requireSessionMock.mockResolvedValue(regularUser)
+    task.findUnique.mockResolvedValue({
+      ...baseTask,
+      status: 'approved',
+      assistantId: 'user-1',
+      assistant: { id: 'user-1', name: 'User One', department: 'GMIM' },
+    })
+    task.updateMany.mockResolvedValue({ count: 0 })
+
+    const response = await respondTask(jsonRequest('/api/respond-task', {
+      taskId: 'task-1',
+      action: 'accept',
+    }))
+
+    expect(response.status).toBe(409)
+    expect(researchAssistant.update).not.toHaveBeenCalled()
   })
 
   it('delete-task rejects non-manager sessions', async () => {
@@ -252,7 +295,7 @@ describe('task routes', () => {
     const response = await deleteTask(new Request('http://localhost/api/delete-task?id=task-1&requesterId=forged-admin'))
 
     expect(response.status).toBe(403)
-    expect(task.delete).not.toHaveBeenCalled()
+    expect(task.deleteMany).not.toHaveBeenCalled()
   })
 
   it('delete-task rejects cross-department deletion and ignores requesterId', async () => {
@@ -261,7 +304,7 @@ describe('task routes', () => {
     const response = await deleteTask(new Request('http://localhost/api/delete-task?id=task-1&requesterId=forged-admin'))
 
     expect(response.status).toBe(403)
-    expect(task.delete).not.toHaveBeenCalled()
+    expect(task.deleteMany).not.toHaveBeenCalled()
   })
 
   it('delete-task deletes a session-authorized task and adjusts approved points', async () => {
@@ -274,6 +317,6 @@ describe('task routes', () => {
       where: { id: 'target-1' },
       data: { totalPoints: { decrement: 5 } },
     })
-    expect(task.delete).toHaveBeenCalledWith({ where: { id: 'task-1' } })
+    expect(task.deleteMany).toHaveBeenCalledWith({ where: { id: 'task-1' } })
   })
 })

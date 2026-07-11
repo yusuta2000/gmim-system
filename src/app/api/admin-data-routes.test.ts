@@ -11,8 +11,22 @@ vi.mock('xlsx', () => ({
 
 vi.mock('@/lib/db', () => ({
   db: {
+    $transaction: vi.fn(async (callback) => callback(db)),
     pointCategory: {
       findMany: vi.fn(),
+      create: vi.fn(),
+    },
+    academicPeriod: {
+      findFirst: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+    },
+    importBatch: {
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+    },
+    importBatchRow: {
       create: vi.fn(),
     },
     importLog: {
@@ -28,6 +42,7 @@ vi.mock('@/lib/db', () => ({
       findMany: vi.fn(),
       findFirst: vi.fn(),
       create: vi.fn(),
+      delete: vi.fn(),
     },
     exam: {
       findMany: vi.fn(),
@@ -65,6 +80,11 @@ const importLog = db.importLog as unknown as {
   create: ReturnType<typeof vi.fn>
   update: ReturnType<typeof vi.fn>
 }
+const academicPeriod = db.academicPeriod as unknown as {
+  findFirst: ReturnType<typeof vi.fn>
+  create: ReturnType<typeof vi.fn>
+  update: ReturnType<typeof vi.fn>
+}
 const researchAssistant = db.researchAssistant as unknown as {
   findMany: ReturnType<typeof vi.fn>
   update: ReturnType<typeof vi.fn>
@@ -74,6 +94,7 @@ const task = db.task as unknown as {
   findMany: ReturnType<typeof vi.fn>
   findFirst: ReturnType<typeof vi.fn>
   create: ReturnType<typeof vi.fn>
+  delete: ReturnType<typeof vi.fn>
 }
 const exam = db.exam as unknown as {
   findMany: ReturnType<typeof vi.fn>
@@ -113,6 +134,9 @@ describe('admin data routes', () => {
     pointCategory.create.mockResolvedValue({ id: 'cat-1' })
     importLog.create.mockResolvedValue({ id: 'import-1' })
     importLog.update.mockResolvedValue({})
+    academicPeriod.findFirst.mockResolvedValue(null)
+    academicPeriod.create.mockResolvedValue({ id: 'period-1' })
+    academicPeriod.update.mockResolvedValue({})
     researchAssistant.findMany.mockResolvedValue([])
     researchAssistant.update.mockResolvedValue({})
     researchAssistant.updateMany.mockResolvedValue({})

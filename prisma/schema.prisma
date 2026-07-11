@@ -11,17 +11,56 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+enum Department {
+  GMIM
+  DUIM
+}
+
+enum Role {
+  user
+  admin
+  baskan
+  dekan
+}
+
+enum TaskStatus {
+  pending
+  assigned
+  approved
+  rejected
+  archived
+}
+
+enum TaskSource {
+  external
+  temsilci_assigned
+  auto_assigned
+  import
+}
+
+enum AcademicPeriodStatus {
+  open
+  closed
+}
+
+enum ImportBatchStatus {
+  previewed
+  committed
+  rolled_back
+  failed
+}
+
 model ResearchAssistant {
   id        String   @id @default(cuid())
   name      String
   email     String   @unique
   phone     String?
   faculty   String   @default("DZ")
-  department String  @default("GMIM")
+  department Department @default(GMIM)
   totalPoints Int     @default(0)
   order     Int      @default(0)
   isActive  Boolean  @default(true)
-  role      String   @default("user")
+  role      Role     @default(user)
   password  String?
   passwordHash String?
   createdAt DateTime @default(now())
@@ -57,8 +96,8 @@ model Task {
   hoursWorked String?
   date        DateTime
   points      Int
-  status      String   @default("pending")
-  source      String   @default("external")
+  status      TaskStatus @default(pending)
+  source      TaskSource @default(external)
   assignedBy  String?
   notes       String?
   createdAt   DateTime @default(now())
@@ -68,6 +107,13 @@ model Task {
   assistant   ResearchAssistant @relation(fields: [assistantId], references: [id])
   categoryId  String?
   category    PointCategory? @relation(fields: [categoryId], references: [id])
+  periodId    String?
+  period      AcademicPeriod? @relation(fields: [periodId], references: [id])
+  importRows  ImportBatchRow[]
+
+  @@index([assistantId, status])
+  @@index([date])
+  @@index([periodId])
 }
 
 model PermanentDuty {
@@ -90,7 +136,7 @@ model Exam {
   date          DateTime
   day           String
   timeSlot      String
-  department    String   @default("GMIM")
+  department    Department @default(GMIM)
   classroom     String?
   requiredSupervisors Int  @default(1)
   notes         String?
@@ -108,6 +154,8 @@ model ExamSupervisor {
   exam        Exam @relation(fields: [examId], references: [id])
   assistantId String
   assistant   ResearchAssistant @relation(fields: [assistantId], references: [id])
+
+  @@unique([examId, assistantId])
 }
 
 model WeeklySchedule {
@@ -139,7 +187,7 @@ model Announcement {
   id          String   @id @default(cuid())
   title       String
   content     String
-  department  String   @default("GMIM")
+  department  Department @default(GMIM)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -184,6 +232,60 @@ model ImportLog {
   status      String   @default("processing")
   error       String?
   createdAt   DateTime @default(now())
+}
+
+model AcademicPeriod {
+  id          String   @id @default(cuid())
+  name        String
+  department  Department
+  startsAt    DateTime
+  endsAt      DateTime?
+  status      AcademicPeriodStatus @default(open)
+  closedAt    DateTime?
+  closedById  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tasks       Task[]
+
+  @@unique([department, name])
+  @@index([department, status])
+}
+
+model ImportBatch {
+  id          String   @id @default(cuid())
+  fileName    String
+  fileHash    String
+  importType  String
+  department  Department
+  status      ImportBatchStatus @default(previewed)
+  createdById String
+  committedAt DateTime?
+  rolledBackAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  rows        ImportBatchRow[]
+
+  @@unique([fileHash, importType, department])
+  @@index([department, status])
+}
+
+model ImportBatchRow {
+  id          String   @id @default(cuid())
+  batchId     String
+  rowNumber   Int
+  status      String
+  message     String?
+  raw         Json
+  taskId      String?
+  createdAt   DateTime @default(now())
+
+  batch       ImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  task        Task? @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  @@index([batchId])
+  @@index([taskId])
 }
 
 model Session {

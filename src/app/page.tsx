@@ -96,6 +96,35 @@ const DEPARTMENTS: Record<string, DeptInfo> = {
   },
 }
 const DEPT_LIST = Object.values(DEPARTMENTS)
+type DepartmentCode = keyof typeof DEPARTMENTS
+
+function normalizeDepartment(value: unknown): DepartmentCode | null {
+  if (value === 'GMI') return 'GMIM'
+  return typeof value === 'string' && value in DEPARTMENTS ? (value as DepartmentCode) : null
+}
+
+function readStoredUser(): ResearchAssistant | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const stored = localStorage.getItem('gmim_current_user')
+    if (!stored) return null
+    const user = JSON.parse(stored) as ResearchAssistant
+    if (!user?.id || !normalizeDepartment(user.department)) {
+      localStorage.removeItem('gmim_current_user')
+      return null
+    }
+    return user
+  } catch {
+    localStorage.removeItem('gmim_current_user')
+    return null
+  }
+}
+
+async function jsonArray<T>(response: Response): Promise<T[]> {
+  if (!response.ok) return []
+  const data = await response.json().catch(() => [])
+  return Array.isArray(data) ? data : []
+}
 
 // Role label. The dekan is faculty-wide; in DUİM the same person (Özcan Arslan) is
 // also the department head, so show "Dekan & Bölüm Bşk." when viewing DUİM.
@@ -134,11 +163,7 @@ export default function Home() {
 
   // Auth - localStorage'dan geri yükle
   const [currentUser, setCurrentUser] = useState<ResearchAssistant | null>(() => {
-    if (typeof window === 'undefined') return null
-    try {
-      const stored = localStorage.getItem('gmim_current_user')
-      return stored ? JSON.parse(stored) : null
-    } catch { return null }
+    return readStoredUser()
   })
   const [loginEmail, setLoginEmail] = useState('')
   const [loginPassword, setLoginPassword] = useState('')
@@ -149,13 +174,19 @@ export default function Home() {
   const [selectedDept, setSelectedDept] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null
     try {
-      const stored = localStorage.getItem('gmim_current_user')
-      if (stored) { const u = JSON.parse(stored); return u.role === 'dekan' ? (localStorage.getItem('gmim_selected_dept') || u.department) : u.department }
-      return localStorage.getItem('gmim_selected_dept')
+      const user = readStoredUser()
+      if (user) {
+        const userDept = normalizeDepartment(user.department)
+        const storedDept = normalizeDepartment(localStorage.getItem('gmim_selected_dept'))
+        return user.role === 'dekan' ? (storedDept || userDept) : userDept
+      }
+      const storedDept = normalizeDepartment(localStorage.getItem('gmim_selected_dept'))
+      if (!storedDept) localStorage.removeItem('gmim_selected_dept')
+      return storedDept
     } catch { return null }
   })
   // Normalize any legacy short code to the canonical one used throughout.
-  const viewDept = selectedDept === 'GMI' ? 'GMIM' : selectedDept
+  const viewDept = normalizeDepartment(selectedDept)
   const deptInfo = viewDept ? DEPARTMENTS[viewDept] : null
 
   // Theme (dark mode) — persisted, applied to <html> via class.
@@ -251,16 +282,20 @@ export default function Home() {
         fetch(`/api/weekly-schedule${q}`),
         fetch(`/api/approve-task${q}`), fetch(`/api/announcements${q}`),
       ])
-      setAssistants(await assRes.json())
-      setTasks(await taskRes.json())
-      setCategories(await catRes.json())
-      setExams(await examRes.json())
+      if (currentUser && [assRes, taskRes, catRes, examRes, notifRes, schedRes, pendRes, annRes].some(res => res.status === 401)) {
+        setCurrentUser(null)
+        try { localStorage.removeItem('gmim_current_user') } catch {}
+      }
+      setAssistants(await jsonArray<ResearchAssistant>(assRes))
+      setTasks(await jsonArray<Task>(taskRes))
+      setCategories(await jsonArray<PointCategory>(catRes))
+      setExams(await jsonArray<Exam>(examRes))
       const notifData = await notifRes.json()
       setNotifications(notifData.notifications || [])
       setUnreadCount(notifData.unreadCount || 0)
-      setWeeklySchedules(await schedRes.json())
-      setPendingTasks(await pendRes.json())
-      setAnnouncements(await annRes.json())
+      setWeeklySchedules(await jsonArray<WeeklyScheduleItem>(schedRes))
+      setPendingTasks(await jsonArray<Task>(pendRes))
+      setAnnouncements(await jsonArray<Announcement>(annRes))
     } catch (err) { console.error(err); toast.error('Veriler yüklenirken hata') }
     finally { setLoading(false) }
   }, [viewDept, currentUser])

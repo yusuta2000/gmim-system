@@ -4,6 +4,7 @@ import { requireSession, UnauthenticatedError } from '@/lib/auth/session';
 import type { SessionUser } from '@/lib/auth/session-repository';
 import { assertDepartmentAccess } from '@/lib/authorization/department';
 import { AuthorizationError } from '@/lib/authorization/errors';
+import type { Prisma } from '@prisma/client';
 
 function isManager(user: SessionUser) {
   return user.role === 'admin' || user.role === 'dekan' || user.role === 'baskan';
@@ -18,7 +19,7 @@ export async function GET(request: Request) {
 
     // Department-scoped: managers see the department's members. Dekan is faculty-wide,
     // so it appears in every department's management view. Users see only themselves.
-    const where = isManager(user)
+    const where: Prisma.ResearchAssistantWhereInput = isManager(user)
       ? { OR: [{ department }, { role: 'dekan' }] }
       : { id: user.id };
     const assistants = await db.researchAssistant.findMany({
