@@ -22,7 +22,7 @@ import {
   Clock, AlertCircle, UserCheck, Award, TrendingDown, Zap, Ship,
   CalendarDays, ChevronRight, Sparkles, Send, ArrowUpRight, Target,
   Bell, BellRing, Upload, FileSpreadsheet, LogIn, LogOut, Shield,
-  Info, Trash2, XCircle, Check, RotateCcw, Settings2, Megaphone, MessageSquare, ChevronDown
+  Info, Trash2, XCircle, Check, RotateCcw, Settings2, Megaphone, MessageSquare, ChevronDown, Moon, Sun
 } from 'lucide-react'
 
 interface ResearchAssistant {
@@ -70,10 +70,29 @@ const DAY_NAMES: Record<number, string> = { 1: 'Pazartesi', 2: 'Salı', 3: 'Çar
 
 // Faculty departments. The system is department-scoped: each department manages
 // its own ar.görs, tasks, exams, schedule and announcements independently.
-interface DeptInfo { code: string; short: string; full: string; accent: string; badge: string }
+interface DeptInfo {
+  code: string; short: string; full: string; accent: string; badge: string
+  // Accent class profiles — single source for department theming (reduces ternary sprawl)
+  logoGradient: string;   // gradient for logo/icon tiles
+  iconText: string;       // accent text color for icons
+  primaryBtn: string;     // primary button bg
+  pageGradient: string;   // landing/login page background gradient
+}
 const DEPARTMENTS: Record<string, DeptInfo> = {
-  GMIM: { code: 'GMIM', short: 'GMİM', full: 'Gemi Makineleri İşletme Mühendisliği', accent: 'emerald', badge: 'bg-emerald-100 text-emerald-800' },
-  DUIM: { code: 'DUIM', short: 'DUİM', full: 'Deniz Ulaştırma İşletme Mühendisliği', accent: 'sky', badge: 'bg-sky-100 text-sky-800' },
+  GMIM: {
+    code: 'GMIM', short: 'GMİM', full: 'Gemi Makineleri İşletme Mühendisliği', accent: 'emerald',
+    badge: 'bg-emerald-100 text-emerald-800',
+    logoGradient: 'from-emerald-500 to-teal-600 shadow-emerald-200',
+    iconText: 'text-emerald-600', primaryBtn: 'bg-emerald-600 hover:bg-emerald-700',
+    pageGradient: 'from-emerald-50 via-white to-teal-50',
+  },
+  DUIM: {
+    code: 'DUIM', short: 'DUİM', full: 'Deniz Ulaştırma İşletme Mühendisliği', accent: 'sky',
+    badge: 'bg-sky-100 text-sky-800',
+    logoGradient: 'from-sky-500 to-indigo-600 shadow-sky-200',
+    iconText: 'text-sky-600', primaryBtn: 'bg-sky-600 hover:bg-sky-700',
+    pageGradient: 'from-sky-50 via-white to-indigo-50',
+  },
 }
 const DEPT_LIST = Object.values(DEPARTMENTS)
 
@@ -84,6 +103,18 @@ function roleLabel(role: string, viewDept?: string | null): string {
   if (role === 'dekan') return viewDept === 'DUIM' ? 'Dekan & Bölüm Bşk.' : 'Dekan'
   if (role === 'baskan') return 'Bölüm Bşk.'
   return 'Ar.Gör'
+}
+
+// Standardized task status palette — single source for status colors/labels.
+// Semantic: emerald=success(approved), amber=pending, blue=awaiting-response, red=rejected.
+const TASK_STATUS: Record<string, { label: string; cls: string }> = {
+  approved: { label: 'Onaylı', cls: 'bg-emerald-100 text-emerald-800' },
+  pending: { label: 'Onay Bekliyor', cls: 'bg-amber-100 text-amber-800' },
+  assigned: { label: 'Yanıt Bekleniyor', cls: 'bg-blue-100 text-blue-700' },
+  rejected: { label: 'Reddedildi', cls: 'bg-red-100 text-red-700' },
+}
+function statusBadge(status: string): { label: string; cls: string } {
+  return TASK_STATUS[status] || { label: status, cls: 'bg-slate-100 text-slate-700' }
 }
 
 export default function Home() {
@@ -125,6 +156,19 @@ export default function Home() {
   // Normalize any legacy short code to the canonical one used throughout.
   const viewDept = selectedDept === 'GMI' ? 'GMIM' : selectedDept
   const deptInfo = viewDept ? DEPARTMENTS[viewDept] : null
+
+  // Theme (dark mode) — persisted, applied to <html> via class.
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    if (typeof window === 'undefined') return 'light'
+    try { return (localStorage.getItem('gmim_theme') as 'light' | 'dark') || 'light' }
+    catch { return 'light' }
+  })
+  useEffect(() => {
+    const root = document.documentElement
+    if (theme === 'dark') root.classList.add('dark')
+    else root.classList.remove('dark')
+    try { localStorage.setItem('gmim_theme', theme) } catch {}
+  }, [theme])
 
   // Task form
   const [taskDesc, setTaskDesc] = useState('')
@@ -729,24 +773,19 @@ export default function Home() {
 
   // Giriş ekranı - kullanıcı girişi yapmadan içerik gösterilmez
   if (!currentUser) {
-    const isDuim = viewDept === 'DUIM'
-    const grad = isDuim ? 'from-sky-500 to-indigo-600' : 'from-emerald-500 to-teal-600'
-    const shadowColor = isDuim ? 'shadow-sky-200' : 'shadow-emerald-200'
-    const pageGrad = isDuim ? 'from-sky-50 via-white to-indigo-50' : 'from-emerald-50 via-white to-teal-50'
-    const iconColor = isDuim ? 'text-sky-600' : 'text-emerald-600'
-    const btnColor = isDuim ? 'bg-sky-600 hover:bg-sky-700' : 'bg-emerald-600 hover:bg-emerald-700'
+    const pageGrad = deptInfo?.pageGradient || 'from-slate-50 via-white to-slate-50'
     return (
       <div className={`min-h-screen flex items-center justify-center bg-gradient-to-br ${pageGrad} p-4`}>
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
-            <div className={`h-16 w-16 rounded-2xl bg-gradient-to-br ${grad} flex items-center justify-center shadow-lg ${shadowColor} mx-auto mb-4`}>
+            <div className={`h-16 w-16 rounded-2xl bg-gradient-to-br ${deptInfo?.logoGradient} flex items-center justify-center shadow-lg mx-auto mb-4`}>
               <Ship className="h-8 w-8 text-white" />
             </div>
             <h1 className="text-2xl font-bold text-slate-900">{deptInfo?.short} Ar.Gör Yönetim</h1>
             <p className="text-sm text-slate-500 mt-1">İTÜ Denizcilik Fakültesi · {deptInfo?.full}</p>
           </div>
           <Card className="border-0 shadow-xl">
-            <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2 text-lg"><LogIn className={`h-5 w-5 ${iconColor}`} /> Sisteme Giriş</CardTitle></CardHeader>
+            <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2 text-lg"><LogIn className={`h-5 w-5 ${deptInfo?.iconText}`} /> Sisteme Giriş</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="login-email">E-posta</Label>
@@ -756,7 +795,7 @@ export default function Home() {
                 <Label htmlFor="login-password">Şifre</Label>
                 <Input id="login-password" type="password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleLogin()} autoComplete="current-password" />
               </div>
-              <Button onClick={handleLogin} className={`w-full ${btnColor} gap-2`}><LogIn className="h-4 w-4" /> Giriş Yap</Button>
+              <Button onClick={handleLogin} className={`w-full ${deptInfo?.primaryBtn} gap-2`}><LogIn className="h-4 w-4" /> Giriş Yap</Button>
               <Button variant="ghost" onClick={() => { setSelectedDept(null); try { localStorage.removeItem('gmim_selected_dept') } catch {} }} className="w-full text-slate-500 gap-2 text-xs"><RotateCcw className="h-3.5 w-3.5" /> Bölüm değiştir</Button>
             </CardContent>
           </Card>
@@ -767,21 +806,21 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200">
+      <header className="sticky top-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-x-3 gap-y-2 flex-wrap">
           {/* Sol: logo + başlık (daralabilir) */}
           <div className="flex items-center gap-3 min-w-0 flex-1">
-            <div className={`h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-gradient-to-br ${viewDept === 'DUIM' ? 'from-sky-500 to-indigo-600 shadow-sky-200' : 'from-emerald-500 to-teal-600 shadow-emerald-200'} flex items-center justify-center shadow-lg flex-shrink-0`}>
+            <div className={`h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-gradient-to-br ${deptInfo?.logoGradient} flex items-center justify-center shadow-lg flex-shrink-0`}>
               <Ship className="h-5 w-5 text-white" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2 min-w-0">
+              <h1 className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2 min-w-0">
                 <span className="truncate">{deptInfo?.short} Ar.Gör Yönetim</span>
                 <Badge className={`${deptInfo?.badge} text-[10px] flex-shrink-0`}>{deptInfo?.short}</Badge>
               </h1>
-              <p className="text-xs text-slate-500 hidden sm:block">İTÜ Denizcilik Fakültesi · {deptInfo?.full}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">İTÜ Denizcilik Fakültesi · {deptInfo?.full}</p>
             </div>
             {isDekan && (
               <Select value={viewDept || 'GMIM'} onValueChange={(v) => { setSelectedDept(v); try { localStorage.setItem('gmim_selected_dept', v) } catch {} }}>
@@ -794,6 +833,15 @@ export default function Home() {
           </div>
           {/* Sağ: aksiyonlar (taşmasın) */}
           <div className="flex items-center gap-1.5 flex-shrink-0">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9"
+              aria-label={theme === 'dark' ? 'Açık temaya geç' : 'Koyu temaya geç'}
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            >
+              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </Button>
             {pendingCount > 0 && canSeeAll && (
               <Badge className="bg-amber-100 text-amber-800 gap-1 text-xs animate-pulse">
                 <Clock className="h-3 w-3" /><span className="hidden sm:inline">{pendingCount} Onay Bekliyor</span><span className="sm:hidden">{pendingCount}</span>
@@ -1382,8 +1430,8 @@ export default function Home() {
                                 <Badge variant="outline" className="text-[10px]">
                                   {task.source === 'auto_assigned' ? 'Otomatik' : task.source === 'import' ? 'İçe Aktarma' : task.source === 'temsilci_assigned' ? 'Temsilci' : 'Kendi Bildirimi'}
                                 </Badge>
-                                <Badge variant={task.status === 'approved' ? 'default' : task.status === 'pending' ? 'secondary' : task.status === 'assigned' ? 'secondary' : 'destructive'} className={`text-[10px] ${task.status === 'assigned' ? 'bg-blue-100 text-blue-700' : ''}`}>
-                                  {task.status === 'approved' ? 'Onaylı' : task.status === 'pending' ? 'Onay Bekliyor' : task.status === 'assigned' ? 'Yanıt Bekleniyor' : 'Reddedildi'}
+                                <Badge className={`text-[10px] ${statusBadge(task.status).cls}`}>
+                                  {statusBadge(task.status).label}
                                 </Badge>
                               </div>
                             </div>
@@ -1965,8 +2013,8 @@ export default function Home() {
         </DialogContent>
       </Dialog>
 
-      <footer className="mt-12 border-t border-slate-200 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between text-xs text-slate-500">
+      <footer className="mt-12 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
           <span>{deptInfo?.short} Ar.Gör Yönetim Sistemi · İTÜ Denizcilik Fakültesi</span>
           <span className="flex items-center gap-1"><Sparkles className="h-3 w-3" /> AI Destekli v3.1</span>
         </div>
