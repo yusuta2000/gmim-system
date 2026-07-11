@@ -285,7 +285,7 @@ export default function Home() {
       if (currentUser && [assRes, taskRes, catRes, examRes, notifRes, schedRes, pendRes, annRes].some(res => res.status === 401)) {
         setCurrentUser(null)
         try { localStorage.removeItem('gmim_current_user') } catch {}
-        toast.error('Oturum s?resi doldu', { description: 'Verileri g?rmek i?in tekrar giri? yap?n.' })
+        toast.error('Oturum süresi doldu', { description: 'Verileri görmek için tekrar giriş yapın.' })
         setAssistants([])
         setTasks([])
         setCategories([])
@@ -1341,14 +1341,14 @@ export default function Home() {
               </CardContent></Card>
             ) : (
               <div className="space-y-4">
-                <Card className="border-0 shadow-md bg-gradient-to-r from-amber-50 to-orange-50 border-l-4 border-l-amber-400">
+                <Card className="shadow-md border border-amber-200 bg-amber-50/60">
                   <CardContent className="p-4 flex items-center gap-3">
                     <Clock className="h-6 w-6 text-amber-600" />
                     <div><p className="font-semibold text-amber-800">{pendingTasks.length} görev onay bekliyor</p><p className="text-xs text-amber-600">Araş görler tarafından gönderilen görevler aşağıda listeleniyor</p></div>
                   </CardContent>
                 </Card>
                 {pendingTasks.map(task => (
-                  <Card key={task.id} className="border-0 shadow-md border-l-4 border-l-amber-400">
+                  <Card key={task.id} className="shadow-md border border-amber-200 bg-amber-50/40">
                     <CardContent className="p-5">
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1 space-y-2">
@@ -1383,7 +1383,7 @@ export default function Home() {
             {(() => {
               const allPendingChanges = assistants.flatMap(a => (a.pendingDutyChanges || []).filter(c => c.status === 'pending').map(c => ({ ...c, assistantName: a.name })))
               return allPendingChanges.length > 0 && (
-                <Card className="border-0 shadow-md border-l-4 border-l-amber-400 mt-6">
+                <Card className="shadow-md border border-amber-200 bg-amber-50/40 mt-6">
                   <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2"><Clock className="h-5 w-5 text-amber-600" /> Bekleyen Daimi Görev Değişiklikleri</CardTitle><CardDescription>{allPendingChanges.length} talep bekliyor</CardDescription></CardHeader>
                   <CardContent>
                     <div className="space-y-2">
@@ -1573,7 +1573,7 @@ export default function Home() {
                       <SelectContent>{categories.map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name} ({cat.points}p)</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-2"><Label className="text-sm font-medium">Tarih</Label><Input type="date" value={taskDate} onChange={e => setTaskDate(e.target.value)} /></div>
                     <div className="space-y-2"><Label className="text-sm font-medium">Saat</Label><Input placeholder="09:00-12:00" value={taskHours} onChange={e => setTaskHours(e.target.value)} /></div>
                   </div>
@@ -1627,13 +1627,13 @@ export default function Home() {
                 <Card className="border-0 shadow-md lg:col-span-1 order-2">
                   <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2"><Plus className="h-5 w-5 text-blue-600" /> Yeni Sınav</CardTitle></CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div className="space-y-2"><Label className="text-sm">Ders Kodu</Label><Input placeholder="GMI201" value={examCourseCode} onChange={e => setExamCourseCode(e.target.value)} /></div>
                       <div className="space-y-2"><Label className="text-sm">Gözetmen</Label><Select value={examSupervisors} onValueChange={setExamSupervisors}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="1">1</SelectItem><SelectItem value="2">2</SelectItem><SelectItem value="3">3</SelectItem></SelectContent></Select></div>
                     </div>
                     <div className="space-y-2"><Label className="text-sm">Ders Adı</Label><Input value={examCourseName} onChange={e => setExamCourseName(e.target.value)} /></div>
                     <div className="space-y-2"><Label className="text-sm">Öğr. Üyesi</Label><Input value={examInstructor} onChange={e => setExamInstructor(e.target.value)} /></div>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div className="space-y-2"><Label className="text-sm">Tarih</Label><Input type="date" value={examDate} onChange={e => setExamDate(e.target.value)} /></div>
                       <div className="space-y-2"><Label className="text-sm">Gün</Label><Select value={examDay} onValueChange={setExamDay}><SelectTrigger><SelectValue placeholder="Gün" /></SelectTrigger><SelectContent>{Object.entries(DAY_NAMES).map(([k, v]) => <SelectItem key={k} value={v}>{v}</SelectItem>)}</SelectContent></Select></div>
                     </div>
@@ -1786,7 +1786,7 @@ export default function Home() {
                 <p className="text-xs font-semibold text-slate-500 mb-2 uppercase tracking-wide">Yönetim</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {managerAssistants.map(ra => (
-                    <Card key={ra.id} className="border-0 shadow-md bg-gradient-to-br from-violet-50 to-blue-50 border-l-4 border-l-violet-400">
+                    <Card key={ra.id} className="shadow-md border border-violet-200 bg-gradient-to-br from-violet-50/70 to-blue-50/70">
                       <CardContent className="p-5">
                         <div className="flex items-start gap-4">
                           <div className={`h-12 w-12 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-lg ${ra.role === 'dekan' ? 'bg-gradient-to-br from-violet-500 to-purple-600 shadow-violet-200' : 'bg-gradient-to-br from-blue-500 to-indigo-600 shadow-blue-200'}`}>
