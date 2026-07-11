@@ -70,7 +70,7 @@ async function checkScheduleConflicts(assistantId: string, dayOfWeek: number, ti
     where: { assistantId, dayOfWeek },
   });
 
-  const conflicts = [];
+  const conflicts: typeof existingSchedules = [];
   const [newStart, newEnd] = parseTimeSlot(timeSlot);
 
   if (newStart !== null && newEnd !== null) {

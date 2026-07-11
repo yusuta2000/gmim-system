@@ -80,7 +80,7 @@ Eğer görev baremdeki hiçbir kategoriye uymuyorsa:
     }
 
     // Find the matching category from DB
-    let matchedCategory = null;
+    let matchedCategory: (typeof categories)[number] | null = null;
     if (llmResult.matched && llmResult.categoryName) {
       matchedCategory = categories.find(c =>
         c.name.toLowerCase() === llmResult.categoryName?.toLowerCase() ||

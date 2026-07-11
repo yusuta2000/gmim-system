@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import type { Prisma } from '@prisma/client';
 import { db } from '@/lib/db';
 
 export async function POST(request: Request) {
@@ -41,7 +42,7 @@ export async function POST(request: Request) {
     const examDayNum = dayMap[exam.day] || 0;
     const [examStart, examEnd] = parseTimeSlot(exam.timeSlot);
 
-    const eligibleAssistants = [];
+    const eligibleAssistants: typeof assistants = [];
     for (const assistant of availableAssistants) {
       if (examStart !== null && examEnd !== null && examDayNum > 0) {
         const schedules = await db.weeklySchedule.findMany({
@@ -74,7 +75,7 @@ export async function POST(request: Request) {
       }, { status: 200 });
     }
 
-    const assignments = [];
+    const assignments: Prisma.ExamSupervisorGetPayload<{ include: { assistant: true } }>[] = [];
     for (const assistant of toAssign) {
       const assignment = await db.examSupervisor.create({
         data: { examId: exam.id, assistantId: assistant.id },

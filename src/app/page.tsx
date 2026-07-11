@@ -36,6 +36,7 @@ interface Task {
   assistantId: string; categoryId: string | null; assistant?: ResearchAssistant; category?: PointCategory
 }
 interface PointCategory { id: string; name: string; points: number; description: string | null; isActive: boolean }
+interface PermanentDuty { id: string; name: string; description: string | null; order: number; assistantId: string }
 interface PendingDutyChange { id: string; changeType: string; dutyName: string; description: string | null; status: string; assistantId: string; dutyId: string | null; submittedBy: string | null; createdAt: string }
 interface Announcement {
   id: string; title: string; content: string; createdAt: string
