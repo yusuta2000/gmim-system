@@ -285,6 +285,17 @@ export default function Home() {
       if (currentUser && [assRes, taskRes, catRes, examRes, notifRes, schedRes, pendRes, annRes].some(res => res.status === 401)) {
         setCurrentUser(null)
         try { localStorage.removeItem('gmim_current_user') } catch {}
+        toast.error('Oturum s?resi doldu', { description: 'Verileri g?rmek i?in tekrar giri? yap?n.' })
+        setAssistants([])
+        setTasks([])
+        setCategories([])
+        setExams([])
+        setNotifications([])
+        setUnreadCount(0)
+        setWeeklySchedules([])
+        setPendingTasks([])
+        setAnnouncements([])
+        return
       }
       setAssistants(await jsonArray<ResearchAssistant>(assRes))
       setTasks(await jsonArray<Task>(taskRes))

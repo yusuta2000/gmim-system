@@ -112,7 +112,8 @@ Claude, kodda bir değişiklik istendiğinde şu sırayı izler:
 4. **Küçük, geri alınabilir adımlar.** Her mantıklı değişiklik ayrı commit; açıklama yaz.
 5. **Şüphedeysen sor.** Geri dönüşü zor bir işlemden (toplu silme, tüm puanları sıfırlama, şema değişikliği) önce kullanıcıya onaylat.
 6. **Güvenlik notu:** Repo şu an public ve şifreler düz metin. Sisteme kişisel/gizli yeni bir sır ekleme. (Kapsamlı güvenlik sertleştirmesi planlı bir sonraki iş.)
-7. **Ortak repo — push öncesi `git pull`.** İki kişi aynı `main` dalında; push etmeden önce daima `git pull origin main`. `--force` yasak. Ayrıntı: Bölüm 2 "İki kişiyle çalışıyoruz".
+7. **Geçici tarayıcı/otomasyon pencerelerini kapat.** Chrome, Playwright, remote-debugging veya benzeri teşhis araçları açılırsa iş bitince ilgili pencere ve process'leri mutlaka kapat; kullanıcıya görünür, takılı kalmış veya kapatılamayan otomasyon penceresi bırakma.
+8. **Ortak repo — push öncesi `git pull`.** İki kişi aynı `main` dalında; push etmeden önce daima `git pull origin main`. `--force` yasak. Ayrıntı: Bölüm 2 "İki kişiyle çalışıyoruz".
 
 ---
 
