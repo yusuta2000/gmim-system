@@ -99,7 +99,7 @@ Claude, kodda bir değişiklik istendiğinde şu sırayı izler:
 - **Stack:** Next.js 16 + TypeScript + Prisma + PostgreSQL (Neon) + Vercel. Arayüz tek dosya: `src/app/page.tsx`. Sunucu uçları: `src/app/api/*/route.ts`.
 - **Bölüm bazlı:** Tek DB, `department` alanı ile ayrım: `GMIM` / `DUIM`. Tüm GET uçları `?department=` ile filtreler; create uçları gövdede `department` alır. Detay: `SISTEM_DOKUMANTASYONU.md` Bölüm 14.
 - **Roller:** `admin`=Temsilci, `baskan`=Bölüm Başkanı (ikisi bölüme özel), `dekan`=fakülte geneli (iki bölümü de görür), `user`=Ar.Gör. Özcan Arslan tek dekan hesabıdır; DUİM'de "Dekan & Bölüm Bşk." görünür.
-- **Deploy:** `git push origin main` → Vercel otomatik build (`prisma generate && prisma db push && next build`). Şema değişikliği build sırasında DB'ye otomatik yansır.
+- **Deploy:** `git push origin main` → Vercel otomatik build (`prisma generate && next build`). Şema değişikliği için önce gözden geçirilmiş migration gerekir; `prisma migrate deploy` ayrı ve açık onaylı bir adımdır.
 - **Prod veritabanı:** Bağlantı bilgisi `SISTEM_DOKUMANTASYONU.md` Bölüm 6'da. Script'ler `DATABASE_URL`/`DIRECT_URL` env değişkenleriyle çalışır. **Bu canlı, gerçek veridir — dikkatli ol.**
 
 ---

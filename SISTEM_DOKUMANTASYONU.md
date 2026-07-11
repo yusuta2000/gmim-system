@@ -230,10 +230,11 @@ npx vercel --prod --token="VERCEL_TOKEN" --yes
 ### Prisma Şema Değişikliği
 Eğer `prisma/schema.prisma` dosyasını değiştirirsen:
 ```bash
-npx prisma db push  # Veritabanını şemaya senkronize et
 npx prisma generate  # Prisma Client'ı yeniden oluştur
+# Migration dosyasını gözden geçir ve staging'de doğrula
+npx prisma migrate deploy  # Yalnızca onaylı deploy aşamasında uygula
 ```
-Build sırasında `prisma db push` otomatik çalışır (package.json'da `build` script'inde).
+Build yalnızca `prisma generate && next build` çalıştırır; veritabanı şemasını değiştirmez.
 
 ---
 
@@ -387,7 +388,7 @@ Puan Tablosu → "Görevleri İndir" / "Puanları İndir" / "Sınavları İndir"
 Eğer Vercel build başarısız olursa:
 1. `prisma generate` çalışıyor mu kontrol et
 2. Environment variables doğru mu kontrol et
-3. `npx prisma db push` ile şema senkronize et
+3. Onaylı migration varsa staging'de doğruladıktan sonra `npx prisma migrate deploy` çalıştır
 
 ---
 
