@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Menu } from 'lucide-react'
+import { portalHref, useOptionalPortalContext } from '@/components/app-shell/portal-context'
 import { getMoreMobileItems, getPrimaryMobileItems } from '@/components/navigation/nav-config'
 import { navigationIcons } from '@/components/navigation/navigation-icons'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
@@ -15,6 +16,7 @@ function isCurrent(pathname: string, href: string): boolean {
 
 export function MobileBottomNav({ user }: { user: SessionUser }) {
   const pathname = usePathname()
+  const portalContext = useOptionalPortalContext()
   const primaryItems = getPrimaryMobileItems(user)
   const moreItems = getMoreMobileItems(user)
   const moreActive = moreItems.some((item) => isCurrent(pathname, item.href))
@@ -31,7 +33,7 @@ export function MobileBottomNav({ user }: { user: SessionUser }) {
           return (
             <Link
               key={item.id}
-              href={item.href}
+              href={portalContext ? portalHref(item.href, user, portalContext.department) : item.href}
               aria-current={active ? 'page' : undefined}
               className={cn(
                 'flex min-h-16 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[11px] font-medium text-text-secondary',
@@ -71,7 +73,7 @@ export function MobileBottomNav({ user }: { user: SessionUser }) {
                 return (
                   <Link
                     key={item.id}
-                    href={item.href}
+                    href={portalContext ? portalHref(item.href, user, portalContext.department) : item.href}
                     aria-current={active ? 'page' : undefined}
                     className={cn(
                       'flex min-h-12 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors duration-200',

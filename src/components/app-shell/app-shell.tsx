@@ -11,6 +11,7 @@ type AppShellProps = {
   department: SessionUser['department']
   children: ReactNode
   utilityActions?: ReactNode
+  embedded?: boolean
 }
 
 const departmentLabels: Record<SessionUser['department'], string> = {
@@ -18,9 +19,14 @@ const departmentLabels: Record<SessionUser['department'], string> = {
   DUIM: 'Deniz Ulaştırma İşletme Mühendisliği',
 }
 
-export function AppShell({ user, department, children, utilityActions }: AppShellProps) {
+export function AppShell({ user, department, children, utilityActions, embedded = false }: AppShellProps) {
+  if (embedded) return <>{children}</>
+
   return (
     <div data-department={department} className="min-h-dvh bg-background text-foreground">
+      <a href="#main-content" className="sr-only z-50 rounded-md bg-surface px-4 py-2 text-sm font-semibold focus:not-sr-only focus:fixed focus:left-4 focus:top-4">
+        Ana içeriğe geç
+      </a>
       <DesktopSidebar user={user} />
       <div className="min-h-dvh lg:pl-64">
         <header className="sticky top-0 z-20 border-b border-border bg-surface/95">

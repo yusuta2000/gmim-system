@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Ship } from 'lucide-react'
+import { portalHref, useOptionalPortalContext } from '@/components/app-shell/portal-context'
 import { getNavigationItems } from '@/components/navigation/nav-config'
 import { navigationIcons } from '@/components/navigation/navigation-icons'
 import type { PortalSessionUser, SessionUser } from '@/lib/auth/session-repository'
@@ -14,6 +15,7 @@ function isCurrent(pathname: string, href: string): boolean {
 
 export function DesktopSidebar({ user }: { user: PortalSessionUser }) {
   const pathname = usePathname()
+  const portalContext = useOptionalPortalContext()
   const items = getNavigationItems(user)
   const work = items.filter((item) => item.section === 'work')
   const management = items.filter((item) => item.section === 'management')
@@ -31,9 +33,9 @@ export function DesktopSidebar({ user }: { user: PortalSessionUser }) {
       </div>
 
       <nav aria-label="Ana navigasyon" className="flex-1 overflow-y-auto px-3 py-5">
-        <NavigationSection label="Çalışma" items={work} pathname={pathname} />
+        <NavigationSection label="Çalışma" items={work} pathname={pathname} user={user} department={portalContext?.department} />
         {management.length > 0 && (
-          <NavigationSection label="Yönetim" items={management} pathname={pathname} className="mt-6" />
+          <NavigationSection label="Yönetim" items={management} pathname={pathname} user={user} department={portalContext?.department} className="mt-6" />
         )}
       </nav>
 
@@ -49,11 +51,15 @@ function NavigationSection({
   label,
   items,
   pathname,
+  user,
+  department,
   className,
 }: {
   label: string
   items: ReturnType<typeof getNavigationItems>
   pathname: string
+  user: PortalSessionUser
+  department?: SessionUser['department']
   className?: string
 }) {
   return (
@@ -68,7 +74,7 @@ function NavigationSection({
           return (
             <li key={item.id}>
               <Link
-                href={item.href}
+                href={department ? portalHref(item.href, user, department) : item.href}
                 aria-current={active ? 'page' : undefined}
                 className={cn(
                   'flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors duration-200',

@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import type { SessionUser } from '@/lib/auth/session-repository'
 import { assertDepartmentAccess } from '@/lib/authorization/department'
 import { TaskServiceError } from './errors'
+import type { CreateTaskInput } from '@/features/tasks/schemas'
 
 type TaskWithAssistant = Prisma.TaskGetPayload<{ include: { assistant: true; category: true } }>
 type TaskTransaction = Prisma.TransactionClient
@@ -50,6 +51,96 @@ async function assertTaskPeriodOpen(taskId: string, tx: TaskTransaction) {
   if (rows[0]?.status === 'closed') {
     throw new TaskServiceError('CONFLICT', 'Kapalı dönemde görev değişikliği yapılamaz')
   }
+}
+
+export async function createTask(input: { actor: SessionUser; data: CreateTaskInput }) {
+  return db.$transaction(async (tx) => {
+    const assistant = await tx.researchAssistant.findUnique({ where: { id: input.data.assistantId } })
+    if (!assistant) throw new TaskServiceError('NOT_FOUND', 'Kullanıcı bulunamadı')
+
+    assertDepartmentAccess(input.actor, assistant.department as SessionUser['department'])
+    const manager = isManager(input.actor)
+    if (!manager && assistant.id !== input.actor.id) {
+      throw new TaskServiceError('FORBIDDEN', 'Başka bir kullanıcı adına görev bildirilemez')
+    }
+
+    const category = input.data.categoryId
+      ? await tx.pointCategory.findUnique({ where: { id: input.data.categoryId } })
+      : null
+    if (input.data.categoryId && (!category || !category.isActive)) {
+      throw new TaskServiceError('BAD_REQUEST', 'Geçerli ve aktif bir kategori seçin')
+    }
+
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${assistant.id}))`
+    const maxTask = await tx.task.findFirst({
+      where: { assistantId: assistant.id },
+      orderBy: { number: 'desc' },
+      select: { number: true },
+    })
+
+    const assigning = manager && input.data.kind !== 'report'
+    const status = assigning ? 'assigned' : 'pending'
+    const points = category?.points ?? input.data.points
+    const task = await tx.task.create({
+      data: {
+        number: (maxTask?.number || 0) + 1,
+        description: input.data.description,
+        hoursWorked: input.data.hoursWorked || null,
+        date: new Date(`${input.data.date}T00:00:00.000Z`),
+        points,
+        status,
+        source: assigning ? 'temsilci_assigned' : 'external',
+        notes: input.data.notes || null,
+        assignedBy: manager ? input.actor.id : null,
+        assistantId: assistant.id,
+        categoryId: category?.id || null,
+      },
+      include: { assistant: true, category: true },
+    })
+
+    if (status === 'pending') {
+      const managers = await tx.researchAssistant.findMany({
+        where: {
+          isActive: true,
+          OR: [
+            { role: { in: ['admin', 'baskan'] }, department: assistant.department },
+            { role: 'dekan' },
+          ],
+        },
+        select: { id: true },
+      })
+      await Promise.all(managers.map((recipient) => tx.notification.create({
+        data: {
+          title: 'Onay Bekleyen Görev',
+          message: `${assistant.name} yeni görev gönderdi: "${task.description}". Puan: ${points || 'Belirsiz'}`,
+          type: 'task_pending',
+          assistantId: recipient.id,
+          relatedId: task.id,
+        },
+      })))
+      await tx.notification.create({
+        data: {
+          title: 'Görev Gönderildi',
+          message: `"${task.description}" göreviniz temsilci onayına gönderildi.`,
+          type: 'info',
+          assistantId: assistant.id,
+          relatedId: task.id,
+        },
+      })
+    } else {
+      await tx.notification.create({
+        data: {
+          title: 'Yeni Görev Atandı - Yanıt Bekleniyor',
+          message: `"${task.description}" görevi size atandı. Puan: ${points}.`,
+          type: 'task_assigned',
+          assistantId: assistant.id,
+          relatedId: task.id,
+        },
+      })
+    }
+
+    return task
+  })
 }
 
 export async function approveTask(input: {

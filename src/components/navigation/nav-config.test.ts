@@ -12,6 +12,7 @@ describe('role-aware navigation', () => {
   it('keeps management destinations away from research assistants', () => {
     expect(getNavigationItems(user('user')).map((item) => item.href)).toEqual([
       '/dashboard',
+      '/points',
       '/tasks',
       '/calendar',
       '/announcements',

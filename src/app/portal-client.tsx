@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { AppShell } from '@/components/app-shell/app-shell'
+import { useOptionalPortalContext } from '@/components/app-shell/portal-context'
 import { usePortalSession } from '@/components/app-shell/portal-session'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent } from '@/components/ui/tabs'
@@ -152,6 +153,7 @@ export default function Home({
   const router = useRouter()
   const pathname = usePathname()
   const portalSession = usePortalSession()
+  const portalContext = useOptionalPortalContext()
   const [assistants, setAssistants] = useState<ResearchAssistant[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
   const [categories, setCategories] = useState<PointCategory[]>([])
@@ -189,7 +191,7 @@ export default function Home({
     } catch { return null }
   })
   // Normalize any legacy short code to the canonical one used throughout.
-  const viewDept = normalizeDepartment(selectedDept)
+  const viewDept = portalContext?.department || normalizeDepartment(selectedDept)
   const deptInfo = viewDept ? DEPARTMENTS[viewDept] : null
 
   useEffect(() => {
@@ -294,9 +296,10 @@ export default function Home({
     if (!viewDept) { setLoading(false); return }
     setLoading(true)
     const q = `?department=${viewDept}`
+    const taskQuery = `${q}&pageSize=50`
     try {
       const [assRes, taskRes, catRes, examRes, notifRes, schedRes, pendRes, annRes] = await Promise.all([
-        fetch(`/api/assistants${q}`), fetch(`/api/tasks${q}`), fetch('/api/categories'),
+        fetch(`/api/assistants${q}`), fetch(`/api/tasks${taskQuery}`), fetch('/api/categories'),
         fetch(`/api/exams${q}`),
         fetch(currentUser ? `/api/notifications?assistantId=${currentUser.id}` : '/api/notifications?assistantId=__none__'),
         fetch(`/api/weekly-schedule${q}`),
@@ -318,7 +321,15 @@ export default function Home({
         return
       }
       setAssistants(await jsonArray<ResearchAssistant>(assRes))
-      setTasks(await jsonArray<Task>(taskRes))
+      const firstTaskPage = await taskRes.json() as { items?: Task[]; totalPages?: number }
+      const remainingTaskPages = firstTaskPage.totalPages && firstTaskPage.totalPages > 1
+        ? await Promise.all(Array.from({ length: firstTaskPage.totalPages - 1 }, async (_, index) => {
+            const response = await fetch(`/api/tasks${taskQuery}&page=${index + 2}`)
+            if (!response.ok) throw new Error('Görev sayfası alınamadı')
+            return response.json() as Promise<{ items?: Task[] }>
+          }))
+        : []
+      setTasks([...(firstTaskPage.items || []), ...remainingTaskPages.flatMap((page) => page.items || [])])
       setCategories(await jsonArray<PointCategory>(catRes))
       setExams(await jsonArray<Exam>(examRes))
       const notifData = await notifRes.json()
@@ -875,6 +886,7 @@ export default function Home({
     <AppShell
       user={currentUser}
       department={viewDept || currentUser.department}
+      embedded={Boolean(portalContext)}
       utilityActions={(
         <>
             {isDekan && (

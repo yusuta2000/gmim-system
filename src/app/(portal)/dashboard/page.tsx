@@ -1,5 +1,5 @@
-import Home from '@/app/portal-client'
+import { DashboardScreen } from '@/features/dashboard/components/dashboard-screen'
 
 export default function DashboardPage() {
-  return <Home initialView="dashboard" />
+  return <DashboardScreen />
 }

@@ -4,7 +4,9 @@ vi.mock('@/lib/db', () => ({
   db: {
     $transaction: vi.fn(async (callback) => callback(db)),
     $queryRaw: vi.fn(),
+    $executeRaw: vi.fn(),
     task: {
+      count: vi.fn(),
       findMany: vi.fn(),
       findFirst: vi.fn(),
       findUnique: vi.fn(),
@@ -22,6 +24,9 @@ vi.mock('@/lib/db', () => ({
     },
     notification: {
       create: vi.fn(),
+    },
+    pointCategory: {
+      findUnique: vi.fn(),
     },
   },
 }))
@@ -48,6 +53,7 @@ import { DELETE as deleteTask } from '@/app/api/delete-task/route'
 import type { SessionUser } from '@/lib/auth/session-repository'
 
 const task = db.task as unknown as {
+  count: ReturnType<typeof vi.fn>
   findMany: ReturnType<typeof vi.fn>
   findFirst: ReturnType<typeof vi.fn>
   findUnique: ReturnType<typeof vi.fn>
@@ -59,6 +65,7 @@ const task = db.task as unknown as {
   deleteMany: ReturnType<typeof vi.fn>
 }
 const queryRaw = db.$queryRaw as unknown as ReturnType<typeof vi.fn>
+const executeRaw = db.$executeRaw as unknown as ReturnType<typeof vi.fn>
 const researchAssistant = db.researchAssistant as unknown as {
   findUnique: ReturnType<typeof vi.fn>
   findMany: ReturnType<typeof vi.fn>
@@ -66,6 +73,9 @@ const researchAssistant = db.researchAssistant as unknown as {
 }
 const notification = db.notification as unknown as {
   create: ReturnType<typeof vi.fn>
+}
+const pointCategory = db.pointCategory as unknown as {
+  findUnique: ReturnType<typeof vi.fn>
 }
 const requireSessionMock = requireSession as unknown as ReturnType<typeof vi.fn>
 
@@ -102,6 +112,7 @@ describe('task routes', () => {
     vi.clearAllMocks()
     requireSessionMock.mockResolvedValue(adminUser)
     task.findMany.mockResolvedValue([baseTask])
+    task.count.mockResolvedValue(1)
     task.findFirst.mockResolvedValue({ number: 3 })
     task.findUnique.mockResolvedValue(baseTask)
     task.findUniqueOrThrow.mockResolvedValue(baseTask)
@@ -111,10 +122,12 @@ describe('task routes', () => {
     task.delete.mockResolvedValue({})
     task.deleteMany.mockResolvedValue({ count: 1 })
     queryRaw.mockResolvedValue([{ exists: false }])
+    executeRaw.mockResolvedValue(1)
     researchAssistant.findUnique.mockResolvedValue(targetAssistant)
     researchAssistant.findMany.mockResolvedValue([{ id: 'manager-1' }])
     researchAssistant.update.mockResolvedValue({})
     notification.create.mockResolvedValue({})
+    pointCategory.findUnique.mockResolvedValue({ id: 'category-1', name: 'Category', points: 5, isActive: true })
   })
 
   it('tasks GET rejects unauthenticated requests', async () => {
@@ -134,7 +147,48 @@ describe('task routes', () => {
     expect(response.status).toBe(200)
     expect(task.findMany).toHaveBeenCalledWith(expect.objectContaining({
       where: { assistantId: 'user-1' },
+      skip: 0,
+      take: 20,
+      orderBy: [{ date: 'desc' }, { id: 'desc' }],
     }))
+    await expect(response.json()).resolves.toEqual({
+      items: [baseTask],
+      page: 1,
+      pageSize: 20,
+      total: 1,
+      totalPages: 1,
+    })
+  })
+
+  it('tasks GET applies manager filters and bounded pagination', async () => {
+    const response = await getTasks(new Request(
+      'http://localhost/api/tasks?department=GMIM&page=2&pageSize=10&search=rapor&status=approved&assistantId=target-1&categoryId=category-1&dateFrom=2026-01-01&dateTo=2026-01-31',
+    ))
+
+    expect(response.status).toBe(200)
+    expect(task.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: {
+        assistant: { department: 'GMIM' },
+        assistantId: 'target-1',
+        categoryId: 'category-1',
+        status: 'approved',
+        description: { contains: 'rapor', mode: 'insensitive' },
+        date: {
+          gte: new Date('2026-01-01T00:00:00.000Z'),
+          lte: new Date('2026-01-31T23:59:59.999Z'),
+        },
+      },
+      skip: 10,
+      take: 10,
+    }))
+  })
+
+  it('tasks GET rejects invalid filter values without querying the database', async () => {
+    const response = await getTasks(new Request('http://localhost/api/tasks?page=0&pageSize=500&status=unknown'))
+
+    expect(response.status).toBe(400)
+    await expect(response.json()).resolves.toEqual(expect.objectContaining({ error: 'VALIDATION_ERROR' }))
+    expect(task.findMany).not.toHaveBeenCalled()
   })
 
   it('tasks GET rejects cross-department access for department managers', async () => {
@@ -164,6 +218,21 @@ describe('task routes', () => {
         assistantId: 'target-1',
         status: 'assigned',
       }),
+    }))
+    expect(executeRaw).toHaveBeenCalled()
+    expect(db.$transaction).toHaveBeenCalled()
+  })
+
+  it('tasks POST derives category points on the server', async () => {
+    const response = await createTask(jsonRequest('/api/tasks', {
+      ...createBody,
+      categoryId: 'category-1',
+      points: 999,
+    }))
+
+    expect(response.status).toBe(201)
+    expect(task.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ categoryId: 'category-1', points: 5 }),
     }))
   })
 

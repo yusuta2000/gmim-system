@@ -3,6 +3,7 @@ import type { SessionUser } from '@/lib/auth/session-repository'
 export type NavigationIcon =
   | 'dashboard'
   | 'tasks'
+  | 'points'
   | 'calendar'
   | 'announcements'
   | 'people'
@@ -22,6 +23,7 @@ export type NavigationItem = {
 
 const workItems: NavigationItem[] = [
   { id: 'dashboard', label: 'Ana Sayfa', href: '/dashboard', icon: 'dashboard', section: 'work', mobile: 'primary' },
+  { id: 'points', label: 'Puan Tablosu', href: '/points', icon: 'points', section: 'work', mobile: 'more' },
   { id: 'tasks', label: 'Görevler', href: '/tasks', icon: 'tasks', section: 'work', mobile: 'primary' },
   { id: 'calendar', label: 'Takvim', href: '/calendar', icon: 'calendar', section: 'work', mobile: 'primary' },
   { id: 'announcements', label: 'Duyurular', href: '/announcements', icon: 'announcements', section: 'work', mobile: 'more' },

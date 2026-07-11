@@ -1,182 +1,114 @@
-import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { requireSession, UnauthenticatedError } from '@/lib/auth/session';
-import type { SessionUser } from '@/lib/auth/session-repository';
-import { assertDepartmentAccess } from '@/lib/authorization/department';
-import { AuthorizationError } from '@/lib/authorization/errors';
-import { requireRole } from '@/lib/authorization/roles';
+import type { Prisma } from '@prisma/client'
+import { NextResponse } from 'next/server'
+import { db } from '@/lib/db'
+import { requireSession, UnauthenticatedError } from '@/lib/auth/session'
+import type { SessionUser } from '@/lib/auth/session-repository'
+import { assertDepartmentAccess } from '@/lib/authorization/department'
+import { AuthorizationError } from '@/lib/authorization/errors'
+import { createTaskSchema, taskListQuerySchema } from '@/features/tasks/schemas'
+import { createTask } from '@/features/tasks/server/task-service'
+import { TaskServiceError, taskErrorStatus } from '@/features/tasks/server/errors'
 
 function isManager(user: SessionUser) {
-  return user.role === 'admin' || user.role === 'dekan' || user.role === 'baskan';
+  return user.role === 'admin' || user.role === 'dekan' || user.role === 'baskan'
 }
+
+const taskListSelect = {
+  id: true,
+  number: true,
+  description: true,
+  hoursWorked: true,
+  date: true,
+  points: true,
+  status: true,
+  source: true,
+  notes: true,
+  assistantId: true,
+  categoryId: true,
+  createdAt: true,
+  assistant: {
+    select: { id: true, name: true, department: true, totalPoints: true, isActive: true },
+  },
+  category: {
+    select: { id: true, name: true, points: true },
+  },
+} satisfies Prisma.TaskSelect
 
 export async function GET(request: Request) {
   try {
-    const user = await requireSession();
-    const { searchParams } = new URL(request.url);
-    const department = (searchParams.get('department') || user.department) as SessionUser['department'];
-    assertDepartmentAccess(user, department);
+    const user = await requireSession()
+    const { searchParams } = new URL(request.url)
+    const parsed = taskListQuerySchema.safeParse(Object.fromEntries(searchParams))
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'VALIDATION_ERROR', issues: parsed.error.flatten().fieldErrors }, { status: 400 })
+    }
 
-    const tasks = await db.task.findMany({
-      where: isManager(user) ? { assistant: { department } } : { assistantId: user.id },
-      orderBy: { date: 'desc' },
-      include: {
-        assistant: true,
-        category: true,
-      },
-    });
-    return NextResponse.json(tasks);
+    const query = parsed.data
+    const department = query.department || user.department
+    assertDepartmentAccess(user, department)
+    const manager = isManager(user)
+    const where: Prisma.TaskWhereInput = {
+      ...(manager ? { assistant: { department } } : { assistantId: user.id }),
+      ...(manager && query.assistantId ? { assistantId: query.assistantId } : {}),
+      ...(query.categoryId ? { categoryId: query.categoryId } : {}),
+      ...(query.status ? { status: query.status } : {}),
+      ...(query.search ? { description: { contains: query.search, mode: 'insensitive' } } : {}),
+      ...(query.dateFrom || query.dateTo ? {
+        date: {
+          ...(query.dateFrom ? { gte: new Date(`${query.dateFrom}T00:00:00.000Z`) } : {}),
+          ...(query.dateTo ? { lte: new Date(`${query.dateTo}T23:59:59.999Z`) } : {}),
+        },
+      } : {}),
+    }
+
+    const [items, total] = await Promise.all([
+      db.task.findMany({
+        where,
+        orderBy: [{ date: 'desc' }, { id: 'desc' }],
+        skip: (query.page - 1) * query.pageSize,
+        take: query.pageSize,
+        select: taskListSelect,
+      }),
+      db.task.count({ where }),
+    ])
+
+    return NextResponse.json({
+      items,
+      page: query.page,
+      pageSize: query.pageSize,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / query.pageSize)),
+    })
   } catch (error) {
-    if (error instanceof UnauthenticatedError) {
-      return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
-    }
-    if (error instanceof AuthorizationError) {
-      return NextResponse.json({ error: error.code }, { status: 403 });
-    }
-
-    console.error('Error fetching tasks:', error);
-    return NextResponse.json({ error: 'Failed to fetch tasks' }, { status: 500 });
+    return taskRouteError(error, 'Error fetching tasks')
   }
 }
 
 export async function POST(request: Request) {
   try {
-    const user = await requireSession();
-    const body = await request.json();
-    const { description, hoursWorked, date, assistantId, categoryId, points, source, notes } = body;
-
-    if (!description || !date || !assistantId) {
-      return NextResponse.json({ error: 'Eksik bilgi' }, { status: 400 });
+    const user = await requireSession()
+    const parsed = createTaskSchema.safeParse(await request.json())
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'VALIDATION_ERROR', issues: parsed.error.flatten().fieldErrors }, { status: 400 })
     }
 
-    const assistant = await db.researchAssistant.findUnique({ where: { id: assistantId } });
-    if (!assistant) {
-      return NextResponse.json({ error: 'Kullanıcı bulunamadı' }, { status: 404 });
-    }
-    assertDepartmentAccess(user, assistant.department as SessionUser['department']);
-    if (!isManager(user) && assistantId !== user.id) {
-      return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 });
-    }
-
-    // Get the max task number for this assistant
-    const maxTask = await db.task.findFirst({
-      where: { assistantId },
-      orderBy: { number: 'desc' },
-      select: { number: true },
-    });
-    const nextNumber = (maxTask?.number || 0) + 1;
-
-    // Determine status based on source:
-    // - If submitted by the ar.gör themselves (self-reported): PENDING (needs temsilci approval)
-    // - If assigned by temsilci/manager: ASSIGNED (ar.gör must accept or reject)
-    // - If auto-assigned (exam supervisor): APPROVED directly
-    // - If imported: APPROVED directly
-    let status = 'pending';
-    const taskSource = source || 'external';
-    if (isManager(user) && (source === 'auto_assigned' || source === 'import')) {
-      status = 'approved';
-    } else if (isManager(user) && source === 'temsilci_assigned') {
-      status = 'assigned'; // ar.gör must accept/reject
-    } else {
-      // Self-reported by ar.gör → needs approval
-      status = 'pending';
-    }
-
-    const task = await db.task.create({
-      data: {
-        number: nextNumber,
-        description,
-        hoursWorked: hoursWorked || null,
-        date: new Date(date),
-        points: points || 0,
-        status,
-        source: taskSource,
-        notes: notes || null,
-        assignedBy: isManager(user) ? user.id : null,
-        assistantId,
-        categoryId: categoryId || null,
-      },
-      include: {
-        assistant: true,
-        category: true,
-      },
-    });
-
-    // Only add points immediately if approved
-    if (status === 'approved' && points > 0) {
-      await db.researchAssistant.update({
-        where: { id: assistantId },
-        data: { totalPoints: { increment: points } },
-      });
-    }
-
-    // Create notification
-    if (status === 'pending') {
-      // Notify managers of this task's department (admin/baskan) plus the faculty-wide dekan
-      const managers = await db.researchAssistant.findMany({
-        where: {
-          isActive: true,
-          OR: [
-            { role: { in: ['admin', 'baskan'] }, department: task.assistant.department },
-            { role: 'dekan' },
-          ],
-        },
-      });
-      for (const m of managers) {
-        await db.notification.create({
-          data: {
-            title: 'Onay Bekleyen Görev',
-            message: `${task.assistant.name} yeni görev gönderdi: "${description}". Puan: ${points || 'Belirsiz'}`,
-            type: 'task_pending',
-            assistantId: m.id,
-            relatedId: task.id,
-          },
-        });
-      }
-      // Also notify the ar.gör that their task is submitted
-      await db.notification.create({
-        data: {
-          title: 'Görev Gönderildi',
-          message: `"${description}" göreviniz temsilci onayına gönderildi. Onaylandıktan sonra puan eklenecektir.`,
-          type: 'info',
-          assistantId,
-          relatedId: task.id,
-        },
-      });
-    } else if (status === 'assigned') {
-      // Notify the ar.gör they need to accept/reject
-      await db.notification.create({
-        data: {
-          title: 'Yeni Görev Atandı - Yanıt Bekleniyor',
-          message: `"${description}" görevi size atandı. Puan: ${points}. Görevler sekmesinden kabul edebilir veya reddedebilirsiniz.`,
-          type: 'task_assigned',
-          assistantId,
-          relatedId: task.id,
-        },
-      });
-    } else {
-      // Approved directly (auto-assigned or imported) - notify the assistant
-      await db.notification.create({
-        data: {
-          title: 'Yeni Görev',
-          message: `"${description}" görevi eklendi. Puan: ${points}`,
-          type: 'task_assigned',
-          assistantId,
-          relatedId: task.id,
-        },
-      });
-    }
-
-    return NextResponse.json(task, { status: 201 });
+    const task = await createTask({ actor: user, data: parsed.data })
+    return NextResponse.json(task, { status: 201 })
   } catch (error) {
-    if (error instanceof UnauthenticatedError) {
-      return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
-    }
-    if (error instanceof AuthorizationError) {
-      return NextResponse.json({ error: error.code }, { status: 403 });
-    }
-
-    console.error('Error creating task:', error);
-    return NextResponse.json({ error: 'Failed to create task' }, { status: 500 });
+    return taskRouteError(error, 'Error creating task')
   }
+}
+
+function taskRouteError(error: unknown, logMessage: string) {
+  if (error instanceof UnauthenticatedError) {
+    return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 })
+  }
+  if (error instanceof AuthorizationError) {
+    return NextResponse.json({ error: error.code }, { status: 403 })
+  }
+  if (error instanceof TaskServiceError) {
+    return NextResponse.json({ error: error.code, message: error.message }, { status: taskErrorStatus(error) })
+  }
+  console.error(logMessage, error)
+  return NextResponse.json({ error: 'SERVER_ERROR' }, { status: 500 })
 }
