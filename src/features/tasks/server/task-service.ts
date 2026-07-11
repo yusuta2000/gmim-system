@@ -3,9 +3,8 @@ import { db } from '@/lib/db'
 import type { SessionUser } from '@/lib/auth/session-repository'
 import { assertDepartmentAccess } from '@/lib/authorization/department'
 import { TaskServiceError } from './errors'
-import { PeriodServiceError, assertPeriodAllowsMutation } from '@/features/periods/server/period-service'
 
-type TaskWithAssistant = Prisma.TaskGetPayload<{ include: { assistant: true; category: true; period: true } }>
+type TaskWithAssistant = Prisma.TaskGetPayload<{ include: { assistant: true; category: true } }>
 type TaskTransaction = Prisma.TransactionClient
 
 function isManager(user: SessionUser) {
@@ -15,23 +14,12 @@ function isManager(user: SessionUser) {
 async function getTaskForMutation(client: Pick<TaskTransaction, 'task'>, taskId: string) {
   const task = await client.task.findUnique({
     where: { id: taskId },
-    include: { assistant: true, category: true, period: true },
+    include: { assistant: true, category: true },
   })
   if (!task) {
     throw new TaskServiceError('NOT_FOUND', 'Görev bulunamadı')
   }
   return task
-}
-
-async function assertTaskPeriodOpen(periodId: string | null | undefined, tx: TaskTransaction) {
-  try {
-    await assertPeriodAllowsMutation(periodId, tx)
-  } catch (error) {
-    if (error instanceof PeriodServiceError) {
-      throw new TaskServiceError(error.code === 'CONFLICT' ? 'CONFLICT' : 'NOT_FOUND', error.message)
-    }
-    throw error
-  }
 }
 
 function assertTaskDepartment(user: SessionUser, task: TaskWithAssistant) {
@@ -57,7 +45,6 @@ export async function approveTask(input: {
   return db.$transaction(async (tx) => {
     const task = await getTaskForMutation(tx, input.taskId)
     assertTaskDepartment(input.reviewer, task)
-    await assertTaskPeriodOpen(task.periodId, tx)
 
     const newStatus = input.action === 'approve' ? 'approved' : 'rejected'
     const updated = await tx.task.updateMany({
@@ -105,7 +92,6 @@ export async function respondToTask(input: {
 
   return db.$transaction(async (tx) => {
     const task = await getTaskForMutation(tx, input.taskId)
-    await assertTaskPeriodOpen(task.periodId, tx)
     if (task.assistantId !== input.responder.id) {
       throw new TaskServiceError('FORBIDDEN', 'Bu göreve yanıt verme yetkiniz yok')
     }
@@ -162,7 +148,6 @@ export async function deleteTask(input: { taskId: string; requester: SessionUser
   await db.$transaction(async (tx) => {
     const task = await getTaskForMutation(tx, input.taskId)
     assertTaskDepartment(input.requester, task)
-    await assertTaskPeriodOpen(task.periodId, tx)
 
     const pointsToRemove = approvedPoints(task)
     if (pointsToRemove > 0) {

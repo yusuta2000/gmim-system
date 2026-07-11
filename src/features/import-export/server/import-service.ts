@@ -213,7 +213,7 @@ export async function rollbackImportBatch(input: {
   return db.$transaction(async (tx) => {
     const batch = await tx.importBatch.findUnique({
       where: { id: input.batchId },
-      include: { rows: { include: { task: true } } },
+      include: { rows: true },
     })
     if (!batch) {
       throw new ImportServiceError('BAD_REQUEST', 'Import batch bulunamadı')
@@ -222,24 +222,13 @@ export async function rollbackImportBatch(input: {
       return { rolledBack: 0 }
     }
 
-    let rolledBack = 0
-    for (const row of batch.rows) {
-      if (!row.task) continue
-      if (row.task.status === 'approved' && row.task.points > 0) {
-        await tx.researchAssistant.update({
-          where: { id: row.task.assistantId },
-          data: { totalPoints: { decrement: row.task.points } },
-        })
-      }
-      await tx.task.delete({ where: { id: row.task.id } })
-      rolledBack += 1
-    }
+    throw new ImportServiceError('BAD_REQUEST', 'Import batch rollback migration uygulanmadan kullanılamaz')
 
     await tx.importBatch.update({
       where: { id: input.batchId },
       data: { status: 'rolled_back', rolledBackAt: new Date() },
     })
 
-    return { rolledBack }
+    return { rolledBack: 0 }
   })
 }

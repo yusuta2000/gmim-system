@@ -5,7 +5,6 @@ import type { SessionUser } from '@/lib/auth/session-repository';
 import { assertDepartmentAccess } from '@/lib/authorization/department';
 import { AuthorizationError } from '@/lib/authorization/errors';
 import { requireRole } from '@/lib/authorization/roles';
-import type { TaskSource, TaskStatus } from '@prisma/client';
 
 function isManager(user: SessionUser) {
   return user.role === 'admin' || user.role === 'dekan' || user.role === 'baskan';
@@ -72,8 +71,8 @@ export async function POST(request: Request) {
     // - If assigned by temsilci/manager: ASSIGNED (ar.gör must accept or reject)
     // - If auto-assigned (exam supervisor): APPROVED directly
     // - If imported: APPROVED directly
-    let status: TaskStatus = 'pending';
-    const taskSource = (source || 'external') as TaskSource;
+    let status = 'pending';
+    const taskSource = source || 'external';
     if (isManager(user) && (source === 'auto_assigned' || source === 'import')) {
       status = 'approved';
     } else if (isManager(user) && source === 'temsilci_assigned') {

@@ -11,56 +11,17 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-enum Department {
-  GMIM
-  DUIM
-}
-
-enum Role {
-  user
-  admin
-  baskan
-  dekan
-}
-
-enum TaskStatus {
-  pending
-  assigned
-  approved
-  rejected
-  archived
-}
-
-enum TaskSource {
-  external
-  temsilci_assigned
-  auto_assigned
-  import
-}
-
-enum AcademicPeriodStatus {
-  open
-  closed
-}
-
-enum ImportBatchStatus {
-  previewed
-  committed
-  rolled_back
-  failed
-}
-
 model ResearchAssistant {
   id        String   @id @default(cuid())
   name      String
   email     String   @unique
   phone     String?
   faculty   String   @default("DZ")
-  department Department @default(GMIM)
+  department String  @default("GMIM")
   totalPoints Int     @default(0)
   order     Int      @default(0)
   isActive  Boolean  @default(true)
-  role      Role     @default(user)
+  role      String   @default("user")
   password  String?
   passwordHash String?
   createdAt DateTime @default(now())
@@ -96,8 +57,8 @@ model Task {
   hoursWorked String?
   date        DateTime
   points      Int
-  status      TaskStatus @default(pending)
-  source      TaskSource @default(external)
+  status      String   @default("pending")
+  source      String   @default("external")
   assignedBy  String?
   notes       String?
   createdAt   DateTime @default(now())
@@ -107,13 +68,9 @@ model Task {
   assistant   ResearchAssistant @relation(fields: [assistantId], references: [id])
   categoryId  String?
   category    PointCategory? @relation(fields: [categoryId], references: [id])
-  periodId    String?
-  period      AcademicPeriod? @relation(fields: [periodId], references: [id])
-  importRows  ImportBatchRow[]
 
   @@index([assistantId, status])
   @@index([date])
-  @@index([periodId])
 }
 
 model PermanentDuty {
@@ -136,7 +93,7 @@ model Exam {
   date          DateTime
   day           String
   timeSlot      String
-  department    Department @default(GMIM)
+  department    String   @default("GMIM")
   classroom     String?
   requiredSupervisors Int  @default(1)
   notes         String?
@@ -187,7 +144,7 @@ model Announcement {
   id          String   @id @default(cuid())
   title       String
   content     String
-  department  Department @default(GMIM)
+  department  String   @default("GMIM")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -237,16 +194,14 @@ model ImportLog {
 model AcademicPeriod {
   id          String   @id @default(cuid())
   name        String
-  department  Department
+  department  String
   startsAt    DateTime
   endsAt      DateTime?
-  status      AcademicPeriodStatus @default(open)
+  status      String   @default("open")
   closedAt    DateTime?
   closedById  String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-
-  tasks       Task[]
 
   @@unique([department, name])
   @@index([department, status])
@@ -257,8 +212,8 @@ model ImportBatch {
   fileName    String
   fileHash    String
   importType  String
-  department  Department
-  status      ImportBatchStatus @default(previewed)
+  department  String
+  status      String   @default("previewed")
   createdById String
   committedAt DateTime?
   rolledBackAt DateTime?
@@ -282,8 +237,6 @@ model ImportBatchRow {
   createdAt   DateTime @default(now())
 
   batch       ImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
-  task        Task? @relation(fields: [taskId], references: [id], onDelete: SetNull)
-
   @@index([batchId])
   @@index([taskId])
 }
