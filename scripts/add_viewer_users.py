@@ -3,7 +3,10 @@ from psycopg2.extras import RealDictCursor
 import os
 
 # Neon connection string
-DATABASE_URL = "postgresql://neondb_owner:npg_Ycj6pC5wAJlb@ep-divine-dream-atgi8kfb-pooler.c-9.us-east-1.aws.neon.tech/neondb?sslmode=require"
+DATABASE_URL = os.environ.get("DATABASE_URL")
+
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL environment variable is required")
 
 def add_viewer_users():
     conn = psycopg2.connect(DATABASE_URL)

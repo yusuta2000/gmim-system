@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Fast bulk import GMIM Excel data into Neon PostgreSQL"""
-import glob, datetime, psycopg2
+import glob, datetime, os, psycopg2
 
 files = glob.glob('/home/z/my-project/upload/*.xlsx')
 fpath = [f for f in files if '09.06' in f][0]
@@ -9,7 +9,11 @@ print(f"Dosya: {fpath.split('/')[-1]}")
 import openpyxl
 wb = openpyxl.load_workbook(fpath, data_only=True)
 
-conn = psycopg2.connect('postgresql://neondb_owner:npg_Ycj6pC5wAJlb@ep-divine-dream-atgi8kfb-pooler.c-9.us-east-1.aws.neon.tech/neondb?sslmode=require')
+database_url = os.environ.get('DATABASE_URL')
+if not database_url:
+    raise RuntimeError('DATABASE_URL environment variable is required')
+
+conn = psycopg2.connect(database_url)
 conn.autocommit = False
 cur = conn.cursor()
 

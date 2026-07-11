@@ -173,8 +173,8 @@ Otomatik/içe aktarma → approved (direkt)
 Vercel Dashboard → Project → Settings → Environment Variables:
 
 ```
-DATABASE_URL=postgresql://neondb_owner:npg_Ycj6pC5wAJlb@ep-divine-dream-atgi8kfb-pooler.c-9.us-east-1.aws.neon.tech/neondb?sslmode=require
-DIRECT_URL=postgresql://neondb_owner:npg_Ycj6pC5wAJlb@ep-divine-dream-atgi8kfb.c-9.us-east-1.aws.neon.tech/neondb?sslmode=require
+DATABASE_URL=postgresql://USER:PASSWORD@HOST/DATABASE?sslmode=require
+DIRECT_URL=postgresql://USER:PASSWORD@HOST/DATABASE?sslmode=require
 ZAI_API_KEY=[z-ai-web-dev-sdk API anahtarı]
 ```
 
@@ -206,9 +206,9 @@ cd gmim-system
 # 2. Bağımlılıkları yükle
 bun install  # veya npm install
 
-# 3. .env dosyası oluştur (lokal test için)
-echo 'DATABASE_URL=postgresql://neondb_owner:npg_Ycj6pC5wAJlb@ep-divine-dream-atgi8kfb-pooler.c-9.us-east-1.aws.neon.tech/neondb?sslmode=require' > .env
-echo 'DIRECT_URL=postgresql://neondb_owner:npg_Ycj6pC5wAJlb@ep-divine-dream-atgi8kfb.c-9.us-east-1.aws.neon.tech/neondb?sslmode=require' >> .env
+# 3. Lokal ortam dosyasını oluştur
+cp .env.example .env
+# .env içindeki placeholder'ları kendi yetkili bağlantı bilgilerinizle doldurun.
 
 # 4. Prisma client oluştur
 npx prisma generate
@@ -405,12 +405,8 @@ Eğer Vercel build başarısız olursa:
 - Environment Variables: Dashboard → Settings → Environment Variables
 
 ### Neon (PostgreSQL)
-- Project: neondb
-- Host: ep-divine-dream-atgi8kfb-pooler.c-9.us-east-1.aws.neon.tech
-- Database: neondb
-- User: neondb_owner
 - Dashboard: https://console.neon.tech
-- Bağlantı: Neon dashboard'dan bağlantı string'ini alın
+- Bağlantı: Yetkili Neon projesinden bağlantı string'ini alın; host, veritabanı ve kullanıcı bilgilerini repoya yazmayın.
 
 ---
 

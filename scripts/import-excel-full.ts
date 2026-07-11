@@ -5,8 +5,11 @@ import os from 'os'
 
 # Add project root to path
 sys.path.insert(0, '/home/z/my-project')
-os.environ['DATABASE_URL'] = 'postgresql://neondb_owner:npg_Ycj6pC5wAJlb@ep-divine-dream-atgi8kfb-pooler.c-9.us-east-1.aws.neon.tech/neondb?channel_binding=require&connect_timeout=15&sslmode=require'
-os.environ['DIRECT_URL'] = 'postgresql://neondb_owner:npg_Ycj6pC5wAJlb@ep-divine-dream-atgi8kfb.c-9.us-east-1.aws.neon.tech/neondb?sslmode=require'
+
+if not os.environ.get('DATABASE_URL'):
+    raise RuntimeError('DATABASE_URL environment variable is required')
+if not os.environ.get('DIRECT_URL'):
+    raise RuntimeError('DIRECT_URL environment variable is required')
 
 from prisma import Prisma
 
