@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
@@ -21,7 +22,7 @@ import {
   Clock, AlertCircle, UserCheck, Award, TrendingDown, Zap, Ship,
   CalendarDays, ChevronRight, Sparkles, Send, ArrowUpRight, Target,
   Bell, BellRing, Upload, FileSpreadsheet, LogIn, LogOut, Shield,
-  Info, Trash2, XCircle, Check, RotateCcw, Settings2, Megaphone, MessageSquare
+  Info, Trash2, XCircle, Check, RotateCcw, Settings2, Megaphone, MessageSquare, ChevronDown
 } from 'lucide-react'
 
 interface ResearchAssistant {
@@ -97,6 +98,7 @@ export default function Home() {
   const [pendingTasks, setPendingTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('dashboard')
+  const tabsScrollRef = useRef<HTMLDivElement>(null)
 
   // Auth - localStorage'dan geri yükle
   const [currentUser, setCurrentUser] = useState<ResearchAssistant | null>(() => {
@@ -219,6 +221,16 @@ export default function Home() {
   }, [viewDept, currentUser])
 
   useEffect(() => { fetchData() }, [fetchData])
+
+  // Aktif sekme değişince onu yatay şeritte ortaya kaydır (mobilde kaybolmasın)
+  useEffect(() => {
+    const container = tabsScrollRef.current
+    if (!container) return
+    const active = container.querySelector<HTMLElement>('[data-state="active"]')
+    if (active) {
+      active.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
+    }
+  }, [activeTab])
 
   const isAdmin = currentUser?.role === 'admin'
   const isDekan = currentUser?.role === 'dekan'
@@ -857,26 +869,52 @@ export default function Home() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <div className="overflow-x-auto">
-            <TabsList className="inline-flex w-auto min-w-full grid-cols-none gap-1 bg-slate-100 p-1 rounded-xl h-auto">
-              {[
-                { v: 'dashboard', icon: BarChart3, label: 'Puan Tablosu', short: 'Puan' },
-                { v: 'announcements', icon: Megaphone, label: 'Duyurular', short: 'Duyuru' },
-                { v: 'approvals', icon: CheckCircle2, label: 'Onaylar', short: 'Onay', badge: pendingCount, managerOnly: true },
-                { v: 'tasks', icon: ListChecks, label: 'Görevler', short: 'Görev', badge: isArGor ? tasks.filter(t => t.assistantId === currentUser?.id && t.status === 'assigned').length : 0 },
-                { v: 'exams', icon: GraduationCap, label: 'Sınavlar', short: 'Sınav' },
-                { v: 'schedule', icon: CalendarDays, label: 'Program', short: 'Prog.' },
-                { v: 'import', icon: Upload, label: 'Veri Aktar', short: 'Aktar', managerOnly: true },
-                { v: 'categories', icon: Award, label: 'Puan Baremi', short: 'Barem' },
-                { v: 'personnel', icon: Users, label: 'Personel', short: 'Kişiler' },
-              ].filter(tab => !tab.managerOnly || isManager).map(tab => (
-                <TabsTrigger key={tab.v} value={tab.v} className="rounded-lg text-xs sm:text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm py-2 px-3 whitespace-nowrap relative">
-                  <tab.icon className="h-4 w-4 mr-1 sm:mr-2" />
-                  <span className="hidden sm:inline">{tab.label}</span><span className="sm:hidden">{tab.short}</span>
-                  {tab.badge && tab.badge > 0 && <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-amber-500 text-[10px] text-white flex items-center justify-center font-bold">{tab.badge}</span>}
-                </TabsTrigger>
-              ))}
-            </TabsList>
+          {/* Kaydırılabilir sekme şeridi + kenar fade ipucu */}
+          <div className="relative">
+            <div ref={tabsScrollRef} className="overflow-x-auto scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <TabsList className="inline-flex w-auto min-w-full grid-cols-none gap-1 bg-slate-100 p-1 rounded-xl h-auto">
+                {[
+                  { v: 'dashboard', icon: BarChart3, label: 'Puan Tablosu', short: 'Puan' },
+                  { v: 'announcements', icon: Megaphone, label: 'Duyurular', short: 'Duyuru' },
+                  { v: 'approvals', icon: CheckCircle2, label: 'Onaylar', short: 'Onay', badge: pendingCount, managerOnly: true },
+                  { v: 'tasks', icon: ListChecks, label: 'Görevler', short: 'Görev', badge: isArGor ? tasks.filter(t => t.assistantId === currentUser?.id && t.status === 'assigned').length : 0 },
+                  { v: 'exams', icon: GraduationCap, label: 'Sınavlar', short: 'Sınav' },
+                  { v: 'schedule', icon: CalendarDays, label: 'Program', short: 'Prog.' },
+                  { v: 'personnel', icon: Users, label: 'Personel', short: 'Kişiler' },
+                ].filter(tab => !tab.managerOnly || isManager).map(tab => (
+                  <TabsTrigger key={tab.v} value={tab.v} className="rounded-lg text-xs sm:text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm py-2 px-3 whitespace-nowrap relative">
+                    <tab.icon className="h-4 w-4 mr-1 sm:mr-2" />
+                    <span className="hidden sm:inline">{tab.label}</span><span className="sm:hidden">{tab.short}</span>
+                    {tab.badge && tab.badge > 0 && <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-amber-500 text-[10px] text-white flex items-center justify-center font-bold">{tab.badge}</span>}
+                  </TabsTrigger>
+                ))}
+                {/* Düşük sıklıklı yönetim araçları tek menüde — sekme sayısını azaltır */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className={`inline-flex items-center rounded-lg py-2 px-3 whitespace-nowrap text-xs sm:text-sm transition-colors ${(activeTab === 'import' || activeTab === 'categories') ? 'bg-white shadow-sm' : 'hover:bg-white/60'}`}
+                    >
+                      <Settings2 className="h-4 w-4 mr-1 sm:mr-2" />
+                      <span className="hidden sm:inline">Yönetim</span><span className="sm:hidden">Daha</span>
+                      <ChevronDown className="h-3.5 w-3.5 ml-0.5" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-48">
+                    {isManager && (
+                      <DropdownMenuItem onClick={() => setActiveTab('import')} className={activeTab === 'import' ? 'bg-slate-100' : ''}>
+                        <Upload className="h-4 w-4 mr-2" /> Veri Aktar
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem onClick={() => setActiveTab('categories')} className={activeTab === 'categories' ? 'bg-slate-100' : ''}>
+                      <Award className="h-4 w-4 mr-2" /> Puan Baremi
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </TabsList>
+            </div>
+            {/* Kenar fade ipucu: daha fazla sekme olduğunu gösterir (mobilde) */}
+            <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-slate-100 to-transparent sm:hidden" />
           </div>
 
           {/* DASHBOARD */}
