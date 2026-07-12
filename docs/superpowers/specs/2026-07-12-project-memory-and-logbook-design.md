@@ -1,7 +1,9 @@
 # Project Memory and Logbook Design
 
-**Date:** 2026-07-12  
-**Status:** Approved design  
+**Date:** 2026-07-12
+
+**Status:** Approved design
+
 **Audience:** Project operators, developers, and AI coding sessions
 
 ## 1. Purpose
