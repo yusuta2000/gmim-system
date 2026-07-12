@@ -43,4 +43,4 @@
 - [x] Log in sequentially with all seven accounts in Chrome.
 - [x] Run role, department and six-viewport checks; keyboard-only depth remains a P08 release gate.
 - [x] Write results to `docs/testing/STAGING_E2E.md` and the program handoff.
-- [ ] Commit/push only non-secret scripts and documentation.
+- [x] Commit/push only non-secret scripts and documentation.

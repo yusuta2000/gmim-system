@@ -117,7 +117,7 @@ Before `7f31b35` was pushed to `origin/main`:
 - Database-writing scripts default to dry-run; require explicit commit/write approval.
 - GMIM operations must not mutate DUIM data, and vice versa, except for explicitly authorized dean workflows.
 
-## 2026-07-12 Closeout Update (working tree, not committed)
+## 2026-07-12 Closeout Update (committed and pushed)
 
 ### Completed repository work
 
@@ -138,23 +138,23 @@ Before `7f31b35` was pushed to `origin/main`:
 
 ### Current verification
 
-- `bun run test`: 34 files, 167 tests passed.
+- `bun run test`: 35 files, 169 tests passed.
 - `bun run typecheck`: passed.
 - `bun run lint`: passed.
 - `bun run build`: passed with Next.js `16.2.10`; 43 routes/pages generated.
 - `git diff --check`: passed.
-- No production database write, migration deployment, role change, commit or push was performed.
+- No production database write, migration deployment or role change was performed.
+- Portal closeout commits `a004de2` through `5e746c8` and staging E2E commit `59ba81f` were pushed to `origin/main`.
 
 ### Remaining external/release gates
 
-1. Commit/push remains approval-gated. Pull `origin/main` again immediately before an approved push.
-2. After deployment, repeat the six-viewport Chrome measurements against the new production bundle.
-3. Live role smoke tests still require sequential signed-in sessions for GMIM admin/chairman, DUIM admin/chairman and dean. The current Chrome profile only exposes the Fatih NACAR `user/GMIM` session; unavailable roles are not marked passed.
-4. Login/AI rate limiting is blocked on an approved shared durable store. Do not ship an in-memory Vercel limiter.
-5. Production seed/password credentials found in Git history must be treated as exposed and rotated externally; current-tree cleanup cannot revoke them.
-6. Neon credential rotation, rejection of the old credential and log review remain externally unverified.
-7. The period/constraints/import migration still requires an anonymized staging database, backup/rollback commands and separate production-write approval.
-8. Core Web Vitals remains blocked because the required Chrome DevTools MCP is not configured and the user requested no new browser-tool installation.
+1. Production deployment still needs a six-viewport recheck with a real signed-in account; the complete matrix has passed on isolated staging.
+2. Keyboard-only focus, dialog and live-region depth remains a P08 release gate.
+3. Login/AI rate limiting is blocked on an approved shared durable store. Do not ship an in-memory Vercel limiter.
+4. Production seed/password credentials found in Git history must be treated as exposed and rotated externally; current-tree cleanup cannot revoke them.
+5. Neon credential rotation, rejection of the old credential and log review remain externally unverified.
+6. The period/constraints/import migration still requires a backup-derived anonymized staging rehearsal, backup/rollback commands and separate production-write approval.
+7. Core Web Vitals remains blocked because the required Chrome DevTools MCP is not configured and the user requested no new browser-tool installation.
 
 ## 2026-07-12 Staging E2E Environment
 
