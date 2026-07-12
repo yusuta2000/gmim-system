@@ -30,6 +30,7 @@ Eski bir planın açık kutusu tamamlanmış işin yeniden yapılması için ger
 | [`project memory design`](superpowers/specs/2026-07-12-project-memory-and-logbook-design.md) | Bu belge sisteminin onaylı tasarımı | Uygulandıktan sonra arşivlenecek | Tasarım gerekçesi gerektiğinde |
 | [`project memory plan`](superpowers/plans/2026-07-12-project-memory-and-logbook.md) | Bu geçişin uygulama planı | Uygulanıyor | Geçiş tamamlanana kadar |
 | [`rate-limit contract`](superpowers/specs/2026-07-12-rate-limit-release-contract.md) | Login/AI rate-limit kabul sözleşmesi | Aktif, bloke | Dayanıklı limiter tasarlanırken |
+| [`validate-project-docs.ts`](../scripts/validate-project-docs.ts) | Belge/secret/link invariant kontrolü | Aktif | Her anlamlı dokümantasyon değişikliği kapanışında |
 | [`legacy logs`](archive/legacy-logs/ARCHIVE.md) | Eski biçimli tarihsel kayıtlar | Arşiv | Eski faz kanıtı gerektiğinde |
 | [`completed work`](archive/completed-work/ARCHIVE.md) | Uygulanmış specs/plans | Arşiv | Tarihsel tasarım/plan gerektiğinde |
 | [`legacy plans`](archive/legacy-plans/ARCHIVE.md) | Önceki untracked güvenlik/portal planları | Arşiv | Eski plan gerekçesi gerektiğinde |
@@ -43,3 +44,11 @@ Eski bir planın açık kutusu tamamlanmış işin yeniden yapılması için ger
 - `runbooks/`: Dry-run, uygulama, doğrulama, rollback ve stop koşulları olan işlemler.
 - `superpowers/specs/` ve `superpowers/plans/`: Tasarım ve uygulama niyeti; durum kanıtı değildir.
 - `archive/`: Geçerliliğini kaybetmiş fakat tarihsel değeri bulunan belgeler.
+
+## Doğrulama
+
+```powershell
+bun run docs:check
+```
+
+Komut rehber eşitliği, canonical dosyalar, index kayıtları, logbook başlıkları, archive metadata, Markdown bağlantıları, ignored local secret dosyaları ve yasak tracked credential/connection kalıplarını denetler. Hata değerini değil yalnız güvenli dosya/rule bilgisini gösterir.
