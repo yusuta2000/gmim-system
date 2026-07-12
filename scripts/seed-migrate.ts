@@ -1,26 +1,32 @@
 import { PrismaClient } from '@prisma/client';
+import { seedPasswordHash } from './lib/seed-passwords';
 
 const prisma = new PrismaClient();
 
 async function main() {
-  // Update existing assistants with roles and passwords
+  // Update existing assistants with roles and hashed passwords.
   const updates = [
-    { email: 'ymutlu@itu.edu.tr', role: 'admin', password: 'tarik2026' },
-    { email: 'doganaybe@itu.edu.tr', role: 'admin', password: 'begum2026' },
+    { email: 'ymutlu@itu.edu.tr', role: 'admin' },
+    { email: 'doganaybe@itu.edu.tr', role: 'admin' },
   ];
 
   for (const u of updates) {
     await prisma.researchAssistant.updateMany({
       where: { email: u.email },
-      data: { role: u.role, password: u.password },
+      data: { role: u.role, password: null, passwordHash: await seedPasswordHash(u.email) },
     });
   }
 
-  // Set all others as user role with default password
-  await prisma.researchAssistant.updateMany({
-    where: { role: 'user', password: null },
-    data: { password: 'argor2026' },
+  const usersWithoutHashes = await prisma.researchAssistant.findMany({
+    where: { role: 'user', passwordHash: null },
+    select: { id: true, email: true },
   });
+  for (const user of usersWithoutHashes) {
+    await prisma.researchAssistant.update({
+      where: { id: user.id },
+      data: { password: null, passwordHash: await seedPasswordHash(user.email) },
+    });
+  }
 
   // Seed weekly schedules
   const assistants = await prisma.researchAssistant.findMany();
@@ -86,7 +92,7 @@ async function main() {
   }
 
   console.log('Migration seed completed!');
-  console.log('- Roles and passwords updated');
+  console.log('- Roles and password hashes updated');
   console.log('- Weekly schedules seeded');
   console.log('- Notifications seeded');
 }

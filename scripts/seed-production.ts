@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { seedPasswordHash } from './lib/seed-passwords';
 
 const prisma = new PrismaClient();
 
@@ -7,21 +8,23 @@ async function main() {
 
   // Seed Research Assistants
   const assistants = [
-    { name: 'Begüm DOGANAY', email: 'doganaybe@itu.edu.tr', phone: '5071432107', totalPoints: 279, order: 1, role: 'admin', password: 'begum2026' },
-    { name: 'Y.Tarık MUTLU', email: 'ymutlu@itu.edu.tr', phone: '', totalPoints: 274, order: 2, role: 'admin', password: 'tarik2026' },
-    { name: 'Fatih NACAR', email: 'nacar16@itu.edu.tr', phone: '5065813277', totalPoints: 267, order: 3, role: 'user', password: 'fatih2026' },
-    { name: 'Samet BİÇEN', email: 'sbicen@itu.edu.tr', phone: '5522087166', totalPoints: 260, order: 4, role: 'user', password: 'samet2026' },
-    { name: 'Merve GÜL ÇIVGIN', email: 'gulme@itu.edu.tr', phone: '5425111429', totalPoints: 208, order: 5, role: 'user', password: 'merve2026' },
-    { name: 'Sinan COŞKUN', email: 'coskunm19@itu.edu.tr', phone: '5555240033', totalPoints: 200, order: 6, role: 'user', password: 'sinan2026' },
-    { name: 'Rukiye GÜLMEZ', email: 'gulmezr@itu.edu.tr', phone: '5070963781', totalPoints: 174, order: 7, role: 'user', password: 'rukiye2026' },
-    { name: 'Muhittin ORHAN', email: 'orhanm17@itu.edu.tr', phone: '5545762801', totalPoints: 166, order: 8, role: 'user', password: 'muhittin2026' },
-    { name: 'Cenk KAYA', email: 'cenkkaya@itu.edu.tr', phone: '', totalPoints: 33, order: 9, role: 'user', password: 'cenk2026' },
-    { name: 'Ö. Berkehan İNAL', email: 'inalo@itu.edu.tr', phone: '', totalPoints: 0, order: 10, role: 'user', password: 'berkehan2026' },
+    { name: 'Begüm DOGANAY', email: 'doganaybe@itu.edu.tr', phone: '5071432107', totalPoints: 279, order: 1, role: 'admin' },
+    { name: 'Y.Tarık MUTLU', email: 'ymutlu@itu.edu.tr', phone: '', totalPoints: 274, order: 2, role: 'admin' },
+    { name: 'Fatih NACAR', email: 'nacar16@itu.edu.tr', phone: '5065813277', totalPoints: 267, order: 3, role: 'user' },
+    { name: 'Samet BİÇEN', email: 'sbicen@itu.edu.tr', phone: '5522087166', totalPoints: 260, order: 4, role: 'user' },
+    { name: 'Merve GÜL ÇIVGIN', email: 'gulme@itu.edu.tr', phone: '5425111429', totalPoints: 208, order: 5, role: 'user' },
+    { name: 'Sinan COŞKUN', email: 'coskunm19@itu.edu.tr', phone: '5555240033', totalPoints: 200, order: 6, role: 'user' },
+    { name: 'Rukiye GÜLMEZ', email: 'gulmezr@itu.edu.tr', phone: '5070963781', totalPoints: 174, order: 7, role: 'user' },
+    { name: 'Muhittin ORHAN', email: 'orhanm17@itu.edu.tr', phone: '5545762801', totalPoints: 166, order: 8, role: 'user' },
+    { name: 'Cenk KAYA', email: 'cenkkaya@itu.edu.tr', phone: '', totalPoints: 33, order: 9, role: 'user' },
+    { name: 'Ö. Berkehan İNAL', email: 'inalo@itu.edu.tr', phone: '', totalPoints: 0, order: 10, role: 'user' },
   ];
 
   const createdAssistants = [];
   for (const a of assistants) {
-    const ra = await prisma.researchAssistant.create({ data: a });
+    const ra = await prisma.researchAssistant.create({
+      data: { ...a, password: null, passwordHash: await seedPasswordHash(a.email) },
+    });
     createdAssistants.push(ra);
   }
   console.log(`Created ${createdAssistants.length} assistants`);

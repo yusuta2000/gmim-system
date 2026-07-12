@@ -466,3 +466,6 @@ C: Evet. `faculty` ve `department` alanları zaten var. Baremleri, rolleri ve is
 ---
 
 *Bu doküman 2026 Temmuz itibariyle sistem durumunu yansıtmaktadır (GMİM + DUİM bölüm bazlı yapı). Sistem güncellendikçe bu doküman da güncellenmelidir.*
+# Seed parolaları
+
+`scripts/seed-production.ts` repoda düz metin parola içermez. Script çalıştırılmadan önce `SEED_PASSWORDS_JSON` değişkeni, e-posta adreslerini en az 12 karakterli tek kullanımlık başlangıç parolalarına eşleyen bir JSON nesnesi olarak sağlanmalıdır. Değer terminal çıktısına, rapora veya repoya yazılmaz. Seed işlemi parolaları Argon2 ile hashleyerek yalnız `passwordHash` alanına kaydeder.
