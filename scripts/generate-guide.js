@@ -219,12 +219,10 @@ const doc = new Document({
         bodyText("Sisteme g\u0131ris\u0307 yapmak ic\u0307in sag\u0306 \u00fcst\u0307teki \"G\u0131ris\u0307\" butonuna t\u0131klay\u0131n. Kendi \u0130TU\u0308 e-posta adresinizi ve s\u0131frenizi girerek g\u0131ris\u0307 yapabilirsiniz."),
         spacer(80),
         heading2("2.1 G\u0131ris\u0307 Bilgileri"),
-        bodyText("Her aras\u0307. go\u0308r.\u00fcn s\u0131fre format\u0131: ad\u0131n\u0131z\u0131n kuc\u0307u\u0308k harflerle yaz\u0131l\u0131s\u0131 + 2026 (varsay\u0131lan s\u0131fre). \u00d6rnek:"),
-        bulletPoint("Y. Tar\u0131k MUTLU: ymutlu@itu.edu.tr / tarik2026 (Tems\u0131lc\u0131)"),
-        bulletPoint("Cenk KAYA: cenkkaya@itu.edu.tr / cenk2026"),
-        bulletPoint("Samet B\u0130C\u0327EN: sbicen@itu.edu.tr / samet2026"),
+        bodyText("Giris bilgileri guvenli bir kanal uzerinden yetkili yonetici tarafindan saglanir; parola Git veya kullanim kilavuzunda yer almaz."),
+        bulletPoint("Ilk giristen sonra sifrenizi portal uzerinden degistirin."),
         spacer(80),
-        infoBox("Gu\u0308venlik Notu", "Varsay\u0131lan s\u0131frenizi g\u0131ris\u0307 yapt\u0131ktan sonra deg\u0306is\u0307tirmeniz \u00f6nerilir. S\u0131fre deg\u0306is\u0307iklig\u0306i ic\u0307in tems\u0131lciye bas\u0307vurunuz."),
+        infoBox("Guvenlik Notu", "Parolanizi ilk giristen sonra degistirin ve hicbir dokumana, mesaja veya paylasilan dosyaya yazmayin."),
         spacer(120),
 
         // 3. ROLLER

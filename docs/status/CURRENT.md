@@ -48,11 +48,13 @@ Bu dosya projenin tek güncel durum panosudur. Uygulama tamamlandığında doğr
 - Production veri yazımı ve migration bu belge geçişinin kapsamı dışındadır.
 - Bilinmeyen untracked kullanıcı dosyası sınıflandırılmadan silinmez.
 - Credential değeri dokümana, terminal çıktısına, sohbete veya commit'e yazılmaz.
+- Repository current tree içindeki gerçek giriş/database connection değerleri temizlenmiştir; Git geçmişi ve dış rotation ayrı kapıdır.
 
 ## İlgili kanıt ve prosedürler
 
 - Program closeout/staging kanıtı: [`2026-07-12-portal-program-closeout-and-staging.md`](../logbook/2026/2026-07-12-portal-program-closeout-and-staging.md)
 - Dependency audit: [`2026-07-12-dependency-audit.md`](../logbook/2026/2026-07-12-dependency-audit.md)
+- Repository/dokümantasyon geçişi: [`2026-07-12-repository-documentation-cleanup.md`](../logbook/2026/2026-07-12-repository-documentation-cleanup.md)
 - Staging runbook: [`staging-e2e.md`](../runbooks/staging-e2e.md)
 - Onaylı proje hafızası tasarımı: [`2026-07-12-project-memory-and-logbook-design.md`](../superpowers/specs/2026-07-12-project-memory-and-logbook-design.md)
 - Uygulama planı: [`2026-07-12-project-memory-and-logbook.md`](../superpowers/plans/2026-07-12-project-memory-and-logbook.md)

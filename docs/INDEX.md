@@ -26,11 +26,14 @@ Eski bir planın açık kutusu tamamlanmış işin yeniden yapılması için ger
 | [`staging-e2e.md`](runbooks/staging-e2e.md) | İzole rol testi ve reset operasyonu | Aktif | Her staging rol/veri testi öncesi |
 | [`portal closeout logbook`](logbook/2026/2026-07-12-portal-program-closeout-and-staging.md) | P00–P08, mobil ve staging tarihsel kanıtı | Append-only | Tamamlanan program işleri araştırılırken |
 | [`dependency audit logbook`](logbook/2026/2026-07-12-dependency-audit.md) | Paket temizliği ve kalan risk sınıflandırması | Append-only | Dependency yükseltmesi/audit öncesi |
+| [`repository cleanup logbook`](logbook/2026/2026-07-12-repository-documentation-cleanup.md) | Doküman/secret/artifact geçiş kanıtı | Uygulanıyor | Bu geçiş ve kök sınıflandırması araştırılırken |
 | [`project memory design`](superpowers/specs/2026-07-12-project-memory-and-logbook-design.md) | Bu belge sisteminin onaylı tasarımı | Uygulandıktan sonra arşivlenecek | Tasarım gerekçesi gerektiğinde |
 | [`project memory plan`](superpowers/plans/2026-07-12-project-memory-and-logbook.md) | Bu geçişin uygulama planı | Uygulanıyor | Geçiş tamamlanana kadar |
 | [`rate-limit contract`](superpowers/specs/2026-07-12-rate-limit-release-contract.md) | Login/AI rate-limit kabul sözleşmesi | Aktif, bloke | Dayanıklı limiter tasarlanırken |
 | [`legacy logs`](archive/legacy-logs/ARCHIVE.md) | Eski biçimli tarihsel kayıtlar | Arşiv | Eski faz kanıtı gerektiğinde |
 | [`completed work`](archive/completed-work/ARCHIVE.md) | Uygulanmış specs/plans | Arşiv | Tarihsel tasarım/plan gerektiğinde |
+| [`legacy plans`](archive/legacy-plans/ARCHIVE.md) | Önceki untracked güvenlik/portal planları | Arşiv | Eski plan gerekçesi gerektiğinde |
+| [`legacy analysis`](archive/legacy-analysis/ARCHIVE.md) | Teknik/UI analiz ve brainstorm çıktıları | Arşiv | Eski araştırma kanıtı gerektiğinde |
 
 ## Belge yaşam döngüsü
 

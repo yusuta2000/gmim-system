@@ -1,0 +1,66 @@
+<h2>Hibrit yön · Bölüm 1: Navigasyon ve bilgi mimarisi</h2>
+<p class="subtitle">Amaç: Kullanıcı “şimdi ne yapmalıyım?” sorusunun cevabını ana ekranda görsün; uzun listeler ve yönetim araçları ana akışı boğmasın.</p>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">Masaüstü · görev odaklı çalışma alanı</div>
+    <div class="mockup-body" style="padding:0;background:#f4f7f6">
+      <div style="display:grid;grid-template-columns:150px 1fr;min-height:390px">
+        <aside style="background:#12372f;color:white;padding:16px 12px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:22px"><div style="width:28px;height:28px;border-radius:8px;background:#34d399"></div><b style="font-size:12px">İTÜ DF Portal</b></div>
+          <div style="font-size:10px;color:#a7cfc1;margin-bottom:7px">ÇALIŞMA</div>
+          <div style="background:#ffffff18;border-radius:7px;padding:8px;font-size:11px;margin-bottom:4px">⌂ Ana sayfa</div>
+          <div style="padding:8px;font-size:11px">✓ Görevler <b style="float:right;background:#f59e0b;border-radius:8px;padding:0 5px">1</b></div>
+          <div style="padding:8px;font-size:11px">▦ Takvim & sınav</div>
+          <div style="padding:8px;font-size:11px">◉ Duyurular</div>
+          <div style="font-size:10px;color:#a7cfc1;margin:18px 0 7px">YÖNETİM</div>
+          <div style="padding:8px;font-size:11px">♙ Personel</div>
+          <div style="padding:8px;font-size:11px">⚙ Ayarlar</div>
+        </aside>
+        <main style="padding:17px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px"><div><small style="color:#64748b">11 Temmuz Cumartesi</small><h3 style="margin:2px 0;color:#12372f">Merhaba Fatih</h3></div><span style="background:white;border:1px solid #dbe4e1;border-radius:9px;padding:7px;font-size:10px">GMİM · Ar.Gör</span></div>
+          <div style="background:#12372f;color:white;border-radius:12px;padding:14px;margin-bottom:11px"><small style="color:#a7cfc1">BUGÜNÜN ÖNCELİĞİ</small><b style="display:block;margin:5px 0">1 gözetmen ataması bekliyor</b><button style="border:0;background:#5ee0b1;color:#12372f;border-radius:7px;padding:6px 9px;font-weight:700;font-size:10px">Sınavı incele</button></div>
+          <div style="display:grid;grid-template-columns:1.35fr .8fr;gap:10px">
+            <section style="background:white;border:1px solid #dbe4e1;border-radius:11px;padding:12px"><b style="font-size:11px;color:#12372f">Son hareketler</b><div style="margin-top:9px;padding:8px;background:#f8fafc;border-radius:7px;font-size:10px">Toplantı · Onaylandı · +1 puan</div><div style="margin-top:6px;padding:8px;background:#f8fafc;border-radius:7px;font-size:10px">Malzeme Bilgisi · Program</div></section>
+            <section style="background:white;border:1px solid #dbe4e1;border-radius:11px;padding:12px"><b style="font-size:11px;color:#12372f">Puanım</b><strong style="display:block;font-size:25px;margin-top:9px">295</strong><small style="color:#64748b">7. sıra</small></section>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">Mobil · dört ana hedef + Daha menüsü</div>
+    <div class="mockup-body" style="background:#f4f7f6;padding:12px;display:flex;justify-content:center">
+      <div style="width:230px;min-height:390px;background:#f8fafc;border:1px solid #dbe4e1;border-radius:20px;overflow:hidden;position:relative;padding-bottom:52px">
+        <header style="background:#12372f;color:white;padding:14px 12px;display:flex;align-items:center;gap:8px"><div style="width:27px;height:27px;background:#34d399;border-radius:8px"></div><div><b style="display:block;font-size:11px">GMİM Portal</b><small style="color:#a7cfc1">Fatih Nacar</small></div><span style="margin-left:auto">•••</span></header>
+        <main style="padding:12px">
+          <small style="color:#64748b">BUGÜN</small><h3 style="margin:3px 0 11px;color:#12372f">Öncelikli işler</h3>
+          <div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:11px;padding:10px;margin-bottom:9px"><b style="font-size:11px;color:#065f46">Gözetmen bekleniyor</b><p style="font-size:9px;margin:5px 0;color:#475569">GMI201 · 15 Temmuz · 10:00</p><button style="width:100%;border:0;background:#12372f;color:white;padding:7px;border-radius:7px;font-size:9px">İncele</button></div>
+          <div style="background:white;border:1px solid #dbe4e1;border-radius:11px;padding:10px"><div style="display:flex;justify-content:space-between"><b style="font-size:11px;color:#12372f">Görev geçmişim</b><span style="font-size:9px;color:#059669">Tümünü gör</span></div><div style="margin-top:8px;height:7px;background:#e2e8f0;border-radius:8px"></div><div style="margin-top:6px;width:72%;height:7px;background:#e2e8f0;border-radius:8px"></div></div>
+        </main>
+        <nav style="position:absolute;bottom:0;left:0;right:0;background:white;border-top:1px solid #dbe4e1;display:grid;grid-template-columns:repeat(4,1fr);padding:7px 3px;text-align:center;font-size:8px;color:#64748b"><b style="color:#059669">⌂<br>Ana sayfa</b><span>✓<br>Görevler</span><span>▦<br>Takvim</span><span>•••<br>Daha</span></nav>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Yapısal kararlar</h3>
+  <ul>
+    <li>Masaüstünde yatay 7–9 sekme yerine kalıcı, rol bazlı sol navigasyon.</li>
+    <li>Mobilde yalnızca dört hedef: Ana sayfa, Görevler, Takvim, Daha.</li>
+    <li>Duyurular, Personel, İçe Aktar, Puan Baremleri ve Dönem Yönetimi “Daha” içinde role göre görünür.</li>
+    <li>95 görev kartı ile görev bildirme formu aynı uzun sayfada tutulmaz: liste ayrı, “Görev bildir” sabit ana aksiyon olur.</li>
+    <li>Program ve sınavlar aynı zaman odaklı “Takvim” alanında birleşir; detaylarda ayrı görünümler korunur.</li>
+  </ul>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="ia-approved" onclick="toggleSelect(this)">
+    <div class="letter">✓</div><div class="content"><h3>Yapı doğru</h3><p>Bu bilgi mimarisini temel alıp sonraki bölüme geç.</p></div>
+  </div>
+  <div class="option" data-choice="ia-revise" onclick="toggleSelect(this)">
+    <div class="letter">↺</div><div class="content"><h3>Revize edelim</h3><p>Navigasyon veya sayfa gruplamasında değişiklik istiyorum.</p></div>
+  </div>
+</div>

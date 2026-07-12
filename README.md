@@ -42,6 +42,23 @@ Veritabanı migration veya veri yazma işlemleri bu komutların parçası değil
 
 Detaylı teknik sistem açıklaması için [SISTEM_DOKUMANTASYONU.md](SISTEM_DOKUMANTASYONU.md) kullanılır. Bu dosya güncel durum panosu değildir.
 
+## Repository haritası
+
+```text
+src/                 Next.js uygulama, feature ve ortak UI kodu
+prisma/              Şema, migration ve migration draftları
+scripts/             Güvenli bakım, import ve doğrulama araçları
+docs/status/         Tek güncel proje durumu
+docs/logbook/        Append-only oturum ve doğrulama kanıtı
+docs/decisions/      Kalıcı karar gerekçeleri
+docs/runbooks/       Tekrarlanabilir operasyonlar
+docs/architecture/   Mimari yönlendirme ve bileşen belgeleri
+docs/superpowers/    Aktif spec ve uygulama planları
+docs/archive/        Güncel olmayan tarihsel belgeler
+```
+
+Yerel veri, upload, credential ve üretilmiş analiz çıktıları ignored `local-*` klasörlerinde tutulur; repository kaynağı sayılmaz.
+
 ## Güvenlik ve Git kuralları
 
 - GMİM ve DUİM verileri, açıkça yetkilendirilmiş dekan görünümü dışında ayrıdır.
@@ -50,4 +67,3 @@ Detaylı teknik sistem açıklaması için [SISTEM_DOKUMANTASYONU.md](SISTEM_DOK
 - Ortak `main` dalına push öncesinde `git pull origin main` çalıştırılır.
 - Force-push kullanılmaz.
 - `AGENTS.md` ve `CLAUDE.md` byte düzeyinde aynı tutulur.
-

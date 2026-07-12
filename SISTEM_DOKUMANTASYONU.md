@@ -35,12 +35,14 @@ Bu doküman, sistemi sıfırdan anlayan bir yazılımcının kodu okumadan önce
 
 ## 3. Kullanıcı Rolleri
 
-| Rol | Kod | Erişim | Giriş Bilgileri |
-|-----|-----|--------|-----------------|
-| Temsilci | `admin` | Tam yönetim + tüm sekmeler | ymutlu@itu.edu.tr / tarik2026 |
-| Dekan | `dekan` | Temsilci ile aynı erişim (yönetici) | arslano@itu.edu.tr / dekan2026 |
-| Bölüm Başkanı | `baskan` | Temsilci ile aynı erişim (yönetici) | bzincir@itu.edu.tr / burak2026 |
-| Araş Gör | `user` | Sınırlı (kendi verileri + duyuru) | cenkkaya@itu.edu.tr / cenk2026 |
+| Rol | Kod | Erişim |
+|-----|-----|--------|
+| Temsilci | `admin` | Tam yönetim + tüm sekmeler |
+| Dekan | `dekan` | Temsilci ile aynı erişim (yönetici) |
+| Bölüm Başkanı | `baskan` | Temsilci ile aynı erişim (yönetici) |
+| Araş Gör | `user` | Sınırlı (kendi verileri + duyuru) |
+
+> Gerçek kullanıcı giriş bilgileri ve parolalar Git dışında, yetkili secret/credential yönetiminde tutulur. Dokümana örnek veya gerçek parola eklenmez.
 
 **Önemli kurallar:**
 - Dekan ve Bölüm Başkanı puan/görev listelerinde görünmez, sadece Personel sekmesinde "Yönetim" bölümünde en üstte yer alır
@@ -173,9 +175,9 @@ Otomatik/içe aktarma → approved (direkt)
 Vercel Dashboard → Project → Settings → Environment Variables:
 
 ```
-DATABASE_URL=postgresql://USER:PASSWORD@HOST/DATABASE?sslmode=require
-DIRECT_URL=postgresql://USER:PASSWORD@HOST/DATABASE?sslmode=require
-ZAI_API_KEY=[z-ai-web-dev-sdk API anahtarı]
+DATABASE_URL="<Neon pooler bağlantısı — yalnız secret yönetiminden>"
+DIRECT_URL="<Neon direct bağlantısı — yalnız secret yönetiminden>"
+ZAI_API_KEY="<AI sağlayıcı anahtarı — yalnız secret yönetiminden>"
 ```
 
 **Not:** `DATABASE_URL` pooler bağlantısı (uygulama için), `DIRECT_URL` direkt bağlantı (migration için).

@@ -119,6 +119,19 @@ Claude, kodda bir değişiklik istendiğinde şu sırayı izler:
 
 ## 7. Proje hafızası ve zorunlu oturum protokolü
 
+### Belge şeması
+```text
+README.md                 hızlı insan/AI girişi
+docs/INDEX.md             zorunlu okuma sırası ve belge haritası
+docs/status/CURRENT.md    tek güncel durum kaynağı
+docs/logbook/YYYY/        append-only oturum ve kanıt kayıtları
+docs/decisions/           ADR karar gerekçeleri
+docs/runbooks/            dry-run/verify/rollback operasyonları
+docs/architecture/        mimari yönlendirme
+docs/superpowers/         aktif specs ve plans; durum kanıtı değildir
+docs/archive/             superseded tarihsel belgeler
+```
+
 ### Başlangıç
 1. `docs/INDEX.md` ve `docs/status/CURRENT.md` dosyalarını oku.
 2. İstenen işlemle ilgili runbook'u, sonra yalnız `CURRENT.md` tarafından bağlanan gerekli logbook/ADR/spec/plan kayıtlarını oku.

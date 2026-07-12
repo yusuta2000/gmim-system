@@ -1,0 +1,69 @@
+<h2>Hibrit yön · Bölüm 2: Görsel sistem</h2>
+<p class="subtitle">Hedef: Kurumsal güven hissi veren, yoğun veriyi sakin gösteren ve bölüm kimliğini yalnızca vurgu olarak kullanan bir arayüz.</p>
+
+<div class="mockup">
+  <div class="mockup-header">Önerilen tasarım dili · “Sakin, kurumsal, görev odaklı”</div>
+  <div class="mockup-body" style="background:#f6f8fa;padding:22px">
+    <div style="display:grid;grid-template-columns:1.1fr .9fr;gap:18px">
+      <section>
+        <div class="label">RENK SİSTEMİ</div>
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin:8px 0 18px">
+          <div><div style="height:55px;border-radius:9px;background:#112b3c"></div><small>Kurumsal<br>#112B3C</small></div>
+          <div><div style="height:55px;border-radius:9px;background:#0f766e"></div><small>GMİM<br>#0F766E</small></div>
+          <div><div style="height:55px;border-radius:9px;background:#2563eb"></div><small>DUİM<br>#2563EB</small></div>
+          <div><div style="height:55px;border-radius:9px;background:#f6f8fa;border:1px solid #dbe3e8"></div><small>Zemin<br>#F6F8FA</small></div>
+          <div><div style="height:55px;border-radius:9px;background:#ffffff;border:1px solid #dbe3e8"></div><small>Yüzey<br>#FFFFFF</small></div>
+        </div>
+
+        <div class="label">TİPOGRAFİ VE HİYERARŞİ</div>
+        <div style="background:white;border:1px solid #dbe3e8;border-radius:12px;padding:16px;margin-top:8px;color:#112b3c">
+          <div style="font-size:10px;letter-spacing:.08em;color:#64748b;font-weight:700">11 TEMMUZ CUMARTESİ</div>
+          <div style="font-size:24px;line-height:1.2;font-weight:720;margin-top:4px">Merhaba Fatih</div>
+          <div style="font-size:14px;font-weight:650;margin-top:14px">Öncelikli işler</div>
+          <p style="font-size:12px;line-height:1.55;color:#52616b;margin:5px 0 0">Birincil başlık, bölüm başlığı ve açıklama arasında belirgin fakat sakin bir ölçek farkı.</p>
+          <div style="margin-top:13px;display:flex;gap:15px;align-items:baseline"><strong style="font-size:27px;font-variant-numeric:tabular-nums">295</strong><span style="font-size:12px;color:#64748b">toplam puan · 7. sıra</span></div>
+        </div>
+      </section>
+
+      <section>
+        <div class="label">BİLEŞEN DİLİ</div>
+        <div style="background:white;border:1px solid #dbe3e8;border-radius:12px;padding:14px;margin-top:8px;box-shadow:0 1px 2px #112b3c0d">
+          <div style="display:flex;justify-content:space-between;align-items:start"><div><small style="font-size:10px;color:#64748b">SINAV ATAMASI</small><b style="display:block;font-size:13px;color:#112b3c;margin-top:3px">GMI201 · Termodinamik</b></div><span style="background:#fff7ed;color:#9a3412;padding:4px 7px;border-radius:999px;font-size:9px;font-weight:700">Yanıt bekliyor</span></div>
+          <div style="display:flex;gap:14px;margin:13px 0;color:#52616b;font-size:11px"><span>15 Temmuz</span><span>10:00</span><span>A-101</span></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px"><button style="height:44px;border:1px solid #cbd5e1;background:white;color:#334155;border-radius:9px;font-weight:650">Reddet</button><button style="height:44px;border:0;background:#0f766e;color:white;border-radius:9px;font-weight:650">Kabul et</button></div>
+        </div>
+
+        <div style="background:#112b3c;color:white;border-radius:12px;padding:14px;margin-top:10px">
+          <small style="color:#b8ccd6">GERİ BİLDİRİM</small><b style="display:block;margin:5px 0;font-size:13px">Görev başarıyla gönderildi</b><p style="font-size:10px;color:#d9e5ea;margin:0">Temsilci onayladığında puanınız güncellenecek.</p>
+        </div>
+
+        <div style="margin-top:10px;padding:12px;border:1px dashed #b9c7cf;border-radius:12px;background:#fbfcfd">
+          <b style="font-size:12px;color:#112b3c">Sistem kuralları</b>
+          <ul style="font-size:10px;color:#52616b;line-height:1.7;margin:7px 0 0;padding-left:17px">
+            <li>44 px minimum dokunma alanı</li>
+            <li>Renk tek başına durum anlatmaz</li>
+            <li>Gölgeler yerine sınır ve boşluk</li>
+            <li>Bir ekranda tek baskın ana aksiyon</li>
+          </ul>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Mevcut tasarımdan ne değişiyor?</h3>
+  <div class="pros-cons">
+    <div class="pros"><h4>Korunacak</h4><ul><li>GMİM yeşil/teal çağrışımı</li><li>Bölüm seçimi ve rol görünürlüğü</li><li>Puan önceliği mantığı</li><li>Shadcn bileşen altyapısı</li></ul></div>
+    <div class="cons"><h4>Azaltılacak</h4><ul><li>402 adet hard-coded renk sınıfı</li><li>Dekoratif gradient ve çok renkli kartlar</li><li>36 px dokunma hedefleri</li><li>Birbiriyle yarışan badge ve vurgu renkleri</li></ul></div>
+  </div>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="visual-approved" onclick="toggleSelect(this)">
+    <div class="letter">✓</div><div class="content"><h3>Görsel yön doğru</h3><p>Bu tasarım dilini mobil akışlara ve bileşenlere uygula.</p></div>
+  </div>
+  <div class="option" data-choice="visual-revise" onclick="toggleSelect(this)">
+    <div class="letter">↺</div><div class="content"><h3>Görsel yönü revize edelim</h3><p>Renk, yoğunluk veya kurumsal karakter farklı olmalı.</p></div>
+  </div>
+</div>
