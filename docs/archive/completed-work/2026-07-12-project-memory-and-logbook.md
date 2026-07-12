@@ -1,6 +1,6 @@
 # Project Memory and Logbook Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Establish a canonical human-readable and AI-enforced project memory system, migrate existing documentation safely, remove tracked plaintext credentials, and prevent stale or secret-bearing documentation from returning.
 
@@ -34,23 +34,23 @@
 - Consumes: verified repository state, `package.json`, current Git history, and the approved design.
 - Produces: deterministic entry points used by humans, AI guides, logbooks, runbooks, and validators.
 
-- [ ] **Step 1: Create the root README**
+- [x] **Step 1: Create the root README**
 
 Include product purpose, production/staging URLs without credentials, stack, safe setup, `bun run test/typecheck/lint/build`, documentation reading order, and high-risk operation warnings. Link to `docs/INDEX.md`; do not duplicate the full technical manual.
 
-- [ ] **Step 2: Create the documentation index**
+- [x] **Step 2: Create the documentation index**
 
 Use a table with `Document`, `Purpose`, `State`, and `Read when` columns. Register every active canonical document and define the order `README → INDEX → CURRENT → relevant runbook → linked evidence`.
 
-- [ ] **Step 3: Create the current-status document**
+- [x] **Step 3: Create the current-status document**
 
 Record the current `origin/main` commit, production/staging separation, completed portal phases, 35-file/169-test evidence, 43-route build, browser role/viewport evidence, open keyboard/Core Web Vitals/rate-limit/credential-rotation/migration gates, and links to the new logbook/runbooks.
 
-- [ ] **Step 4: Create the architecture router**
+- [x] **Step 4: Create the architecture router**
 
 Explain that `SISTEM_DOKUMANTASYONU.md` remains the detailed legacy technical manual until it is decomposed, and register its current scope without copying secrets.
 
-- [ ] **Step 5: Verify entry-point links manually**
+- [x] **Step 5: Verify entry-point links manually**
 
 Run:
 
@@ -60,7 +60,7 @@ rg -n "docs/INDEX|docs/status/CURRENT|Production|Staging" README.md docs/INDEX.m
 
 Expected: all entry points and environment labels are present, with no credential values.
 
-- [ ] **Step 6: Commit Task 1**
+- [x] **Step 6: Commit Task 1**
 
 ```powershell
 git add README.md docs/INDEX.md docs/status/CURRENT.md docs/architecture/README.md
@@ -81,23 +81,23 @@ git commit -m "docs: add canonical project entry points"
 - Consumes: canonical paths from Task 1 and source-of-truth hierarchy from the design.
 - Produces: required log/ADR/runbook schemas plus deterministic AI start, work, close, and stop protocols.
 
-- [ ] **Step 1: Add the logbook template**
+- [x] **Step 1: Add the logbook template**
 
 Use these required second-level headings exactly: `Context`, `Objectives`, `Starting state`, `Work completed`, `Why these choices were made`, `How it was implemented`, `Verification and evidence`, `Data, security, and environment impact`, `Commits and deployments`, `Decisions created or superseded`, `Remaining work and explicit blockers`, `Instructions for the next session`, `Addenda`.
 
-- [ ] **Step 2: Add ADR and runbook templates**
+- [x] **Step 2: Add ADR and runbook templates**
 
 The ADR template includes status/context/decision/alternatives/consequences/migration/evidence. The runbook template includes prerequisites/target/dry-run/execution/verification/rollback/secret handling/stop conditions.
 
-- [ ] **Step 3: Record ADR-0001**
+- [x] **Step 3: Record ADR-0001**
 
 Set status to `Accepted`. Record the choice of layered project memory over a single growing log or fully generated documentation.
 
-- [ ] **Step 4: Add the AI documentation protocol to both guides**
+- [x] **Step 4: Add the AI documentation protocol to both guides**
 
 Add an identical section that requires reading `docs/INDEX.md` and `docs/status/CURRENT.md`, checking Git state, refusing stale-plan repetition, updating log/status/index at close, preserving unknown untracked files, and stopping on unverified production targets or secrets.
 
-- [ ] **Step 5: Verify guide identity**
+- [x] **Step 5: Verify guide identity**
 
 Run:
 
@@ -107,7 +107,7 @@ if ((Get-FileHash AGENTS.md).Hash -ne (Get-FileHash CLAUDE.md).Hash) { throw 'Gu
 
 Expected: exit code 0.
 
-- [ ] **Step 6: Register new documents in the index and commit**
+- [x] **Step 6: Register new documents in the index and commit**
 
 ```powershell
 git add AGENTS.md CLAUDE.md docs/INDEX.md docs/logbook/TEMPLATE.md docs/decisions docs/runbooks/TEMPLATE.md
@@ -128,19 +128,19 @@ git commit -m "docs: enforce project memory session protocol"
 - Consumes: the 2026-07-12 handoff, staging guide, phase logs, current Git evidence, templates from Task 2.
 - Produces: one canonical closeout logbook, one reusable staging runbook, preserved legacy evidence, and no live `docs/superpowers/logs/` status convention.
 
-- [ ] **Step 1: Create the canonical closeout logbook**
+- [x] **Step 1: Create the canonical closeout logbook**
 
 Translate the existing handoff into the required template. Preserve representative commits, reasons, implementation approach, verification counts, staging role matrix, mobile overflow results, environment impact, and explicit remaining gates.
 
-- [ ] **Step 2: Convert staging guidance into a runbook**
+- [x] **Step 2: Convert staging guidance into a runbook**
 
 Add prerequisites, production/staging target check, credential-file handling, dry-run account management, reset SQL application boundary, seven-role smoke sequence, six viewport widths, rollback/reset, and stop conditions. Do not include passwords, hashes, tokens, or database URLs.
 
-- [ ] **Step 3: Archive legacy phase logs and completed workflow artifacts**
+- [x] **Step 3: Archive legacy phase logs and completed workflow artifacts**
 
 Use `git mv` for tracked files. Add `ARCHIVE.md` files to archive directories explaining the archival reason and canonical replacements. Keep active rate-limit work in `docs/superpowers/specs/`.
 
-- [ ] **Step 4: Update every old canonical-path reference**
+- [x] **Step 4: Update every old canonical-path reference**
 
 Run:
 
@@ -150,7 +150,7 @@ rg -n "docs/superpowers/logs|docs/testing/STAGING_E2E" --glob "*.md"
 
 Expected: only explicit historical/archive explanations remain; operational links point to `CURRENT.md`, logbook, or runbook.
 
-- [ ] **Step 5: Update index/current/guides and commit**
+- [x] **Step 5: Update index/current/guides and commit**
 
 ```powershell
 git add AGENTS.md CLAUDE.md docs
@@ -170,23 +170,23 @@ git commit -m "docs: migrate project history into logbook and runbooks"
 - Consumes: `git status`, content-only classification, Git tracking state, canonical archive rules.
 - Produces: a clean understandable root, preserved valuable history, ignored tool-local metadata, sanitized tracked documentation, and an explicit external rotation gate.
 
-- [ ] **Step 1: Inventory untracked/root artifacts without exposing contents**
+- [x] **Step 1: Inventory untracked/root artifacts without exposing contents**
 
 For each artifact record path, file/directory, tracked state, approximate purpose, sensitivity, uniqueness, and action: keep canonical, archive, ignore, or delete. Do not print lines matching password/token/connection patterns.
 
-- [ ] **Step 2: Handle each artifact by classification**
+- [x] **Step 2: Handle each artifact by classification**
 
 Archive unique analysis/plans with provenance. Add known local tool-state directories to `.gitignore` when they have no project value. Delete only generated duplicates or empty tool output after uniqueness is disproven. Do not silently delete unknown user work.
 
-- [ ] **Step 3: Sanitize the technical documentation**
+- [x] **Step 3: Sanitize the technical documentation**
 
 Remove the plaintext `Giriş Bilgileri` values from the role table. Replace them with role/permission descriptions and a statement that credentials are managed outside Git. Search all tracked text for database URLs and literal credential rows without printing matches.
 
-- [ ] **Step 4: Record the security consequence**
+- [x] **Step 4: Record the security consequence**
 
 In `CURRENT.md` and the cleanup logbook, state that removed historical credentials must be treated as exposed and external rotation/revocation remains unverified. Do not reproduce the values.
 
-- [ ] **Step 5: Verify root and commit**
+- [x] **Step 5: Verify root and commit**
 
 Run `git status --short`, confirm every remaining untracked path has an explicit classification, then commit only the reviewed cleanup set:
 
@@ -208,11 +208,11 @@ git commit -m "docs(security): sanitize and organize project records"
 - Produces: `validateProjectDocs(root: string): string[]`, returning human-readable errors; CLI exits 1 when errors exist and prints only safe paths/messages.
 - Consumes: canonical paths, templates, index registrations, archive metadata, tracked-file list, Markdown links, and ignore rules.
 
-- [ ] **Step 1: Write failing validator tests**
+- [x] **Step 1: Write failing validator tests**
 
 Cover byte-identical guides, required files, required logbook headings, current-to-logbook link, archive metadata, production URL exclusion from local E2E base-url settings, ignored local credentials, internal Markdown links, and prohibited tracked PostgreSQL URLs/plaintext credential-table labels.
 
-- [ ] **Step 2: Run the focused test and verify failure**
+- [x] **Step 2: Run the focused test and verify failure**
 
 ```powershell
 bun run test -- src/lib/docs/project-docs-validation.test.ts
@@ -220,11 +220,11 @@ bun run test -- src/lib/docs/project-docs-validation.test.ts
 
 Expected: FAIL because `validateProjectDocs` is not implemented.
 
-- [ ] **Step 3: Implement the validation library and CLI**
+- [x] **Step 3: Implement the validation library and CLI**
 
 Use `node:fs`, `node:path`, and `node:child_process.execFileSync('git', ['ls-files'])`. Skip external/anchor links. Never print matched secret text; emit only the file path and rule identifier.
 
-- [ ] **Step 4: Add package command**
+- [x] **Step 4: Add package command**
 
 Add:
 
@@ -232,7 +232,7 @@ Add:
 "docs:check": "bun scripts/validate-project-docs.ts"
 ```
 
-- [ ] **Step 5: Run focused validation**
+- [x] **Step 5: Run focused validation**
 
 ```powershell
 bun run test -- src/lib/docs/project-docs-validation.test.ts
@@ -241,7 +241,7 @@ bun run docs:check
 
 Expected: focused tests pass and `docs:check` reports zero errors.
 
-- [ ] **Step 6: Commit Task 5**
+- [x] **Step 6: Commit Task 5**
 
 ```powershell
 git add package.json scripts/lib/project-docs-validation.ts scripts/validate-project-docs.ts src/lib/docs/project-docs-validation.test.ts docs/INDEX.md
@@ -259,7 +259,7 @@ git commit -m "test(docs): enforce project memory invariants"
 - Consumes: all prior task outputs.
 - Produces: verified final status, evidence-bearing cleanup log, completed plan, and synchronized `origin/main`.
 
-- [ ] **Step 1: Run all quality gates**
+- [x] **Step 1: Run all quality gates**
 
 ```powershell
 bun run docs:check
@@ -272,22 +272,22 @@ git diff --check
 
 Expected: documentation validation, 35+ test files, TypeScript, ESLint, 43-route production build, and whitespace checks pass.
 
-- [ ] **Step 2: Verify repository invariants**
+- [x] **Step 2: Verify repository invariants**
 
 Confirm guide hashes match, local credential/reset files are ignored, no production data was changed, no unknown untracked file was deleted, and remaining `git status` entries are documented.
 
-- [ ] **Step 3: Update final evidence**
+- [x] **Step 3: Update final evidence**
 
 Record exact test count, build route count, commit range, cleanup classifications, secret sanitation, environment impact, and remaining external gates in the cleanup logbook and `CURRENT.md`.
 
-- [ ] **Step 4: Complete the plan and commit**
+- [x] **Step 4: Complete the plan and commit**
 
 ```powershell
 git add docs/status/CURRENT.md docs/logbook/2026/2026-07-12-repository-documentation-cleanup.md docs/superpowers/plans/2026-07-12-project-memory-and-logbook.md
 git commit -m "docs: close project memory migration"
 ```
 
-- [ ] **Step 5: Synchronize and push**
+- [x] **Step 5: Synchronize and push**
 
 ```powershell
 git pull --rebase --autostash origin main

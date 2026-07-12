@@ -2,9 +2,9 @@
 
 **Son doğrulanan tarih:** 2026-07-12
 
-**Son doğrulanan başlangıç commit'i:** `7df099d`
+**Son doğrulanan uygulama commit'i:** `d4a699b`
 
-Bu dosya projenin tek güncel durum panosudur. Uygulama tamamlandığında doğrulama sonuçları ve son commit yeniden yazılacaktır.
+Bu dosya projenin tek güncel durum panosudur. Logbook ve archive kayıtları tarihsel kanıttır; aktif iş listesi değildir.
 
 ## Ortamlar
 
@@ -21,10 +21,14 @@ Bu dosya projenin tek güncel durum panosudur. Uygulama tamamlandığında doğr
 - Responsive AppShell, dashboard, tasks, points, calendar ve yönetim rotaları.
 - Mobil dashboard/görev taşma düzeltmeleri.
 - İzole staging üzerinde yedi rol/bölüm hesabı ve tekrar kullanılabilir hesap reset aracı.
+- İnsan ve AI için canonical README/index/current/logbook/ADR/runbook proje hafızası ve executable doküman doğrulaması.
+- Generated/upload/local DB/tool artifactlerinin Git'ten çıkarılıp ignored yerel klasörlerde korunması.
+- Tracked teknik doküman ve kullanım kılavuzu üreticilerinden gerçek/default credential değerlerinin kaldırılması.
 
 ## Son doğrulama kanıtı
 
-- `bun run test`: 35 test dosyası, 169 test geçti.
+- `bun run docs:check`: 0 hata.
+- `bun run test`: 36 test dosyası, 172 test geçti.
 - `bun run typecheck`: geçti.
 - `bun run lint`: geçti.
 - `bun run build`: Next.js 16.2.10 ile 43 rota üretildi.
@@ -56,5 +60,5 @@ Bu dosya projenin tek güncel durum panosudur. Uygulama tamamlandığında doğr
 - Dependency audit: [`2026-07-12-dependency-audit.md`](../logbook/2026/2026-07-12-dependency-audit.md)
 - Repository/dokümantasyon geçişi: [`2026-07-12-repository-documentation-cleanup.md`](../logbook/2026/2026-07-12-repository-documentation-cleanup.md)
 - Staging runbook: [`staging-e2e.md`](../runbooks/staging-e2e.md)
-- Onaylı proje hafızası tasarımı: [`2026-07-12-project-memory-and-logbook-design.md`](../superpowers/specs/2026-07-12-project-memory-and-logbook-design.md)
-- Uygulama planı: [`2026-07-12-project-memory-and-logbook.md`](../superpowers/plans/2026-07-12-project-memory-and-logbook.md)
+- Onaylı proje hafızası tasarımı: [`2026-07-12-project-memory-and-logbook-design.md`](../archive/completed-work/2026-07-12-project-memory-and-logbook-design.md)
+- Tamamlanmış uygulama planı: [`2026-07-12-project-memory-and-logbook.md`](../archive/completed-work/2026-07-12-project-memory-and-logbook.md)

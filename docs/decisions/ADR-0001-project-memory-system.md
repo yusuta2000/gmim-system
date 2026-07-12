@@ -43,6 +43,5 @@ Legacy loglar sınıflandırılarak logbook veya archive altına taşınır. Sta
 
 ## Evidence
 
-- [`2026-07-12-project-memory-and-logbook-design.md`](../superpowers/specs/2026-07-12-project-memory-and-logbook-design.md)
-- [`2026-07-12-project-memory-and-logbook.md`](../superpowers/plans/2026-07-12-project-memory-and-logbook.md)
-
+- [`2026-07-12-project-memory-and-logbook-design.md`](../archive/completed-work/2026-07-12-project-memory-and-logbook-design.md)
+- [`2026-07-12-project-memory-and-logbook.md`](../archive/completed-work/2026-07-12-project-memory-and-logbook.md)

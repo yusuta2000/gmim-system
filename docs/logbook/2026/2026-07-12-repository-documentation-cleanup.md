@@ -69,4 +69,14 @@ Documentation validator, full test/typecheck/lint/build ve Git/invariant kontrol
 
 ## Addenda
 
-Yok.
+### 2026-07-12 — Final doğrulama ve kapanış
+
+- `004d703` artifact sınıflandırmasını, tracked credential temizliğini ve root organizasyonunu tamamladı.
+- `d4a699b` executable document/link/secret invariant doğrulamasını ekledi.
+- `bun run docs:check` 0 hata ile geçti.
+- `bun run test` 36 dosyada 172 test ile geçti.
+- `bun run typecheck` ve `bun run lint` geçti.
+- `bun run build` Next.js 16.2.10 ile 43 rota üretti.
+- `AGENTS.md` ve `CLAUDE.md` byte düzeyinde eşleşti; local credential/reset ve taşınan local artifact yolları ignored kaldı.
+- Repository içi proje hafızası geçişinde açık iş kalmadı. Dış credential rotation/revocation, Neon log incelemesi ve Git history cleanup ayrı operasyonlardır.
+- Keyboard-only derin test, production Core Web Vitals, durable rate-limit store ve production migration provası ürün release gate'i olarak `CURRENT.md` içinde açık kalır.

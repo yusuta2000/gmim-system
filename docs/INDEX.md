@@ -26,9 +26,9 @@ Eski bir planın açık kutusu tamamlanmış işin yeniden yapılması için ger
 | [`staging-e2e.md`](runbooks/staging-e2e.md) | İzole rol testi ve reset operasyonu | Aktif | Her staging rol/veri testi öncesi |
 | [`portal closeout logbook`](logbook/2026/2026-07-12-portal-program-closeout-and-staging.md) | P00–P08, mobil ve staging tarihsel kanıtı | Append-only | Tamamlanan program işleri araştırılırken |
 | [`dependency audit logbook`](logbook/2026/2026-07-12-dependency-audit.md) | Paket temizliği ve kalan risk sınıflandırması | Append-only | Dependency yükseltmesi/audit öncesi |
-| [`repository cleanup logbook`](logbook/2026/2026-07-12-repository-documentation-cleanup.md) | Doküman/secret/artifact geçiş kanıtı | Uygulanıyor | Bu geçiş ve kök sınıflandırması araştırılırken |
-| [`project memory design`](superpowers/specs/2026-07-12-project-memory-and-logbook-design.md) | Bu belge sisteminin onaylı tasarımı | Uygulandıktan sonra arşivlenecek | Tasarım gerekçesi gerektiğinde |
-| [`project memory plan`](superpowers/plans/2026-07-12-project-memory-and-logbook.md) | Bu geçişin uygulama planı | Uygulanıyor | Geçiş tamamlanana kadar |
+| [`repository cleanup logbook`](logbook/2026/2026-07-12-repository-documentation-cleanup.md) | Doküman/secret/artifact geçiş kanıtı | Append-only | Bu geçiş ve kök sınıflandırması araştırılırken |
+| [`project memory design`](archive/completed-work/2026-07-12-project-memory-and-logbook-design.md) | Bu belge sisteminin onaylı tasarımı | Arşiv | Tasarım gerekçesi gerektiğinde |
+| [`project memory plan`](archive/completed-work/2026-07-12-project-memory-and-logbook.md) | Tamamlanmış uygulama planı | Arşiv | Geçiş adımları araştırılırken |
 | [`rate-limit contract`](superpowers/specs/2026-07-12-rate-limit-release-contract.md) | Login/AI rate-limit kabul sözleşmesi | Aktif, bloke | Dayanıklı limiter tasarlanırken |
 | [`validate-project-docs.ts`](../scripts/validate-project-docs.ts) | Belge/secret/link invariant kontrolü | Aktif | Her anlamlı dokümantasyon değişikliği kapanışında |
 | [`legacy logs`](archive/legacy-logs/ARCHIVE.md) | Eski biçimli tarihsel kayıtlar | Arşiv | Eski faz kanıtı gerektiğinde |
