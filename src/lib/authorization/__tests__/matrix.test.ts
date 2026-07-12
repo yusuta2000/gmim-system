@@ -6,9 +6,13 @@ import type { SessionUser } from '@/lib/auth/session-repository'
 
 const cases: Array<[SessionUser['role'], SessionUser['department'], SessionUser['department'], boolean]> = [
   ['user', 'GMIM', 'GMIM', true], ['user', 'GMIM', 'DUIM', false],
+  ['user', 'DUIM', 'GMIM', false], ['user', 'DUIM', 'DUIM', true],
   ['admin', 'GMIM', 'GMIM', true], ['admin', 'GMIM', 'DUIM', false],
+  ['admin', 'DUIM', 'GMIM', false], ['admin', 'DUIM', 'DUIM', true],
+  ['baskan', 'GMIM', 'GMIM', true], ['baskan', 'GMIM', 'DUIM', false],
   ['baskan', 'DUIM', 'GMIM', false], ['baskan', 'DUIM', 'DUIM', true],
   ['dekan', 'GMIM', 'GMIM', true], ['dekan', 'GMIM', 'DUIM', true],
+  ['dekan', 'DUIM', 'GMIM', true], ['dekan', 'DUIM', 'DUIM', true],
 ]
 
 describe('authorization policy', () => {

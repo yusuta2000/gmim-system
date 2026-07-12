@@ -2,25 +2,25 @@ import { describe, expect, it } from 'vitest'
 import { getNavigationItems, getPrimaryMobileItems } from '@/components/navigation/nav-config'
 import type { SessionUser } from '@/lib/auth/session-repository'
 
-const user = (role: SessionUser['role']): SessionUser => ({
-  id: `${role}-1`,
+const user = (role: SessionUser['role'], department: SessionUser['department'] = 'GMIM'): SessionUser => ({
+  id: `${role}-${department}`,
   role,
-  department: 'GMIM',
+  department,
 })
 
 describe('role-aware navigation', () => {
-  it('keeps management destinations away from research assistants', () => {
-    expect(getNavigationItems(user('user')).map((item) => item.href)).toEqual([
-      '/dashboard',
-      '/points',
-      '/tasks',
-      '/calendar',
-      '/announcements',
+  it.each(['GMIM', 'DUIM'] as const)('keeps management destinations away from %s research assistants', (department) => {
+    expect(getNavigationItems(user('user', department)).map((item) => item.href)).toEqual([
+      '/dashboard', '/points', '/tasks', '/calendar', '/announcements',
     ])
   })
 
-  it.each(['admin', 'baskan', 'dekan'] as const)('shows management destinations to %s', (role) => {
-    const hrefs = getNavigationItems(user(role)).map((item) => item.href)
+  it.each([
+    ['admin', 'GMIM'], ['admin', 'DUIM'],
+    ['baskan', 'GMIM'], ['baskan', 'DUIM'],
+    ['dekan', 'GMIM'], ['dekan', 'DUIM'],
+  ] as const)('shows management destinations to %s in %s', (role, department) => {
+    const hrefs = getNavigationItems(user(role, department)).map((item) => item.href)
 
     expect(hrefs).toContain('/people')
     expect(hrefs).toContain('/management/approvals')

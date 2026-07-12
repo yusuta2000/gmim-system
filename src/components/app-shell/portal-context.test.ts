@@ -22,6 +22,8 @@ describe('portal department URL context', () => {
 
   it('keeps the dean department visible across navigation but omits it for other roles', () => {
     expect(portalHref('/tasks', user('dekan'), 'DUIM')).toBe('/tasks?department=DUIM')
+    expect(portalHref('/calendar?domain=exams', user('dekan'), 'DUIM')).toBe('/calendar?domain=exams&department=DUIM')
     expect(portalHref('/tasks', user('admin'), 'GMIM')).toBe('/tasks')
+    expect(portalHref('/calendar?domain=exams', user('baskan', 'DUIM'), 'DUIM')).toBe('/calendar?domain=exams')
   })
 })
