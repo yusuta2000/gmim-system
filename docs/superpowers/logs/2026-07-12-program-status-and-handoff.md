@@ -155,3 +155,17 @@ Before `7f31b35` was pushed to `origin/main`:
 6. Neon credential rotation, rejection of the old credential and log review remain externally unverified.
 7. The period/constraints/import migration still requires an anonymized staging database, backup/rollback commands and separate production-write approval.
 8. Core Web Vitals remains blocked because the required Chrome DevTools MCP is not configured and the user requested no new browser-tool installation.
+
+## 2026-07-12 Staging E2E Environment
+
+- Created a persistent, isolated schema-only Neon branch named `e2e-staging`; automatic deletion is disabled.
+- Deployed the same repository as the separate Vercel project `itudfportal-staging` at `https://itudfportal-staging.vercel.app`.
+- Created seven reusable local-only test identities covering `user`, `admin`, `baskan` in both GMIM and DUIM plus the faculty-wide `dekan` role.
+- Stored generated passwords only in ignored `local-e2e-credentials.json`; the ignored reset script is `local-e2e-reset.sql`. Neither file may be printed or committed.
+- Added `scripts/manage-e2e-accounts.ts` with a dry-run default, explicit credential generation, SQL refresh and production-URL rejection.
+- Verified all seven logins, user/manager navigation differences, GMIM/DUIM isolation and dean department switching in Chrome.
+- Verified dashboard and tasks at 320, 375, 390, 768, 1024 and 1440 px with no horizontal document overflow or out-of-bounds elements.
+- Completed a write-path smoke test entirely on staging: a GMIM user submitted a 2-point task, the GMIM representative approved it and the user's visible score became 2.
+- Future sessions must start from `docs/testing/STAGING_E2E.md`; production remains out of scope for test accounts and test data.
+
+Remaining P08 browser gates are keyboard-only focus/dialog/live-region depth and Core Web Vitals tooling. The reusable role/department environment and six-viewport overflow matrix are now available.
