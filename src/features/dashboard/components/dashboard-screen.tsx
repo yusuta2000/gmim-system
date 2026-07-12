@@ -40,7 +40,7 @@ export function DashboardScreen() {
 
   const data = dashboard.data
   return (
-    <div className="mx-auto max-w-7xl space-y-6">
+    <div className="mx-auto min-w-0 max-w-7xl space-y-6">
       <header className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
         <div>
           <p className="text-sm font-medium text-primary">{department} çalışma alanı</p>
@@ -85,11 +85,11 @@ export function DashboardScreen() {
         ))}
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(18rem,0.8fr)]">
+      <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(18rem,0.8fr)]">
         <RecentTasks tasks={data.recentTasks} tasksHref={portalHref('/tasks', user, department)} />
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           {data.kind === 'manager' ? <Ranking data={data} /> : null}
-          <UpcomingExams data={data} examsHref={portalHref('/exams', user, department)} />
+          <UpcomingExams data={data} examsHref={portalHref('/calendar?domain=exams', user, department)} />
         </div>
       </div>
     </div>
@@ -98,8 +98,8 @@ export function DashboardScreen() {
 
 function RecentTasks({ tasks, tasksHref }: { tasks: DashboardTask[]; tasksHref: string }) {
   return (
-    <section aria-labelledby="recent-tasks-title" className="rounded-xl border border-border bg-surface">
-      <div className="flex items-center justify-between border-b border-border px-5 py-4">
+    <section aria-labelledby="recent-tasks-title" className="min-w-0 rounded-xl border border-border bg-surface">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-5 py-4">
         <div className="flex items-center gap-2"><ClipboardList aria-hidden="true" className="size-4 text-primary" /><h2 id="recent-tasks-title" className="font-semibold">Son görev hareketleri</h2></div>
         <Button variant="ghost" size="sm" asChild><Link href={tasksHref}>Tümünü gör</Link></Button>
       </div>

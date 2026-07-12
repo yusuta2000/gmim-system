@@ -53,21 +53,21 @@ export function TasksScreen() {
 
   const hasFilters = Boolean(filters.search || filters.status || filters.assistantId || filters.categoryId || filters.dateFrom || filters.dateTo)
   return (
-    <div className="mx-auto max-w-7xl space-y-5">
+    <div className="mx-auto min-w-0 max-w-7xl space-y-5">
       <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div><p className="text-sm font-medium text-primary">{department} çalışma alanı</p><h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">Görevler</h1><p className="mt-1 text-sm text-text-secondary">Görev kayıtlarını filtreleyin, izleyin ve tek yerden yönetin.</p></div>
         <Button onClick={() => setFormOpen(true)}><Plus aria-hidden="true" />{manager ? 'Görev oluştur' : 'Görev bildir'}</Button>
       </header>
 
-      <section aria-label="Görev filtreleri" className="rounded-xl border border-border bg-surface p-4">
-        <form className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" onSubmit={(event) => { event.preventDefault(); updateFilters({ search: search.trim() || undefined }) }}>
-          <div className="relative sm:col-span-2"><Search aria-hidden="true" className="absolute left-3 top-2.5 size-4 text-text-secondary" /><Input aria-label="Görevlerde ara" value={search} onChange={(event) => setSearch(event.target.value)} className="pl-9" placeholder="Görev açıklamasında ara" /></div>
-          <select aria-label="Duruma göre filtrele" value={filters.status || ''} onChange={(event) => updateFilters({ status: event.target.value || undefined })} className="h-11 rounded-md border border-input bg-background px-3 text-sm">{statusOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
-          {manager ? <select aria-label="Kişiye göre filtrele" value={filters.assistantId || ''} onChange={(event) => updateFilters({ assistantId: event.target.value || undefined })} className="h-11 rounded-md border border-input bg-background px-3 text-sm"><option value="">Tüm kişiler</option>{references.assistants.data?.map((assistant) => <option key={assistant.id} value={assistant.id}>{assistant.name}</option>)}</select> : null}
-          <select aria-label="Kategoriye göre filtrele" value={filters.categoryId || ''} onChange={(event) => updateFilters({ categoryId: event.target.value || undefined })} className="h-11 rounded-md border border-input bg-background px-3 text-sm"><option value="">Tüm kategoriler</option>{references.categories.data?.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select>
+      <section aria-label="Görev filtreleri" className="min-w-0 rounded-xl border border-border bg-surface p-4">
+        <form className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-4" onSubmit={(event) => { event.preventDefault(); updateFilters({ search: search.trim() || undefined }) }}>
+          <div className="relative min-w-0 sm:col-span-2"><Search aria-hidden="true" className="absolute left-3 top-2.5 size-4 text-text-secondary" /><Input aria-label="Görevlerde ara" value={search} onChange={(event) => setSearch(event.target.value)} className="pl-9" placeholder="Görev açıklamasında ara" /></div>
+          <select aria-label="Duruma göre filtrele" value={filters.status || ''} onChange={(event) => updateFilters({ status: event.target.value || undefined })} className="h-11 w-full min-w-0 rounded-md border border-input bg-background px-3 text-sm">{statusOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
+          {manager ? <select aria-label="Kişiye göre filtrele" value={filters.assistantId || ''} onChange={(event) => updateFilters({ assistantId: event.target.value || undefined })} className="h-11 w-full min-w-0 rounded-md border border-input bg-background px-3 text-sm"><option value="">Tüm kişiler</option>{references.assistants.data?.map((assistant) => <option key={assistant.id} value={assistant.id}>{assistant.name}</option>)}</select> : null}
+          <select aria-label="Kategoriye göre filtrele" value={filters.categoryId || ''} onChange={(event) => updateFilters({ categoryId: event.target.value || undefined })} className="h-11 w-full min-w-0 rounded-md border border-input bg-background px-3 text-sm"><option value="">Tüm kategoriler</option>{references.categories.data?.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select>
           <Input aria-label="Başlangıç tarihine göre filtrele" title="Başlangıç tarihi" type="date" value={filters.dateFrom || ''} max={filters.dateTo} onChange={(event) => updateFilters({ dateFrom: event.target.value || undefined })} />
           <Input aria-label="Bitiş tarihine göre filtrele" title="Bitiş tarihi" type="date" value={filters.dateTo || ''} min={filters.dateFrom} onChange={(event) => updateFilters({ dateTo: event.target.value || undefined })} />
-          <div className="flex gap-2"><Button type="submit" variant="secondary">Ara</Button>{hasFilters ? <Button type="button" variant="ghost" size="icon" aria-label="Filtreleri temizle" onClick={() => { setSearch(''); const departmentParam = user.role === 'dekan' ? `?department=${department}` : ''; router.replace(`${pathname}${departmentParam}`) }}><X aria-hidden="true" /></Button> : null}</div>
+          <div className="flex min-w-0 w-full gap-2"><Button type="submit" variant="secondary">Ara</Button>{hasFilters ? <Button type="button" variant="ghost" size="icon" aria-label="Filtreleri temizle" onClick={() => { setSearch(''); const departmentParam = user.role === 'dekan' ? `?department=${department}` : ''; router.replace(`${pathname}${departmentParam}`) }}><X aria-hidden="true" /></Button> : null}</div>
         </form>
       </section>
 
