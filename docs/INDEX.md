@@ -19,9 +19,10 @@ Eski bir planın açık kutusu tamamlanmış işin yeniden yapılması için ger
 | [`CURRENT.md`](status/CURRENT.md) | Tek güncel durum panosu | Aktif | Her çalışma başlangıcı ve kapanışı |
 | [`SISTEM_DOKUMANTASYONU.md`](../SISTEM_DOKUMANTASYONU.md) | Ayrıntılı teknik/işletim açıklaması | Aktif, ayrıştırılacak legacy belge | Sistem davranışı veya kurulum ayrıntısı gerektiğinde |
 | [`architecture/README.md`](architecture/README.md) | Mimari belgelerin yönlendiricisi | Aktif | Kod alanı veya veri akışı incelenirken |
-| [`logbook/TEMPLATE.md`](logbook/TEMPLATE.md) | Oturum kayıt şablonu | Hazırlanıyor | Anlamlı oturum kapanışında |
-| [`decisions/TEMPLATE.md`](decisions/TEMPLATE.md) | ADR şablonu | Hazırlanıyor | Kalıcı teknik/operasyonel karar alınırken |
-| [`runbooks/TEMPLATE.md`](runbooks/TEMPLATE.md) | Operasyon şablonu | Hazırlanıyor | Tekrarlanabilir işlem belgelenirken |
+| [`logbook/TEMPLATE.md`](logbook/TEMPLATE.md) | Oturum kayıt şablonu | Aktif | Anlamlı oturum kapanışında |
+| [`ADR-0001`](decisions/ADR-0001-project-memory-system.md) | Katmanlı proje hafızası kararı | Accepted | Belge sisteminin gerekçesi gerektiğinde |
+| [`decisions/TEMPLATE.md`](decisions/TEMPLATE.md) | ADR şablonu | Aktif | Kalıcı teknik/operasyonel karar alınırken |
+| [`runbooks/TEMPLATE.md`](runbooks/TEMPLATE.md) | Operasyon şablonu | Aktif | Tekrarlanabilir işlem belgelenirken |
 | [`STAGING_E2E.md`](testing/STAGING_E2E.md) | İzole rol test ortamı | Taşınacak | Staging rol testi öncesi |
 | [`project memory design`](superpowers/specs/2026-07-12-project-memory-and-logbook-design.md) | Bu belge sisteminin onaylı tasarımı | Uygulandıktan sonra arşivlenecek | Tasarım gerekçesi gerektiğinde |
 | [`project memory plan`](superpowers/plans/2026-07-12-project-memory-and-logbook.md) | Bu geçişin uygulama planı | Uygulanıyor | Geçiş tamamlanana kadar |
@@ -35,4 +36,3 @@ Eski bir planın açık kutusu tamamlanmış işin yeniden yapılması için ger
 - `runbooks/`: Dry-run, uygulama, doğrulama, rollback ve stop koşulları olan işlemler.
 - `superpowers/specs/` ve `superpowers/plans/`: Tasarım ve uygulama niyeti; durum kanıtı değildir.
 - `archive/`: Geçerliliğini kaybetmiş fakat tarihsel değeri bulunan belgeler.
-

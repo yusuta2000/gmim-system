@@ -117,7 +117,28 @@ Claude, kodda bir değişiklik istendiğinde şu sırayı izler:
 
 ---
 
-## 7. Takıldığında
+## 7. Proje hafızası ve zorunlu oturum protokolü
+
+### Başlangıç
+1. `docs/INDEX.md` ve `docs/status/CURRENT.md` dosyalarını oku.
+2. İstenen işlemle ilgili runbook'u, sonra yalnız `CURRENT.md` tarafından bağlanan gerekli logbook/ADR/spec/plan kayıtlarını oku.
+3. `git status`, aktif branch, son commitler ve upstream durumunu kontrol et.
+4. İsteği tamamlanan işler ve açık kapılarla karşılaştır. Eski plandaki açık kutu nedeniyle doğrulanmış işi tekrarlama.
+
+### Çalışma sırasında
+1. İlgisiz ve bilinmeyen untracked kullanıcı dosyalarını koru; sınıflandırmadan silme veya taşıma.
+2. Kalıcı gerekçesi olan kararı ADR'ye, tekrar uygulanacak işlemi runbook'a yaz.
+3. Production/staging hedefi kanıtlanamıyorsa veya secret bulunursa tahmin yürütmeden dur.
+4. Parola, hash, token, session veya bağlantı bilgisini terminale, sohbete, dokümana, ekran görüntüsüne ya da commit'e yazma.
+
+### Kapanış
+1. Değişiklikle orantılı test/build/browser doğrulamasını çalıştır.
+2. Anlamlı oturum için `docs/logbook/YYYY/` altında append-only kayıt oluştur.
+3. Güncel gerçek değiştiyse `docs/status/CURRENT.md`; belge eklendi/taşındıysa `docs/INDEX.md` güncelle.
+4. Commit/push/deploy, veri ve güvenlik etkisini ve kalan engelleri doğru kaydet.
+5. `AGENTS.md` ile `CLAUDE.md` dosyalarının byte düzeyinde aynı olduğunu ve secret/geçici artifact stage edilmediğini doğrula.
+
+## 8. Takıldığında
 - Staging rol/E2E testleri: önce `docs/testing/STAGING_E2E.md` dosyasını oku; production üzerinde test hesabı veya test verisi oluşturma.
 - Derin teknik detay ve API listesi: `SISTEM_DOKUMANTASYONU.md`.
 - Sistemin sahibi: yusuta2000 (repo sahibi). Yayın/erişim sorunlarını ona ilet.
