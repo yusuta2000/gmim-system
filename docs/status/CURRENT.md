@@ -51,8 +51,8 @@ Bu dosya projenin tek güncel durum panosudur. Uygulama tamamlandığında doğr
 
 ## İlgili kanıt ve prosedürler
 
-- Geçici mevcut handoff: `docs/superpowers/logs/2026-07-12-program-status-and-handoff.md`
-- Staging rehberi: `docs/testing/STAGING_E2E.md`
-- Onaylı proje hafızası tasarımı: `docs/superpowers/specs/2026-07-12-project-memory-and-logbook-design.md`
-- Uygulama planı: `docs/superpowers/plans/2026-07-12-project-memory-and-logbook.md`
-
+- Program closeout/staging kanıtı: [`2026-07-12-portal-program-closeout-and-staging.md`](../logbook/2026/2026-07-12-portal-program-closeout-and-staging.md)
+- Dependency audit: [`2026-07-12-dependency-audit.md`](../logbook/2026/2026-07-12-dependency-audit.md)
+- Staging runbook: [`staging-e2e.md`](../runbooks/staging-e2e.md)
+- Onaylı proje hafızası tasarımı: [`2026-07-12-project-memory-and-logbook-design.md`](../superpowers/specs/2026-07-12-project-memory-and-logbook-design.md)
+- Uygulama planı: [`2026-07-12-project-memory-and-logbook.md`](../superpowers/plans/2026-07-12-project-memory-and-logbook.md)

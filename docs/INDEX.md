@@ -23,10 +23,14 @@ Eski bir planın açık kutusu tamamlanmış işin yeniden yapılması için ger
 | [`ADR-0001`](decisions/ADR-0001-project-memory-system.md) | Katmanlı proje hafızası kararı | Accepted | Belge sisteminin gerekçesi gerektiğinde |
 | [`decisions/TEMPLATE.md`](decisions/TEMPLATE.md) | ADR şablonu | Aktif | Kalıcı teknik/operasyonel karar alınırken |
 | [`runbooks/TEMPLATE.md`](runbooks/TEMPLATE.md) | Operasyon şablonu | Aktif | Tekrarlanabilir işlem belgelenirken |
-| [`STAGING_E2E.md`](testing/STAGING_E2E.md) | İzole rol test ortamı | Taşınacak | Staging rol testi öncesi |
+| [`staging-e2e.md`](runbooks/staging-e2e.md) | İzole rol testi ve reset operasyonu | Aktif | Her staging rol/veri testi öncesi |
+| [`portal closeout logbook`](logbook/2026/2026-07-12-portal-program-closeout-and-staging.md) | P00–P08, mobil ve staging tarihsel kanıtı | Append-only | Tamamlanan program işleri araştırılırken |
+| [`dependency audit logbook`](logbook/2026/2026-07-12-dependency-audit.md) | Paket temizliği ve kalan risk sınıflandırması | Append-only | Dependency yükseltmesi/audit öncesi |
 | [`project memory design`](superpowers/specs/2026-07-12-project-memory-and-logbook-design.md) | Bu belge sisteminin onaylı tasarımı | Uygulandıktan sonra arşivlenecek | Tasarım gerekçesi gerektiğinde |
 | [`project memory plan`](superpowers/plans/2026-07-12-project-memory-and-logbook.md) | Bu geçişin uygulama planı | Uygulanıyor | Geçiş tamamlanana kadar |
 | [`rate-limit contract`](superpowers/specs/2026-07-12-rate-limit-release-contract.md) | Login/AI rate-limit kabul sözleşmesi | Aktif, bloke | Dayanıklı limiter tasarlanırken |
+| [`legacy logs`](archive/legacy-logs/ARCHIVE.md) | Eski biçimli tarihsel kayıtlar | Arşiv | Eski faz kanıtı gerektiğinde |
+| [`completed work`](archive/completed-work/ARCHIVE.md) | Uygulanmış specs/plans | Arşiv | Tarihsel tasarım/plan gerektiğinde |
 
 ## Belge yaşam döngüsü
 

@@ -139,7 +139,7 @@ Claude, kodda bir değişiklik istendiğinde şu sırayı izler:
 5. `AGENTS.md` ile `CLAUDE.md` dosyalarının byte düzeyinde aynı olduğunu ve secret/geçici artifact stage edilmediğini doğrula.
 
 ## 8. Takıldığında
-- Staging rol/E2E testleri: önce `docs/testing/STAGING_E2E.md` dosyasını oku; production üzerinde test hesabı veya test verisi oluşturma.
+- Staging rol/E2E testleri: önce `docs/runbooks/staging-e2e.md` dosyasını oku; production üzerinde test hesabı veya test verisi oluşturma.
 - Derin teknik detay ve API listesi: `SISTEM_DOKUMANTASYONU.md`.
 - Sistemin sahibi: yusuta2000 (repo sahibi). Yayın/erişim sorunlarını ona ilet.
 - Bir şeyi bozmaktan korkuyorsan: önce Claude'a *"bu değişikliği yapmadan önce ne olacağını açıkla, henüz uygulama"* de.
