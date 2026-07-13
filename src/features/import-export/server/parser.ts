@@ -22,8 +22,8 @@ export class ImportParseError extends Error {
 
 type Matrix = string[][]
 
-function normalizeHeader(value: string) {
-  return value.trim().toLocaleLowerCase('tr-TR')
+function normalizeHeader(value: unknown) {
+  return String(value ?? '').trim().toLocaleLowerCase('tr-TR')
 }
 
 function parseCsv(text: string): Matrix {
@@ -99,11 +99,13 @@ function matrixFromXlsx(buffer: Buffer): Matrix {
     header: 1,
     raw: true,
     blankrows: false,
-  }).map((row) => row.map((cell) => String(cell ?? '').trim()))
+    // Seyrek (sparse) satırlarda boş hücreler delik olarak gelir; Array.from ile
+    // yoğunlaştırıp undefined delikleri boş string yaparız (aksi halde header.includes çöker).
+  }).map((row) => Array.from(row, (cell) => String(cell ?? '').trim()))
 }
 
 function indexOf(headers: string[], candidates: string[]) {
-  return headers.findIndex((header) => candidates.some((candidate) => header.includes(candidate)))
+  return headers.findIndex((header) => candidates.some((candidate) => (header ?? '').includes(candidate)))
 }
 
 function readMatrix(input: { fileName: string; buffer: Buffer }) {
