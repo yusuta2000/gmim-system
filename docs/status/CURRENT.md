@@ -1,8 +1,8 @@
 # Güncel Proje Durumu
 
-**Son doğrulanan tarih:** 2026-07-12
+**Son doğrulanan tarih:** 2026-07-13
 
-**Son doğrulanan uygulama commit'i:** `d4a699b`
+**Son doğrulanan uygulama commit'i:** `1c2b59b` (workbook senkron özelliği commit/push onayı bekliyor)
 
 Bu dosya projenin tek güncel durum panosudur. Logbook ve archive kayıtları tarihsel kanıttır; aktif iş listesi değildir.
 
@@ -24,6 +24,7 @@ Bu dosya projenin tek güncel durum panosudur. Logbook ve archive kayıtları ta
 - İnsan ve AI için canonical README/index/current/logbook/ADR/runbook proje hafızası ve executable doküman doğrulaması.
 - Generated/upload/local DB/tool artifactlerinin Git'ten çıkarılıp ignored yerel klasörlerde korunması.
 - Tracked teknik doküman ve kullanım kılavuzu üreticilerinden gerçek/default credential değerlerinin kaldırılması.
+- Ana takip Excel'inden bölüme özel tam görev/puan yeniden-eşitlemesi: `scripts/sync-gmim-from-excel.mjs` (dry-run/yedekli) ve portal `/api/sync-workbook` + import ekranı kartı.
 
 ## Son doğrulama kanıtı
 
@@ -38,6 +39,8 @@ Bu dosya projenin tek güncel durum panosudur. Logbook ve archive kayıtları ta
 
 ## Açık kapılar
 
+- Workbook senkron özelliğinin prod deploy'u ve deploy sonrası gerçek hesapla UI önizleme/commit dumanı testi.
+- Portal senkron ucuna (script'teki gibi) DB-tarafı yedek/rollback eklenmesi değerlendirmesi.
 - Keyboard-only focus, dialog ve live-region derin testi.
 - Production Core Web Vitals ölçümü için uygun DevTools aracı.
 - Login/AI rate limiting için onaylı dayanıklı ortak store.
@@ -49,13 +52,14 @@ Bu dosya projenin tek güncel durum panosudur. Logbook ve archive kayıtları ta
 ## Çalışma sınırları
 
 - Specs/plans tamamlanmış işin kanıtı değildir.
-- Production veri yazımı ve migration bu belge geçişinin kapsamı dışındadır.
+- 2026-07-13'te kontrollü bir production veri yazımı yapıldı (GMİM görev/puan yeniden-eşitleme, yalnız GMİM `Task`); ayrıntı ve kanıt logbook'ta. DUİM, kişiler ve şifreler değişmedi.
 - Bilinmeyen untracked kullanıcı dosyası sınıflandırılmadan silinmez.
 - Credential değeri dokümana, terminal çıktısına, sohbete veya commit'e yazılmaz.
 - Repository current tree içindeki gerçek giriş/database connection değerleri temizlenmiştir; Git geçmişi ve dış rotation ayrı kapıdır.
 
 ## İlgili kanıt ve prosedürler
 
+- GMİM workbook senkron ve yeniden-eşitleme: [`2026-07-13-workbook-sync-and-gmim-resync.md`](../logbook/2026/2026-07-13-workbook-sync-and-gmim-resync.md)
 - Program closeout/staging kanıtı: [`2026-07-12-portal-program-closeout-and-staging.md`](../logbook/2026/2026-07-12-portal-program-closeout-and-staging.md)
 - Dependency audit: [`2026-07-12-dependency-audit.md`](../logbook/2026/2026-07-12-dependency-audit.md)
 - Repository/dokümantasyon geçişi: [`2026-07-12-repository-documentation-cleanup.md`](../logbook/2026/2026-07-12-repository-documentation-cleanup.md)

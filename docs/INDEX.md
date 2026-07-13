@@ -27,6 +27,8 @@ Eski bir planın açık kutusu tamamlanmış işin yeniden yapılması için ger
 | [`portal closeout logbook`](logbook/2026/2026-07-12-portal-program-closeout-and-staging.md) | P00–P08, mobil ve staging tarihsel kanıtı | Append-only | Tamamlanan program işleri araştırılırken |
 | [`dependency audit logbook`](logbook/2026/2026-07-12-dependency-audit.md) | Paket temizliği ve kalan risk sınıflandırması | Append-only | Dependency yükseltmesi/audit öncesi |
 | [`repository cleanup logbook`](logbook/2026/2026-07-12-repository-documentation-cleanup.md) | Doküman/secret/artifact geçiş kanıtı | Append-only | Bu geçiş ve kök sınıflandırması araştırılırken |
+| [`workbook sync logbook`](logbook/2026/2026-07-13-workbook-sync-and-gmim-resync.md) | GMİM Excel yeniden-eşitleme ve portal senkron özelliği kanıtı | Append-only | Excel→puan senkronu veya production veri yazımı araştırılırken |
+| [`workbook sync plan`](superpowers/plans/2026-07-13-workbook-sync-feature.md) | Ana takip senkron özelliği uygulama planı | Aktif | Senkron özelliği değiştirilirken |
 | [`project memory design`](archive/completed-work/2026-07-12-project-memory-and-logbook-design.md) | Bu belge sisteminin onaylı tasarımı | Arşiv | Tasarım gerekçesi gerektiğinde |
 | [`project memory plan`](archive/completed-work/2026-07-12-project-memory-and-logbook.md) | Tamamlanmış uygulama planı | Arşiv | Geçiş adımları araştırılırken |
 | [`rate-limit contract`](superpowers/specs/2026-07-12-rate-limit-release-contract.md) | Login/AI rate-limit kabul sözleşmesi | Aktif, bloke | Dayanıklı limiter tasarlanırken |
