@@ -71,7 +71,6 @@ import { db } from '@/lib/db'
 import { requireSession, UnauthenticatedError } from '@/lib/auth/session'
 import { verifyPassword } from '@/lib/auth/password'
 import { GET as getCategories, POST as createCategory } from '@/app/api/categories/route'
-import { POST as importExcel } from '@/app/api/import-excel/route'
 import { GET as exportExcel } from '@/app/api/export-excel/route'
 import { POST as resetPeriod } from '@/app/api/reset-period/route'
 import type { SessionUser } from '@/lib/auth/session-repository'
@@ -118,21 +117,6 @@ function jsonRequest(path: string, body: unknown) {
   })
 }
 
-function importRequest(department: string, fields: Record<string, string> = {}) {
-  const file = { name: 'tasks.csv', arrayBuffer: vi.fn() }
-  return {
-    formData: async () => ({
-      get: (key: string) => {
-        if (key === 'department') return department
-        if (key === 'type') return 'tasks'
-        if (key === 'file') return file
-        if (key in fields) return fields[key]
-        return null
-      },
-    }),
-  } as unknown as Request
-}
-
 describe('admin data routes', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -172,24 +156,6 @@ describe('admin data routes', () => {
     expect(pointCategory.create).toHaveBeenCalledWith({
       data: { name: 'Cat', points: 1, description: null },
     })
-  })
-
-  it('import-excel requires manager department access before parsing files', async () => {
-    requireSessionMock.mockResolvedValue(regularUser)
-    expect((await importExcel(importRequest('GMIM'))).status).toBe(403)
-
-    requireSessionMock.mockResolvedValue(adminUser)
-    const crossDepartment = await importExcel(importRequest('DUIM'))
-    expect(crossDepartment.status).toBe(403)
-    expect(importLog.create).not.toHaveBeenCalled()
-  })
-
-  it('import-excel rejects commit without a matching preview hash', async () => {
-    const response = await importExcel(importRequest('GMIM', { mode: 'commit' }))
-
-    expect(response.status).toBe(400)
-    await expect(response.json()).resolves.toEqual(expect.objectContaining({ error: 'PREVIEW_REQUIRED' }))
-    expect(importLog.create).not.toHaveBeenCalled()
   })
 
   it('export-excel requires manager department access and filters by department', async () => {

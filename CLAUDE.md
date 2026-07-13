@@ -25,7 +25,7 @@ Dekan hocanın taleplerinin büyük kısmı zaten **siteye giriş yapıp arayüz
 | Sınav ekle + gözetmen ata | Sınavlar sekmesi | Hayır |
 | Dönem başı puan sıfırla / taşı | Puan Tablosu → "Dönem Yönetimi" | Hayır |
 | Şifre sıfırla (bir kişinin) | Personel → ilgili kişi → şifre sıfırla | Hayır |
-| Excel/CSV'den toplu görev yükle | İçe Aktar sekmesi | Hayır (basit CSV) |
+| Excel'den toplu görev/puan aktar | Veri aktarımı sekmesi → "Ana takip dosyası ile tam senkron" (önizle → onayla) | Hayır |
 | Puanları/sıralamayı Excel indir | Puan Tablosu → indirme butonları | Hayır |
 
 > **Not (yetki):** Bu işlemleri arayüzde yapabilmek için **Temsilci** olmak gerekir. Begüm zaten Temsilci. **Fatih şu an "Ar.Gör" rolünde** — arayüzden yönetim yapabilmesi için Begüm'ün onu Temsilci yapması yeterli (Personel → Fatih → "Temsilci Yap"). Kod ile güncelleme yapmak için ise rol önemli değildir.
@@ -87,7 +87,7 @@ Claude, kodda bir değişiklik istendiğinde şu sırayı izler:
 
 - **Barem ekle:** *"Puan baremlerine 'X görevi' diye 3 puanlık bir kategori ekle."*
 - **Barem değiştir:** *"'Gözetmenlik (1 sınav)' baremini 4'ten 5 puana çıkar."*
-- **Toplu puan/görev aktar:** *"Elimde şu Excel/CSV var (yolu: ...). GMİM ar.görlerinin geçmiş görevlerini sisteme aktar."* → Claude `scripts/` altındaki import şablonlarını kullanır, önce dry-run gösterir.
+- **Toplu puan/görev aktar:** Ana takip Excel'i artık portaldan yapılır: **Veri aktarımı → "Ana takip dosyası ile tam senkron"** (önizle → onayla; bölümün tüm görevlerini Excel ile eşitler). Karmaşık/tek seferlik durumda Claude `scripts/sync-gmim-from-excel.mjs` (varsayılan dry-run, otomatik yedek, `--commit`) kullanır.
 - **Arayüz metni:** *"Giriş ekranındaki alt yazıyı şu şekilde değiştir."*
 - **Şifre sıfırlama (toplu):** *"Şu kişilerin şifresini sıfırla."*
 - **Yeni bir kişiyi doğru bölüme ekle:** Arayüzden ekleniyorsa otomatik; kod tarafında Claude `department` alanını doğru (`GMIM`/`DUIM`) ayarlar.

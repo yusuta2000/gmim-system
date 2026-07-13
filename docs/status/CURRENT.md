@@ -41,7 +41,7 @@ Bu dosya projenin tek güncel durum panosudur. Logbook ve archive kayıtları ta
 
 - Workbook senkron prod'a deploy edildi; kalan: gerçek hesapla UI'da önizleme→commit tam dumanı ve DUİM için ilk senkron.
 - Portal senkron ucuna (script'teki gibi) DB-tarafı yedek/rollback eklenmesi değerlendirmesi.
-- Kullanılmayan eski `/api/import-excel` uç + flat parser/servisinin tamamen kaldırılması (şimdilik UI'dan koparıldı).
+- (Tamamlandı) Kullanılmayan eski `/api/import-excel` uç + flat parser/servis/testleri tamamen kaldırıldı; Prisma `ImportBatch`/`ImportLog` modelleri reset-period audit'i kullandığı için korundu.
 - Keyboard-only focus, dialog ve live-region derin testi.
 - Production Core Web Vitals ölçümü için uygun DevTools aracı.
 - Login/AI rate limiting için onaylı dayanıklı ortak store.

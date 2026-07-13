@@ -165,7 +165,7 @@ Otomatik/içe aktarma → approved (direkt)
 | GET/PUT | `/api/notifications` | Bildirim listele / okundu işaretle |
 | POST | `/api/ai-classify` | AI ile görev kategorileme |
 | GET | `/api/export-excel?type=tasks\|ranking\|exams` | Excel indir |
-| POST | `/api/import-excel` | CSV içe aktarma |
+| POST | `/api/sync-workbook` | Ana takip Excel'inden bölüme özel tam görev/puan senkronu (preview/commit) |
 | POST | `/api/reset-period` | Dönem puan sıfırla/taşı (manager only) |
 
 ---
@@ -458,7 +458,7 @@ C: Evet. `faculty` ve `department` alanları zaten var. Baremleri, rolleri ve is
 
 ### Uygulama detayı
 - **API GET'leri** `?department=GMIM|DUIM` query parametresiyle filtreler: `assistants`, `tasks`, `exams`, `weekly-schedule`, `approve-task`, `announcements`, `export-excel`. `assistants` sorgusu ayrıca `role: 'dekan'` olanları her bölümde döndürür (`OR`).
-- **Create/işlem** uçları gövdede `department` alır: `exams`, `add-assistant`, `reset-period`, `announcements`, `import-excel`.
+- **Create/işlem** uçları gövdede `department` alır: `exams`, `add-assistant`, `reset-period`, `announcements`, `sync-workbook`.
 - **Bildirimler** artık kullanıcıya özeldir: frontend `?assistantId=<currentUser.id>` gönderir (önceden tümü çekiliyordu).
 - **Frontend** anahtar noktaları (`src/app/page.tsx`): `DEPARTMENTS` sabiti, `roleLabel()`, `selectedDept`/`viewDept` state'i, bölüm seçim ekranı ve temalı login (GMİM yeşil, DUİM mavi), dekan için başlıkta bölüm seçici.
 
