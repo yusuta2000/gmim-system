@@ -74,4 +74,4 @@ Yetkili, GMİM ana takip Excel'ini (`2. GMIM Araş. Gör. Görevlendirmeler 11.0
 
 ## Addenda
 
-Yok.
+- 2026-07-13 (aynı oturum): Özellik prod'a deploy edildi (`/api/sync-workbook` canlı; prod önizleme 787 görev / 2468 puan doğrulandı). Ardından yetkili geri bildirimiyle import ekranındaki eski düz importer kartı UI'dan tamamen kaldırıldı; senkron tek görünür akış oldu. Senkron önizlemesine "sistemde hesabı olmayan kişi sayfası" (unmatchedPersonSheets) uyarısı eklendi. Eski `/api/import-excel` ucu backend'de kullanılmadan bırakıldı. Commit `3546c8f`. Tests 175 ✓, build ✓.
