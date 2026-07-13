@@ -46,6 +46,7 @@ export type WorkbookPreview = {
   totalTasks: number
   totalPoints: number
   unmatchedSheets: string[]
+  unmatchedPersonSheets: string[]
   ambiguousSheets: string[]
   orphansWithTasks: string[]
 }
@@ -75,14 +76,29 @@ function toPoints(v: unknown): number {
   return Number.isNaN(n) ? 0 : n
 }
 
-/** Bir kişi sayfasındaki görev satırlarını okur (col: Sayı, Görev, Saat, Tarih, Puan). */
-export function parseSheetTasks(ws: XLSX.WorkSheet): WorkbookTask[] {
-  const m = XLSX.utils.sheet_to_json<Array<unknown>>(ws, { header: 1, raw: true, blankrows: false })
-  let h = 0
+function sheetMatrix(ws: XLSX.WorkSheet): Array<Array<unknown>> {
+  return XLSX.utils.sheet_to_json<Array<unknown>>(ws, { header: 1, raw: true, blankrows: false })
+}
+
+/** Görev tablosu başlık satırının indexi (col0~'sayı' veya col1~'görev'), yoksa -1. */
+function taskHeaderRow(m: Array<Array<unknown>>): number {
   for (let i = 0; i < Math.min(m.length, 5); i += 1) {
     const r = m[i] || []
-    if (norm(r[0]).includes('sayı') || ['görev', 'görevi'].includes(norm(r[1]))) { h = i; break }
+    if (norm(r[0]).includes('sayı') || ['görev', 'görevi'].includes(norm(r[1]))) return i
   }
+  return -1
+}
+
+/** Sayfa gerçek bir kişi görev tablosu mu (başlık satırı var mı)? Meta sayfaları eler. */
+export function sheetLooksLikePerson(ws: XLSX.WorkSheet): boolean {
+  return taskHeaderRow(sheetMatrix(ws)) >= 0
+}
+
+/** Bir kişi sayfasındaki görev satırlarını okur (col: Sayı, Görev, Saat, Tarih, Puan). */
+export function parseSheetTasks(ws: XLSX.WorkSheet): WorkbookTask[] {
+  const m = sheetMatrix(ws)
+  const h = taskHeaderRow(m)
+  if (h < 0) return []
   const tasks: WorkbookTask[] = []
   for (let i = h + 1; i < m.length; i += 1) {
     const r = m[i] || []
@@ -119,6 +135,7 @@ export function matchSheetsToAssistants(
 ) {
   const matched: Array<{ assistant: AssistantLite; sheet: string; tasks: WorkbookTask[] }> = []
   const unmatchedSheets: string[] = []
+  const unmatchedPersonSheets: string[] = []
   const ambiguousSheets: string[] = []
   const usedAssistant = new Set<string>()
 
@@ -128,14 +145,19 @@ export function matchSheetsToAssistants(
       const n = norm(a.name)
       return n === s || n.includes(s) || s.includes(n)
     })
-    if (cands.length === 0) { unmatchedSheets.push(sheet); continue }
+    if (cands.length === 0) {
+      // Kişi görev tablosu gibi görünüp kimseye eşleşmeyen sayfa = sistemde hesabı olmayan kişi.
+      if (sheetLooksLikePerson(wb.Sheets[sheet])) unmatchedPersonSheets.push(sheet)
+      else unmatchedSheets.push(sheet)
+      continue
+    }
     if (cands.length > 1) { ambiguousSheets.push(sheet); continue }
     const assistant = cands[0]
     if (usedAssistant.has(assistant.id)) { ambiguousSheets.push(sheet); continue }
     usedAssistant.add(assistant.id)
     matched.push({ assistant, sheet, tasks: parseSheetTasks(wb.Sheets[sheet]) })
   }
-  return { matched, unmatchedSheets, ambiguousSheets }
+  return { matched, unmatchedSheets, unmatchedPersonSheets, ambiguousSheets }
 }
 
 function matchCategoryId(desc: string, cats: CategoryLite[]): string | null {
@@ -178,7 +200,7 @@ export async function previewWorkbookSync(input: {
   if (wb.SheetNames.length === 0) throw new WorkbookSyncError('EMPTY_FILE', 'Dosya boş veya geçersiz')
 
   const { assistants, curById } = await loadContext(input.department)
-  const { matched, unmatchedSheets, ambiguousSheets } = matchSheetsToAssistants(wb, assistants)
+  const { matched, unmatchedSheets, unmatchedPersonSheets, ambiguousSheets } = matchSheetsToAssistants(wb, assistants)
   if (matched.length === 0) {
     throw new WorkbookSyncError('NO_PERSON_SHEETS', 'Hiçbir sayfa bir kişiye eşleşmedi; ana takip dosyası mı?')
   }
@@ -209,6 +231,7 @@ export async function previewWorkbookSync(input: {
     totalTasks: people.reduce((s, p) => s + p.newCount, 0),
     totalPoints: people.reduce((s, p) => s + p.newPoints, 0),
     unmatchedSheets,
+    unmatchedPersonSheets,
     ambiguousSheets,
     orphansWithTasks,
   }

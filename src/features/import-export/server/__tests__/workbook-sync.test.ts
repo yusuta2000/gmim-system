@@ -41,19 +41,23 @@ describe('parseSheetTasks', () => {
 
 describe('matchSheetsToAssistants', () => {
   it('kişi sayfalarını eşleştirir, meta sayfaları atlar, isim farkını substring ile yakalar', () => {
+    const taskHeader = ['Sayı', 'Görev', 'Çalışılan saat', 'Tarih', 'Puan']
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, sheet([['TOPLAM', 'Sıralama']]), 'TOPLAM')
-    XLSX.utils.book_append_sheet(wb, sheet([['Sayı', 'Görev', 'Çalışılan saat', 'Tarih', 'Puan'], [1, 'g', '', '01.01.2025', 2]]), 'Fatih NACAR')
-    XLSX.utils.book_append_sheet(wb, sheet([['Sayı', 'Görev', 'Çalışılan saat', 'Tarih', 'Puan'], [1, 'g', '', '01.01.2025', 1]]), 'Berkehan İNAL')
+    XLSX.utils.book_append_sheet(wb, sheet([taskHeader, [1, 'g', '', '01.01.2025', 2]]), 'Fatih NACAR')
+    XLSX.utils.book_append_sheet(wb, sheet([taskHeader, [1, 'g', '', '01.01.2025', 1]]), 'Berkehan İNAL')
+    XLSX.utils.book_append_sheet(wb, sheet([taskHeader, [1, 'g', '', '01.01.2025', 3]]), 'Yeni Kişi')
 
     const assistants = [
       { id: 'a1', name: 'Fatih NACAR', totalPoints: 0, isActive: true },
       { id: 'a2', name: 'Ö. Berkehan İnal', totalPoints: 0, isActive: true },
       { id: 'a3', name: 'Cenk KAYA', totalPoints: 0, isActive: true },
     ]
-    const { matched, unmatchedSheets } = matchSheetsToAssistants(wb, assistants)
+    const { matched, unmatchedSheets, unmatchedPersonSheets } = matchSheetsToAssistants(wb, assistants)
     expect(matched.map((m) => m.assistant.id).sort()).toEqual(['a1', 'a2'])
+    // Meta sayfa (başlıksız) atlandı; kişi-benzeri ama hesabı olmayan sayfa ayrı uyarıya düştü
     expect(unmatchedSheets).toContain('TOPLAM')
+    expect(unmatchedPersonSheets).toEqual(['Yeni Kişi'])
     // Berkehan sayfası, adı farklı olan kişiye substring ile eşleşti
     const berkehan = matched.find((m) => m.sheet === 'Berkehan İNAL')
     expect(berkehan?.assistant.id).toBe('a2')
