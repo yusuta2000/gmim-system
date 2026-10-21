@@ -1,8 +1,8 @@
 # Güncel Proje Durumu
 
-**Son doğrulanan tarih:** 2026-07-13
+**Son doğrulanan tarih:** 2026-10-21
 
-**Son doğrulanan uygulama commit'i:** `3546c8f`
+**Son doğrulanan uygulama commit'i:** `aefd655`
 
 Bu dosya projenin tek güncel durum panosudur. Logbook ve archive kayıtları tarihsel kanıttır; aktif iş listesi değildir.
 
@@ -25,9 +25,12 @@ Bu dosya projenin tek güncel durum panosudur. Logbook ve archive kayıtları ta
 - Generated/upload/local DB/tool artifactlerinin Git'ten çıkarılıp ignored yerel klasörlerde korunması.
 - Tracked teknik doküman ve kullanım kılavuzu üreticilerinden gerçek/default credential değerlerinin kaldırılması.
 - Ana takip Excel'inden bölüme özel tam görev/puan yeniden-eşitlemesi: `scripts/sync-gmim-from-excel.mjs` (dry-run/yedekli) ve portal `/api/sync-workbook` + import ekranı kartı.
+- Yöneticiler (temsilci/başkan/dekan) kendilerine atanan görevi Görevler ekranından kabul/ret edebilir.
+- E-posta bildirimleri (Gmail SMTP, `src/lib/email.ts`): görev ataması ve gözetmenlik → atanan ar.gör/temsilci; kabul/ret → bölüm temsilcisi. Başkan/dekan mail almaz. Ayar yalnız production Vercel projesinde (`GMAIL_USER`, `GMAIL_APP_PASSWORD`); staging mail atmaz.
 
 ## Son doğrulama kanıtı
 
+- 2026-10-21: `vitest` 37 dosya / 171 test, `tsc`, `next build`, docs doğrulaması geçti; production'da test görevi maili İTÜ adresine ulaştı.
 - `bun run docs:check`: 0 hata.
 - `bun run test`: 36 test dosyası, 172 test geçti.
 - `bun run typecheck`: geçti.
@@ -39,6 +42,8 @@ Bu dosya projenin tek güncel durum panosudur. Logbook ve archive kayıtları ta
 
 ## Açık kapılar
 
+- Portal mailleri İTÜ filtresinde Junk'a düşüyor: kullanıcı bazında güvenilir gönderen veya İTÜ BİDB whitelist.
+- `SISTEM_DOKUMANTASYONU.md` Bölüm 10 güvenlik açıkları listesi eskimiş (Argon2/session/auth tamamlandı); güncellenmeli.
 - Workbook senkron prod'a deploy edildi; kalan: gerçek hesapla UI'da önizleme→commit tam dumanı ve DUİM için ilk senkron.
 - Portal senkron ucuna (script'teki gibi) DB-tarafı yedek/rollback eklenmesi değerlendirmesi.
 - (Tamamlandı) Kullanılmayan eski `/api/import-excel` uç + flat parser/servis/testleri tamamen kaldırıldı; Prisma `ImportBatch`/`ImportLog` modelleri reset-period audit'i kullandığı için korundu.
@@ -60,6 +65,7 @@ Bu dosya projenin tek güncel durum panosudur. Logbook ve archive kayıtları ta
 
 ## İlgili kanıt ve prosedürler
 
+- Yönetici görev yanıtı ve e-posta bildirimleri: [`2026-10-21-manager-task-response-and-email-notifications.md`](../logbook/2026/2026-10-21-manager-task-response-and-email-notifications.md)
 - GMİM workbook senkron ve yeniden-eşitleme: [`2026-07-13-workbook-sync-and-gmim-resync.md`](../logbook/2026/2026-07-13-workbook-sync-and-gmim-resync.md)
 - Program closeout/staging kanıtı: [`2026-07-12-portal-program-closeout-and-staging.md`](../logbook/2026/2026-07-12-portal-program-closeout-and-staging.md)
 - Dependency audit: [`2026-07-12-dependency-audit.md`](../logbook/2026/2026-07-12-dependency-audit.md)
