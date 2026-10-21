@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { Prisma } from '@prisma/client';
 import { db } from '@/lib/db';
+import { sendEmail } from '@/lib/email';
 import { requireSession, UnauthenticatedError } from '@/lib/auth/session';
 import type { SessionUser } from '@/lib/auth/session-repository';
 import { assertDepartmentAccess } from '@/lib/authorization/department';
@@ -125,15 +126,17 @@ export async function POST(request: Request) {
       });
 
       // Create notification
+      const message = `${exam.courseCode} - ${exam.courseName} sınavına gözetmen olarak atandınız. Tarih: ${new Date(exam.date).toLocaleDateString('tr-TR')}, Saat: ${exam.timeSlot}`;
       await db.notification.create({
         data: {
           title: 'Gözetmenlik Ataması',
-          message: `${exam.courseCode} - ${exam.courseName} sınavına gözetmen olarak atandınız. Tarih: ${new Date(exam.date).toLocaleDateString('tr-TR')}, Saat: ${exam.timeSlot}`,
+          message,
           type: 'exam_assigned',
           assistantId: assistant.id,
           relatedId: exam.id,
         },
       });
+      await sendEmail(assistant.email, 'Gözetmenlik Ataması', `Merhaba ${assistant.name},\n\n${message}`);
     }
 
     const updatedExam = await db.exam.findUnique({

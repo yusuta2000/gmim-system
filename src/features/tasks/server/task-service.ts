@@ -1,5 +1,6 @@
 import type { Prisma, Task } from '@prisma/client'
 import { db } from '@/lib/db'
+import { sendEmail } from '@/lib/email'
 import type { SessionUser } from '@/lib/auth/session-repository'
 import { assertDepartmentAccess } from '@/lib/authorization/department'
 import { TaskServiceError } from './errors'
@@ -55,7 +56,7 @@ async function assertTaskPeriodOpen(taskId: string, tx: TaskTransaction) {
 }
 
 export async function createTask(input: { actor: SessionUser; data: CreateTaskInput }) {
-  return db.$transaction(async (tx) => {
+  const created = await db.$transaction(async (tx) => {
     const assistant = await tx.researchAssistant.findUnique({ where: { id: input.data.assistantId } })
     if (!assistant) throw new TaskServiceError('NOT_FOUND', 'Kullanıcı bulunamadı')
 
@@ -142,6 +143,15 @@ export async function createTask(input: { actor: SessionUser; data: CreateTaskIn
 
     return task
   })
+
+  if (created.status === 'assigned') {
+    await sendEmail(
+      created.assistant.email,
+      'Size yeni görev atandı',
+      `Merhaba ${created.assistant.name},\n\n"${created.description}" görevi size atandı (${created.points} puan). Portala girip Görevler ekranından kabul edebilir veya reddedebilirsiniz.`,
+    )
+  }
+  return created
 }
 
 export async function approveTask(input: {
@@ -213,7 +223,7 @@ export async function respondToTask(input: {
     throw new TaskServiceError('BAD_REQUEST', 'Ret sebebi en fazla 500 karakter olabilir')
   }
 
-  return db.$transaction(async (tx) => {
+  const { responded, mail } = await db.$transaction(async (tx) => {
     const task = await getTaskForMutation(tx, input.taskId)
     await assertTaskPeriodOpen(input.taskId, tx)
     if (task.assistantId !== input.responder.id) {
@@ -248,23 +258,34 @@ export async function respondToTask(input: {
         ],
       },
     })
+    const title = input.action === 'accept' ? 'Görev Kabul Edildi' : 'Görev Reddedildi'
+    const message = input.action === 'accept'
+      ? `${task.assistant.name} "${task.description}" görevini kabul etti. ${task.points} puan eklendi.`
+      : `${task.assistant.name} "${task.description}" görevini reddetti. Sebep: ${rejectionReason}. Başka bir araştırma görevlisine atanabilir.`
     await Promise.all(managers.map((manager) => tx.notification.create({
       data: {
-        title: input.action === 'accept' ? 'Görev Kabul Edildi' : 'Görev Reddedildi',
-        message: input.action === 'accept'
-          ? `${task.assistant.name} "${task.description}" görevini kabul etti. ${task.points} puan eklendi.`
-          : `${task.assistant.name} "${task.description}" görevini reddetti. Sebep: ${rejectionReason}. Başka bir araştırma görevlisine atanabilir.`,
+        title,
+        message,
         type: input.action === 'accept' ? 'task_accepted' : 'task_rejected',
         assistantId: manager.id,
         relatedId: task.id,
       },
     })))
-
-    return tx.task.findUniqueOrThrow({
-      where: { id: input.taskId },
-      include: { assistant: true, category: true },
-    })
+    return {
+      responded: await tx.task.findUniqueOrThrow({
+        where: { id: input.taskId },
+        include: { assistant: true, category: true },
+      }),
+      mail: {
+        to: managers.filter((manager) => manager.role !== 'dekan' && manager.id !== input.responder.id).map((manager) => manager.email),
+        subject: title,
+        text: message,
+      },
+    }
   })
+
+  await sendEmail(mail.to, mail.subject, mail.text)
+  return responded
 }
 
 export async function deleteTask(input: { taskId: string; requester: SessionUser }) {
