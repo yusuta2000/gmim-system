@@ -44,7 +44,10 @@ vi.mock('@/lib/auth/session', () => {
   }
 })
 
+vi.mock('@/lib/email', () => ({ sendEmail: vi.fn() }))
+
 import { db } from '@/lib/db'
+import { sendEmail } from '@/lib/email'
 import { requireSession, UnauthenticatedError } from '@/lib/auth/session'
 import { GET as getTasks, POST as createTask } from '@/app/api/tasks/route'
 import { GET as getPendingTasks, PUT as approveTask } from '@/app/api/approve-task/route'
@@ -78,6 +81,7 @@ const pointCategory = db.pointCategory as unknown as {
   findUnique: ReturnType<typeof vi.fn>
 }
 const requireSessionMock = requireSession as unknown as ReturnType<typeof vi.fn>
+const sendEmailMock = sendEmail as unknown as ReturnType<typeof vi.fn>
 
 const adminUser: SessionUser = { id: 'admin-1', role: 'admin', department: 'GMIM' }
 const regularUser: SessionUser = { id: 'user-1', role: 'user', department: 'GMIM' }
@@ -451,5 +455,35 @@ describe('task routes', () => {
       data: { totalPoints: { decrement: 5 } },
     })
     expect(task.deleteMany).toHaveBeenCalledWith({ where: { id: 'task-1' } })
+  })
+
+  it('mails a task assignment to the assistant but never to başkan or dekan', async () => {
+    task.create.mockResolvedValue({ ...baseTask, status: 'assigned', assistant: { ...targetAssistant, role: 'user', email: 'target@example.com' } })
+    await createTask(jsonRequest('/api/tasks', createBody))
+    expect(sendEmailMock).toHaveBeenCalledWith('target@example.com', expect.any(String), expect.any(String))
+
+    sendEmailMock.mockClear()
+    task.create.mockResolvedValue({ ...baseTask, status: 'assigned', assistant: { ...targetAssistant, role: 'baskan', email: 'hoca@example.com' } })
+    await createTask(jsonRequest('/api/tasks', createBody))
+    expect(sendEmailMock).not.toHaveBeenCalled()
+  })
+
+  it('mails task responses only to the department temsilci', async () => {
+    requireSessionMock.mockResolvedValue(regularUser)
+    task.findUnique.mockResolvedValue({
+      ...baseTask,
+      status: 'assigned',
+      assistantId: 'user-1',
+      assistant: { id: 'user-1', name: 'User One', department: 'GMIM' },
+    })
+    researchAssistant.findMany.mockResolvedValue([
+      { id: 'admin-1', role: 'admin', email: 'temsilci@example.com' },
+      { id: 'baskan-1', role: 'baskan', email: 'baskan@example.com' },
+      { id: 'dekan-1', role: 'dekan', email: 'dekan@example.com' },
+    ])
+
+    await respondTask(jsonRequest('/api/respond-task', { taskId: 'task-1', action: 'accept' }))
+
+    expect(sendEmailMock).toHaveBeenCalledWith(['temsilci@example.com'], expect.any(String), expect.any(String))
   })
 })

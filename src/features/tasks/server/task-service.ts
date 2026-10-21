@@ -144,7 +144,8 @@ export async function createTask(input: { actor: SessionUser; data: CreateTaskIn
     return task
   })
 
-  if (created.status === 'assigned') {
+  // Hocalar (başkan/dekan) are not mailed.
+  if (created.status === 'assigned' && !['baskan', 'dekan'].includes(created.assistant.role)) {
     await sendEmail(
       created.assistant.email,
       'Size yeni görev atandı',
@@ -277,7 +278,7 @@ export async function respondToTask(input: {
         include: { assistant: true, category: true },
       }),
       mail: {
-        to: managers.filter((manager) => manager.role !== 'dekan' && manager.id !== input.responder.id).map((manager) => manager.email),
+        to: managers.filter((manager) => manager.role === 'admin' && manager.id !== input.responder.id).map((manager) => manager.email),
         subject: title,
         text: message,
       },
