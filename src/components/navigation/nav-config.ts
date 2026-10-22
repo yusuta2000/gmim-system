@@ -11,6 +11,7 @@ export type NavigationIcon =
   | 'import'
   | 'categories'
   | 'periods'
+  | 'absence'
 
 export type NavigationItem = {
   id: NavigationIcon
@@ -35,6 +36,7 @@ const managementItems: NavigationItem[] = [
   { id: 'import', label: 'Veri Aktarımı', href: '/management/import', icon: 'import', section: 'management', mobile: 'more' },
   { id: 'categories', label: 'Puan Baremleri', href: '/management/categories', icon: 'categories', section: 'management', mobile: 'more' },
   { id: 'periods', label: 'Dönem Yönetimi', href: '/management/periods', icon: 'periods', section: 'management', mobile: 'more' },
+  { id: 'absence', label: 'Yurtdışı Telafisi', href: '/management/absence', icon: 'absence', section: 'management', mobile: 'more' },
 ]
 
 export function isManager(user: SessionUser): boolean {

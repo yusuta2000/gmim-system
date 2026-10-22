@@ -6,6 +6,7 @@ import {
   Gauge,
   ListChecks,
   Megaphone,
+  Plane,
   RotateCcw,
   TableProperties,
   Users,
@@ -24,4 +25,5 @@ export const navigationIcons: Record<NavigationIcon, LucideIcon> = {
   import: FileUp,
   categories: Award,
   periods: RotateCcw,
+  absence: Plane,
 }
