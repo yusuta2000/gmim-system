@@ -167,7 +167,7 @@ export async function approveTask(input: {
     throw new TaskServiceError('BAD_REQUEST', 'Action must be "approve" or "reject"')
   }
 
-  return db.$transaction(async (tx) => {
+  const reviewed = await db.$transaction(async (tx) => {
     const task = await getTaskForMutation(tx, input.taskId)
     assertTaskDepartment(input.reviewer, task)
     await assertTaskPeriodOpen(input.taskId, tx)
@@ -205,6 +205,15 @@ export async function approveTask(input: {
       include: { assistant: true, category: true },
     })
   })
+
+  if (input.action === 'approve' && !['baskan', 'dekan'].includes(reviewed.assistant.role)) {
+    await sendEmail(
+      reviewed.assistant.email,
+      'Göreviniz onaylandı',
+      `Merhaba ${reviewed.assistant.name},\n\n"${reviewed.description}" göreviniz onaylandı. +${reviewed.points} puan eklendi.`,
+    )
+  }
+  return reviewed
 }
 
 export async function respondToTask(input: {
@@ -278,7 +287,7 @@ export async function respondToTask(input: {
         include: { assistant: true, category: true },
       }),
       mail: {
-        to: managers.filter((manager) => manager.role === 'admin' && manager.id !== input.responder.id).map((manager) => manager.email),
+        to: managers.filter((manager) => manager.role === 'admin').map((manager) => manager.email),
         subject: title,
         text: message,
       },

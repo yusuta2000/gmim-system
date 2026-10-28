@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { db } from '@/lib/db'
+import { sendEmail } from '@/lib/email'
 import { requireSession, UnauthenticatedError } from '@/lib/auth/session'
 import type { SessionUser } from '@/lib/auth/session-repository'
 import { assertDepartmentAccess } from '@/lib/authorization/department'
@@ -67,9 +68,10 @@ export async function POST(request: Request) {
     })
     const recipients = await db.researchAssistant.findMany({
       where: { isActive: true, role: { in: ['user', 'admin'] }, department: announcementDepartment },
-      select: { id: true },
+      select: { id: true, email: true },
     })
-    await Promise.all(recipients.filter((recipient) => recipient.id !== user.id).map((recipient) => db.notification.create({
+    const others = recipients.filter((recipient) => recipient.id !== user.id)
+    await Promise.all(others.map((recipient) => db.notification.create({
       data: {
         title: 'Yeni Duyuru',
         message: `"${title}" başlıklı yeni bir duyuru paylaşıldı`,
@@ -78,6 +80,7 @@ export async function POST(request: Request) {
         relatedId: announcement.id,
       },
     })))
+    await sendEmail(recipients.map((recipient) => recipient.email), `Yeni duyuru: ${title}`, `${title}\n\n${content}`, { bcc: true })
     return NextResponse.json(announcement, { status: 201 })
   } catch (error) {
     return routeError(error, 'Duyuru oluşturulamadı')

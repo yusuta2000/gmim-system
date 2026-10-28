@@ -39,7 +39,10 @@ vi.mock('@/lib/auth/session', () => {
   }
 })
 
+vi.mock('@/lib/email', () => ({ sendEmail: vi.fn() }))
+
 import { db } from '@/lib/db'
+import { sendEmail } from '@/lib/email'
 import { requireSession, UnauthenticatedError } from '@/lib/auth/session'
 import { GET as getAnnouncements, POST as createAnnouncement, PUT as commentAnnouncement, DELETE as deleteAnnouncement } from '@/app/api/announcements/route'
 import { GET as getNotifications, POST as createNotification, PUT as updateNotification } from '@/app/api/notifications/route'
@@ -157,6 +160,20 @@ describe('announcement and notification routes', () => {
     expect(announcement.create).toHaveBeenCalledWith(expect.objectContaining({
       data: { title: 'Title', content: 'Body', authorId: 'admin-1', department: 'GMIM' },
     }))
+  })
+
+  it('announcement POST mails all active assistants of the department, author included', async () => {
+    researchAssistant.findMany.mockResolvedValue([
+      { id: 'user-1', email: 'user@example.com' },
+      { id: 'admin-1', email: 'admin@example.com' },
+    ])
+
+    await createAnnouncement(jsonRequest('/api/announcements', { title: 'Title', content: 'Body', department: 'GMIM' }))
+
+    expect(researchAssistant.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { isActive: true, role: { in: ['user', 'admin'] }, department: 'GMIM' },
+    }))
+    expect(sendEmail).toHaveBeenCalledWith(['user@example.com', 'admin@example.com'], expect.stringContaining('Title'), expect.stringContaining('Body'), { bcc: true })
   })
 
   it('announcement PUT comments as the session user and rejects cross-department comments', async () => {

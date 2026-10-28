@@ -72,8 +72,8 @@ export function TaskForm({ onSuccess, onCancel }: TaskFormProps) {
         <fieldset className="space-y-2">
           <legend className="text-sm font-medium">İşlem türü</legend>
           <div className="grid grid-cols-2 gap-2">
-            <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-border p-3 text-sm has-[:checked]:border-primary has-[:checked]:bg-accent"><input type="radio" name="kind" value="assign" defaultChecked /> Görev ata</label>
-            <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-border p-3 text-sm has-[:checked]:border-primary has-[:checked]:bg-accent"><input type="radio" name="kind" value="report" /> Kayıt bildir</label>
+            <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-border p-3 text-sm has-[:checked]:border-primary has-[:checked]:bg-accent"><input type="radio" name="kind" value="assign" defaultChecked className="mt-1" /><span>Görev ata<span className="block text-xs text-text-secondary">Yapılacak iş; kişi kabul edince puan eklenir</span></span></label>
+            <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-border p-3 text-sm has-[:checked]:border-primary has-[:checked]:bg-accent"><input type="radio" name="kind" value="report" className="mt-1" /><span>Kayıt bildir<span className="block text-xs text-text-secondary">Yapılmış iş; Onaylar'dan onaylanınca puan eklenir</span></span></label>
           </div>
         </fieldset>
       ) : null}

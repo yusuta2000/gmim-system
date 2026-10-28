@@ -468,13 +468,20 @@ describe('task routes', () => {
     expect(sendEmailMock).not.toHaveBeenCalled()
   })
 
-  it('mails task responses only to the department temsilci', async () => {
-    requireSessionMock.mockResolvedValue(regularUser)
+  it('mails the assistant when their task is approved, self-approval included', async () => {
+    task.findUniqueOrThrow.mockResolvedValue({ ...baseTask, status: 'approved', assistant: { ...targetAssistant, role: 'admin', email: 'target@example.com' } })
+    requireSessionMock.mockResolvedValue({ ...adminUser, id: 'target-1' })
+    await approveTask(jsonRequest('/api/approve-task', { taskId: 'task-1', action: 'approve' }))
+    expect(sendEmailMock).toHaveBeenCalledWith('target@example.com', expect.any(String), expect.stringContaining('+5 puan'))
+  })
+
+  it('mails task responses only to the department temsilci, the responding temsilci included', async () => {
+    requireSessionMock.mockResolvedValue({ ...regularUser, id: 'admin-1', role: 'admin' })
     task.findUnique.mockResolvedValue({
       ...baseTask,
       status: 'assigned',
-      assistantId: 'user-1',
-      assistant: { id: 'user-1', name: 'User One', department: 'GMIM' },
+      assistantId: 'admin-1',
+      assistant: { id: 'admin-1', name: 'Temsilci', department: 'GMIM' },
     })
     researchAssistant.findMany.mockResolvedValue([
       { id: 'admin-1', role: 'admin', email: 'temsilci@example.com' },
