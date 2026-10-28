@@ -158,6 +158,7 @@ export async function createTask(input: { actor: SessionUser; data: CreateTaskIn
 export async function approveTask(input: {
   taskId: string
   action: 'approve' | 'reject'
+  points?: number // reviewer may set or correct the points when approving
   reviewer: SessionUser
 }) {
   if (!isManager(input.reviewer)) {
@@ -173,18 +174,20 @@ export async function approveTask(input: {
     await assertTaskPeriodOpen(input.taskId, tx)
 
     const newStatus = input.action === 'approve' ? 'approved' : 'rejected'
+    const reviewerPoints = input.action === 'approve' ? input.points : undefined
+    const points = reviewerPoints ?? task.points
     const updated = await tx.task.updateMany({
       where: { id: input.taskId, status: 'pending' },
-      data: { status: newStatus, assignedBy: input.reviewer.id },
+      data: { status: newStatus, assignedBy: input.reviewer.id, ...(reviewerPoints !== undefined ? { points: reviewerPoints } : {}) },
     })
     if (updated.count !== 1) {
       throw new TaskServiceError('CONFLICT', 'Bu görev zaten işlenmiş')
     }
 
-    if (input.action === 'approve' && task.points > 0) {
+    if (input.action === 'approve' && points > 0) {
       await tx.researchAssistant.update({
         where: { id: task.assistantId },
-        data: { totalPoints: { increment: task.points } },
+        data: { totalPoints: { increment: points } },
       })
     }
 
@@ -192,7 +195,7 @@ export async function approveTask(input: {
       data: {
         title: input.action === 'approve' ? 'Görev Onaylandı' : 'Görev Reddedildi',
         message: input.action === 'approve'
-          ? `"${task.description}" göreviniz onaylandı. +${task.points} puan eklendi.`
+          ? `"${task.description}" göreviniz onaylandı. +${points} puan eklendi.`
           : `"${task.description}" göreviniz reddedildi.`,
         type: input.action === 'approve' ? 'success' : 'warning',
         assistantId: task.assistantId,

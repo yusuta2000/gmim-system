@@ -21,7 +21,10 @@ export function TaskForm({ onSuccess, onCancel }: TaskFormProps) {
   const descriptionRef = useRef<HTMLTextAreaElement>(null)
   const [error, setError] = useState('')
   const [categoryId, setCategoryId] = useState('')
-  const selectedCategory = categories.data?.find((category) => category.id === categoryId)
+  const [kind, setKind] = useState<'assign' | 'report'>(manager ? 'assign' : 'report')
+  const [reviewerSetsPoints, setReviewerSetsPoints] = useState(false)
+  const deferPoints = kind === 'report' && reviewerSetsPoints
+  const selectedCategory = deferPoints ? undefined : categories.data?.find((category) => category.id === categoryId)
 
   useEffect(() => { descriptionRef.current?.focus() }, [])
 
@@ -56,11 +59,11 @@ export function TaskForm({ onSuccess, onCancel }: TaskFormProps) {
       description,
       date: form.get('date'),
       assistantId: manager ? form.get('assistantId') : user.id,
-      categoryId: categoryId || null,
-      points: selectedCategory ? selectedCategory.points : Number(form.get('points') || 0),
+      categoryId: selectedCategory?.id || null,
+      points: deferPoints ? 0 : selectedCategory ? selectedCategory.points : Number(form.get('points') || 0),
       hoursWorked: String(form.get('hoursWorked') || '').trim() || null,
       notes: String(form.get('notes') || '').trim() || null,
-      kind: manager ? form.get('kind') : 'report',
+      kind,
     })
   }
 
@@ -72,8 +75,8 @@ export function TaskForm({ onSuccess, onCancel }: TaskFormProps) {
         <fieldset className="space-y-2">
           <legend className="text-sm font-medium">İşlem türü</legend>
           <div className="grid grid-cols-2 gap-2">
-            <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-border p-3 text-sm has-[:checked]:border-primary has-[:checked]:bg-accent"><input type="radio" name="kind" value="assign" defaultChecked className="mt-1" /><span>Görev ata<span className="block text-xs text-text-secondary">Yapılacak iş; kişi kabul edince puan eklenir</span></span></label>
-            <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-border p-3 text-sm has-[:checked]:border-primary has-[:checked]:bg-accent"><input type="radio" name="kind" value="report" className="mt-1" /><span>Kayıt bildir<span className="block text-xs text-text-secondary">Yapılmış iş; Onaylar'dan onaylanınca puan eklenir</span></span></label>
+            <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-border p-3 text-sm has-[:checked]:border-primary has-[:checked]:bg-accent"><input type="radio" name="kind" value="assign" checked={kind === 'assign'} onChange={() => setKind('assign')} className="mt-1" /><span>Görev ata<span className="block text-xs text-text-secondary">Yapılacak iş; kişi kabul edince puan eklenir</span></span></label>
+            <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-border p-3 text-sm has-[:checked]:border-primary has-[:checked]:bg-accent"><input type="radio" name="kind" value="report" checked={kind === 'report'} onChange={() => setKind('report')} className="mt-1" /><span>Kayıt bildir<span className="block text-xs text-text-secondary">Yapılmış iş; Onaylar'dan onaylanınca puan eklenir</span></span></label>
           </div>
         </fieldset>
       ) : null}
@@ -100,15 +103,22 @@ export function TaskForm({ onSuccess, onCancel }: TaskFormProps) {
         <div className="space-y-2"><Label htmlFor="task-hours">Çalışma süresi</Label><Input id="task-hours" name="hoursWorked" maxLength={100} placeholder="Örn. 3 saat" /></div>
       </div>
 
+      {kind === 'report' ? (
+        <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-border p-3 text-sm has-[:checked]:border-primary has-[:checked]:bg-accent">
+          <input type="checkbox" checked={reviewerSetsPoints} onChange={(event) => setReviewerSetsPoints(event.target.checked)} className="mt-1" />
+          <span>Puanı temsilci belirlesin<span className="block text-xs text-text-secondary">Net tanımlı olmayan işler için; temsilci açıklamayı okuyup onaylarken puanı girer</span></span>
+        </label>
+      ) : null}
+
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="task-category">Puan kategorisi</Label>
-          <select id="task-category" value={categoryId} onChange={(event) => setCategoryId(event.target.value)} disabled={categories.isPending || categories.isError} className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm">
+          <select id="task-category" value={deferPoints ? '' : categoryId} onChange={(event) => setCategoryId(event.target.value)} disabled={deferPoints || categories.isPending || categories.isError} className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm">
             <option value="">Kategori yok</option>
             {categories.data?.map((category) => <option key={category.id} value={category.id}>{category.name} ({category.points} puan)</option>)}
           </select>
         </div>
-        <div className="space-y-2"><Label htmlFor="task-points">Puan</Label><Input id="task-points" name="points" type="number" min={0} max={1000} defaultValue={0} disabled={Boolean(selectedCategory)} /><p className="text-xs text-text-secondary">{selectedCategory ? 'Kategori puanı sunucuda uygulanır.' : 'Kategori yoksa manuel puan.'}</p></div>
+        <div className="space-y-2"><Label htmlFor="task-points">Puan</Label><Input id="task-points" name="points" type="number" min={0} max={1000} defaultValue={0} disabled={deferPoints || Boolean(selectedCategory)} /><p className="text-xs text-text-secondary">{deferPoints ? 'Puanı onaylayan temsilci belirleyecek.' : selectedCategory ? 'Kategori puanı sunucuda uygulanır.' : 'Kategori yoksa manuel puan.'}</p></div>
       </div>
 
       <div className="space-y-2"><Label htmlFor="task-notes">Not (isteğe bağlı)</Label><Textarea id="task-notes" name="notes" maxLength={1000} rows={2} /></div>

@@ -468,6 +468,28 @@ describe('task routes', () => {
     expect(sendEmailMock).not.toHaveBeenCalled()
   })
 
+  it('approve-task PUT applies the points the reviewer sets', async () => {
+    const response = await approveTask(jsonRequest('/api/approve-task', { taskId: 'task-1', action: 'approve', points: 12 }))
+
+    expect(response.status).toBe(200)
+    expect(task.updateMany).toHaveBeenCalledWith({
+      where: { id: 'task-1', status: 'pending' },
+      data: { status: 'approved', assignedBy: 'admin-1', points: 12 },
+    })
+    expect(researchAssistant.update).toHaveBeenCalledWith({ where: { id: 'target-1' }, data: { totalPoints: { increment: 12 } } })
+    expect(notification.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ message: expect.stringContaining('+12 puan') }),
+    }))
+  })
+
+  it('approve-task PUT rejects invalid reviewer points', async () => {
+    for (const points of [-1, 1.5, 1001, '5']) {
+      const response = await approveTask(jsonRequest('/api/approve-task', { taskId: 'task-1', action: 'approve', points }))
+      expect(response.status).toBe(400)
+    }
+    expect(task.updateMany).not.toHaveBeenCalled()
+  })
+
   it('mails the assistant when their task is approved, self-approval included', async () => {
     task.findUniqueOrThrow.mockResolvedValue({ ...baseTask, status: 'approved', assistant: { ...targetAssistant, role: 'admin', email: 'target@example.com' } })
     requireSessionMock.mockResolvedValue({ ...adminUser, id: 'target-1' })

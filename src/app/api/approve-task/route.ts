@@ -14,7 +14,7 @@ export async function PUT(request: Request) {
     requireRole(user, ['admin', 'dekan', 'baskan'])
 
     const body = await request.json()
-    const { taskId, action } = body as { taskId?: string; action?: 'approve' | 'reject' }
+    const { taskId, action, points } = body as { taskId?: string; action?: 'approve' | 'reject'; points?: unknown }
 
     if (!taskId || !action) {
       return NextResponse.json({ error: 'taskId and action are required' }, { status: 400 })
@@ -24,7 +24,11 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'Action must be "approve" or "reject"' }, { status: 400 })
     }
 
-    const task = await approveTask({ taskId, action, reviewer: user })
+    if (points !== undefined && (typeof points !== 'number' || !Number.isInteger(points) || points < 0 || points > 1000)) {
+      return NextResponse.json({ error: 'VALIDATION_ERROR', message: 'Puan 0 ile 1000 arasında tam sayı olmalı' }, { status: 400 })
+    }
+
+    const task = await approveTask({ taskId, action, points, reviewer: user })
 
     return NextResponse.json({
       message: action === 'approve' ? 'Görev onaylandı' : 'Görev reddedildi',
