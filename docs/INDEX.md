@@ -28,6 +28,7 @@ Eski bir planın açık kutusu tamamlanmış işin yeniden yapılması için ger
 | [`dependency audit logbook`](logbook/2026/2026-07-12-dependency-audit.md) | Paket temizliği ve kalan risk sınıflandırması | Append-only | Dependency yükseltmesi/audit öncesi |
 | [`repository cleanup logbook`](logbook/2026/2026-07-12-repository-documentation-cleanup.md) | Doküman/secret/artifact geçiş kanıtı | Append-only | Bu geçiş ve kök sınıflandırması araştırılırken |
 | [`workbook sync logbook`](logbook/2026/2026-07-13-workbook-sync-and-gmim-resync.md) | GMİM Excel yeniden-eşitleme ve portal senkron özelliği kanıtı | Append-only | Excel→puan senkronu veya production veri yazımı araştırılırken |
+| [`absence and mail flows logbook`](logbook/2026/2026-10-28-absence-compensation-and-mail-flows.md) | Yurtdışı telafisi, puanı temsilcinin belirlemesi ve genişletilmiş mail kuralları kanıtı | Append-only | Telafi, onay puanı veya mail alıcı kuralları değiştirilirken |
 | [`email notifications logbook`](logbook/2026/2026-10-21-manager-task-response-and-email-notifications.md) | Yönetici görev yanıtı düzeltmesi ve Gmail e-posta bildirimleri kanıtı | Append-only | Bildirim/e-posta veya görev yanıt akışı değiştirilirken |
 | [`workbook sync plan`](superpowers/plans/2026-07-13-workbook-sync-feature.md) | Ana takip senkron özelliği uygulama planı | Aktif | Senkron özelliği değiştirilirken |
 | [`project memory design`](archive/completed-work/2026-07-12-project-memory-and-logbook-design.md) | Bu belge sisteminin onaylı tasarımı | Arşiv | Tasarım gerekçesi gerektiğinde |
