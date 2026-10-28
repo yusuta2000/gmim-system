@@ -152,6 +152,18 @@ export async function createTask(input: { actor: SessionUser; data: CreateTaskIn
       `Merhaba ${created.assistant.name},\n\n"${created.description}" görevi size atandı (${created.points} puan). Portala girip Görevler ekranından kabul edebilir veya reddedebilirsiniz.`,
     )
   }
+  if (created.status === 'pending') {
+    const temsilciler = await db.researchAssistant.findMany({
+      where: { isActive: true, role: 'admin', department: created.assistant.department },
+      select: { email: true },
+    })
+    const points = created.points === 0 && !created.categoryId ? 'Puanı temsilci belirleyecek' : `${created.points} puan`
+    await sendEmail(
+      temsilciler.map((temsilci) => temsilci.email),
+      `Onay bekleyen görev: ${created.assistant.name}`,
+      `${created.assistant.name} onayınıza bir görev gönderdi.\n\nGörev: ${created.description}${created.hoursWorked ? `\nÇalışma süresi: ${created.hoursWorked}` : ''}\nPuan: ${points}\n\nPortalda Onaylar ekranından onaylayabilir veya reddedebilirsiniz.`,
+    )
+  }
   return created
 }
 

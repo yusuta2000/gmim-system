@@ -468,6 +468,29 @@ describe('task routes', () => {
     expect(sendEmailMock).not.toHaveBeenCalled()
   })
 
+  it('mails the department temsilciler when a task is reported for approval', async () => {
+    researchAssistant.findMany.mockResolvedValue([{ id: 'admin-1', role: 'admin', email: 'temsilci@example.com' }])
+    task.create.mockResolvedValue({
+      ...baseTask,
+      status: 'pending',
+      points: 0,
+      categoryId: null,
+      hoursWorked: '3 saat',
+      assistant: { ...targetAssistant, role: 'user', email: 'target@example.com' },
+    })
+
+    await createTask(jsonRequest('/api/tasks', { ...createBody, points: 0, kind: 'report' }))
+
+    expect(researchAssistant.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { isActive: true, role: 'admin', department: 'GMIM' },
+    }))
+    expect(sendEmailMock).toHaveBeenCalledWith(
+      ['temsilci@example.com'],
+      expect.stringContaining('Onay bekleyen görev'),
+      expect.stringContaining('Puanı temsilci belirleyecek'),
+    )
+  })
+
   it('approve-task PUT applies the points the reviewer sets', async () => {
     const response = await approveTask(jsonRequest('/api/approve-task', { taskId: 'task-1', action: 'approve', points: 12 }))
 
