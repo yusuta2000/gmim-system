@@ -151,7 +151,7 @@ async function managerDashboard(user: PortalSessionUser, department: SessionUser
   } : examsWithGap > 0 ? {
     title: 'Gözetmen ataması eksik',
     description: `${examsWithGap} yaklaşan sınavda gözetmen açığı var.`,
-    href: '/exams', label: 'Sınavları aç', count: examsWithGap, tone: 'warning' as const,
+    href: '/calendar?domain=exams', label: 'Sınavları aç', count: examsWithGap, tone: 'warning' as const,
   } : {
     title: 'Bekleyen kritik işlem yok',
     description: 'Görev onayları ve yaklaşan sınav atamaları güncel.',

@@ -90,6 +90,21 @@ describe('dashboard route', () => {
     ]))
   })
 
+  it('sends a supervisor gap to the exams view of the calendar, not a missing /exams page', async () => {
+    session.mockResolvedValue({ id: 'admin-1', name: 'Yönetici', role: 'admin', department: 'GMIM' })
+    tasks.count
+      .mockResolvedValueOnce(24)
+      .mockResolvedValueOnce(0)
+    exams.findMany.mockResolvedValue([
+      { id: 'exam-1', courseCode: 'GM101', date: new Date('2026-12-20'), requiredSupervisors: 2, supervisors: [] },
+    ])
+
+    const response = await GET(new Request('http://localhost/api/dashboard?department=GMIM'))
+    const data = await response.json()
+
+    expect(data.priority).toEqual(expect.objectContaining({ href: '/calendar?domain=exams', label: 'Sınavları aç', count: 1 }))
+  })
+
   it('rejects a cross-department dashboard request', async () => {
     session.mockResolvedValue({ id: 'admin-1', name: 'Yönetici', role: 'admin', department: 'GMIM' })
 
