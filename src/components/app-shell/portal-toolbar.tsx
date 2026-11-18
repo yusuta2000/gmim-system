@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { portalHref, usePortalContext } from '@/components/app-shell/portal-context'
 import { notificationHref } from '@/components/app-shell/notification-link'
+import { PageHelpButton } from '@/components/app-shell/page-help'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
@@ -118,6 +119,8 @@ export function PortalToolbar() {
           </SelectContent>
         </Select>
       )}
+
+      {user.role !== 'user' && <PageHelpButton />}
 
       <Button
         type="button"
