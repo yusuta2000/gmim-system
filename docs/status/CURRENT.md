@@ -1,8 +1,8 @@
 # Güncel Proje Durumu
 
-**Son doğrulanan tarih:** 2026-10-28
+**Son doğrulanan tarih:** 2026-11-18
 
-**Son doğrulanan uygulama commit'i:** `a7df254`
+**Son doğrulanan uygulama commit'i:** `118414d`
 
 Bu dosya projenin tek güncel durum panosudur. Logbook ve archive kayıtları tarihsel kanıttır; aktif iş listesi değildir.
 
@@ -29,9 +29,12 @@ Bu dosya projenin tek güncel durum panosudur. Logbook ve archive kayıtları ta
 - E-posta bildirimleri (Gmail SMTP, `src/lib/email.ts`): görev ataması ve gözetmenlik → atanan kişi; kabul/ret ve onay bekleyen görev → bölüm temsilcileri; görev onayı → görev sahibi; duyuru → bölümün tüm aktif ar.gör/temsilcileri (BCC). İşlemi yapan dahil; başkan/dekan mail almaz. Başarılı gönderim Vercel Logs'ta `E-posta gönderildi`. Ayar yalnız production Vercel projesinde (`GMAIL_USER`, `GMAIL_APP_PASSWORD`); staging mail atmaz.
 - Yurtdışı Telafisi (`/management/absence`): dönen kişiye, aralıkta tüm süre bulunanlardan en az puan alanın puanı temsilci onayıyla eklenir.
 - Puanı temsilci belirlesin: ar.gör puansız kayıt bildirebilir; Onaylar ekranında temsilci puanı girer/düzeltir ve onaylar.
+- Gözetmenlik: Takvim'de sınava tıklayınca ayrıntı penceresi (gözetmen durumları, reddedenler, "Gözetmen ekle"). Gözetmenlik `assigned` görevdir; puan kabulde eklenir, ret/silme kişiyi sınavdan çıkarır (bağ: görev notunda `[SINAV] <examId>`).
+- Yöneticilere her ekranda "?" kullanım yardımı (`components/app-shell/page-help-content.ts`).
 
 ## Son doğrulama kanıtı
 
+- 2026-11-18: `vitest` 39 dosya / 193 test, `tsc`, `next build` geçti; üç commit Vercel production ve staging'de deploy edildi.
 - 2026-10-28: `vitest` 38 dosya / 184 test, `tsc`, `next build` geçti; dört commit Vercel production ve staging'de deploy edildi.
 - 2026-10-21: `vitest` 37 dosya / 171 test, `tsc`, `next build`, docs doğrulaması geçti; production'da test görevi maili İTÜ adresine ulaştı.
 - `bun run docs:check`: 0 hata.
@@ -48,6 +51,7 @@ Bu dosya projenin tek güncel durum panosudur. Logbook ve archive kayıtları ta
 - Portal mailleri İTÜ filtresinde Junk'a düşüyor: kullanıcı bazında güvenilir gönderen veya İTÜ BİDB whitelist.
 - Telafi aracı, araç öncesi elle eklenen telafileri tanımaz (Tarık 13.07–09.10.2026 için tekrar "ekle" yapılmamalı).
 - Temsilcinin kendi bildirdiği görevi onaylaması engellenmiyor; kural kararı bekliyor.
+- MAT sınavının elle açılmış gözetmenlik görevleri sınava bağlı değil (0/4); temsilci arayüzden silip "Gözetmen ekle" ile yeniden ekleyecek.
 - `SISTEM_DOKUMANTASYONU.md` Bölüm 10 güvenlik açıkları listesi eskimiş (Argon2/session/auth tamamlandı); güncellenmeli.
 - Workbook senkron prod'a deploy edildi; kalan: gerçek hesapla UI'da önizleme→commit tam dumanı ve DUİM için ilk senkron.
 - Portal senkron ucuna (script'teki gibi) DB-tarafı yedek/rollback eklenmesi değerlendirmesi.
@@ -70,6 +74,7 @@ Bu dosya projenin tek güncel durum panosudur. Logbook ve archive kayıtları ta
 
 ## İlgili kanıt ve prosedürler
 
+- Sınav ayrıntıları, kabul tabanlı gözetmenlik ve yönetici yardımı: [`2026-11-18-exam-supervision-and-page-help.md`](../logbook/2026/2026-11-18-exam-supervision-and-page-help.md)
 - Yurtdışı telafisi, puanı temsilcinin belirlemesi ve mail akışları: [`2026-10-28-absence-compensation-and-mail-flows.md`](../logbook/2026/2026-10-28-absence-compensation-and-mail-flows.md)
 - Yönetici görev yanıtı ve e-posta bildirimleri: [`2026-10-21-manager-task-response-and-email-notifications.md`](../logbook/2026/2026-10-21-manager-task-response-and-email-notifications.md)
 - GMİM workbook senkron ve yeniden-eşitleme: [`2026-07-13-workbook-sync-and-gmim-resync.md`](../logbook/2026/2026-07-13-workbook-sync-and-gmim-resync.md)
