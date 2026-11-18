@@ -28,6 +28,9 @@ vi.mock('@/lib/db', () => ({
     pointCategory: {
       findUnique: vi.fn(),
     },
+    examSupervisor: {
+      deleteMany: vi.fn(),
+    },
   },
 }))
 
@@ -466,6 +469,26 @@ describe('task routes', () => {
     task.create.mockResolvedValue({ ...baseTask, status: 'assigned', assistant: { ...targetAssistant, role: 'baskan', email: 'hoca@example.com' } })
     await createTask(jsonRequest('/api/tasks', createBody))
     expect(sendEmailMock).not.toHaveBeenCalled()
+  })
+
+  it('rejecting or deleting a supervision task frees the exam slot', async () => {
+    const examSupervisor = (db as unknown as { examSupervisor: { deleteMany: ReturnType<typeof vi.fn> } }).examSupervisor
+    const supervisionTask = {
+      ...baseTask,
+      status: 'assigned',
+      assistantId: 'user-1',
+      notes: '[SINAV] exam-9',
+      assistant: { id: 'user-1', name: 'User One', department: 'GMIM' },
+    }
+    task.findUnique.mockResolvedValue(supervisionTask)
+    requireSessionMock.mockResolvedValue(regularUser)
+    await respondTask(jsonRequest('/api/respond-task', { taskId: 'task-1', action: 'reject', rejectionReason: 'Raporluyum' }))
+    expect(examSupervisor.deleteMany).toHaveBeenCalledWith({ where: { examId: 'exam-9', assistantId: 'user-1' } })
+
+    examSupervisor.deleteMany.mockClear()
+    requireSessionMock.mockResolvedValue(adminUser)
+    await deleteTask(new Request('http://localhost/api/delete-task?id=task-1', { method: 'DELETE' }))
+    expect(examSupervisor.deleteMany).toHaveBeenCalledWith({ where: { examId: 'exam-9', assistantId: 'user-1' } })
   })
 
   it('mails the department temsilciler when a task is reported for approval', async () => {

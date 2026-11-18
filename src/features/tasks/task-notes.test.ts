@@ -11,6 +11,14 @@ describe('task rejection notes', () => {
     })
   })
 
+  it('hides the internal exam link from displayed notes', () => {
+    expect(splitTaskNotes('[SINAV] exam-1')).toEqual({ notes: null, rejectionReason: null })
+    expect(splitTaskNotes(appendRejectionReason('[SINAV] exam-1', 'Raporluyum'))).toEqual({
+      notes: null,
+      rejectionReason: 'Raporluyum',
+    })
+  })
+
   it('stores a rejection reason when the task has no note', () => {
     expect(splitTaskNotes(appendRejectionReason(null, 'Şehir dışında olacağım'))).toEqual({
       notes: null,

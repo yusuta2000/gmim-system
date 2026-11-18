@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
-import type { Prisma } from '@prisma/client';
 import { db } from '@/lib/db';
-import { sendEmail } from '@/lib/email';
+import { addSupervisor, examMarker, mailSupervisor } from '@/features/calendar/server/supervision';
 import { requireSession, UnauthenticatedError } from '@/lib/auth/session';
 import type { SessionUser } from '@/lib/auth/session-repository';
 import { assertDepartmentAccess } from '@/lib/authorization/department';
@@ -43,7 +42,13 @@ export async function POST(request: Request) {
     });
 
     const existingSupervisorIds = exam.supervisors.map(s => s.assistantId);
-    const availableAssistants = assistants.filter(a => !existingSupervisorIds.includes(a.id));
+    // People who already declined this exam are not picked again automatically.
+    const declined = await db.task.findMany({
+      where: { source: 'auto_assigned', status: 'rejected', notes: { startsWith: examMarker(exam.id) } },
+      select: { assistantId: true },
+    });
+    const declinedIds = declined.map(d => d.assistantId);
+    const availableAssistants = assistants.filter(a => !existingSupervisorIds.includes(a.id) && !declinedIds.includes(a.id));
 
     // Check weekly schedule conflicts
     const dayMap: Record<string, number> = {
@@ -85,58 +90,11 @@ export async function POST(request: Request) {
       }, { status: 200 });
     }
 
-    const assignments: Prisma.ExamSupervisorGetPayload<{ include: { assistant: true } }>[] = [];
+    const assignments: { assistantId: string; name: string }[] = [];
     for (const assistant of toAssign) {
-      const assignment = await db.examSupervisor.create({
-        data: { examId: exam.id, assistantId: assistant.id },
-        include: { assistant: true },
-      });
-      assignments.push(assignment);
-
-      // Add supervisor points
-      const supervisorCategory = await db.pointCategory.findFirst({
-        where: { name: { contains: 'Gözetmenlik' } },
-      });
-      const pointsToAdd = supervisorCategory?.points || 4;
-
-      await db.researchAssistant.update({
-        where: { id: assistant.id },
-        data: { totalPoints: { increment: pointsToAdd } },
-      });
-
-      // Create task for this assignment
-      const maxTask = await db.task.findFirst({
-        where: { assistantId: assistant.id },
-        orderBy: { number: 'desc' },
-        select: { number: true },
-      });
-
-      await db.task.create({
-        data: {
-          number: (maxTask?.number || 0) + 1,
-          description: `Gözetmenlik: ${exam.courseCode} - ${exam.courseName}`,
-          hoursWorked: exam.timeSlot,
-          date: exam.date,
-          points: pointsToAdd,
-          status: 'approved',
-          source: 'auto_assigned',
-          assistantId: assistant.id,
-          categoryId: supervisorCategory?.id || null,
-        },
-      });
-
-      // Create notification
-      const message = `${exam.courseCode} - ${exam.courseName} sınavına gözetmen olarak atandınız. Tarih: ${new Date(exam.date).toLocaleDateString('tr-TR')}, Saat: ${exam.timeSlot}`;
-      await db.notification.create({
-        data: {
-          title: 'Gözetmenlik Ataması',
-          message,
-          type: 'exam_assigned',
-          assistantId: assistant.id,
-          relatedId: exam.id,
-        },
-      });
-      await sendEmail(assistant.email, 'Gözetmenlik Ataması', `Merhaba ${assistant.name},\n\n${message}`);
+      const message = await addSupervisor({ exam, assistant, actorId: user.id });
+      await mailSupervisor(assistant, message);
+      assignments.push({ assistantId: assistant.id, name: assistant.name });
     }
 
     const updatedExam = await db.exam.findUnique({
@@ -145,7 +103,7 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({
-      message: `${assignments.length} gözetmen atandı`,
+      message: `${assignments.length} gözetmen atandı; kabul etmeleri bekleniyor`,
       assignments,
       exam: updatedExam,
     });

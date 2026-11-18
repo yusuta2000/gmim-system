@@ -86,15 +86,20 @@ function examConflict(exam: CalendarExam, schedules: WeeklyScheduleEntry[]) {
   return schedules.some((entry) => supervisorIds.has(entry.assistantId) && entry.dayOfWeek === day && overlaps(exam.timeSlot, entry.timeSlot))
 }
 
-function ExamCard({ exam, schedules, canManage, assigning, onAssign }: {
+function ExamCard({ exam, schedules, canManage, assigning, onAssign, people, adding, onAddSupervisor }: {
   exam: CalendarExam
   schedules: WeeklyScheduleEntry[]
   canManage: boolean
   assigning: boolean
   onAssign: (id: string) => void
+  people: PersonOption[]
+  adding: boolean
+  onAddSupervisor: (examId: string, assistantId: string) => void
 }) {
   const gap = Math.max(0, exam.requiredSupervisors - exam.supervisors.length)
   const conflict = examConflict(exam, schedules)
+  const [candidate, setCandidate] = useState('')
+  const candidates = people.filter((person) => person.isActive && ['user', 'admin'].includes(person.role) && !exam.supervisors.some((item) => item.assistantId === person.id))
 
   return (
     <article className="rounded-xl border border-border bg-surface p-4">
@@ -125,16 +130,38 @@ function ExamCard({ exam, schedules, canManage, assigning, onAssign }: {
       {exam.supervisors.length > 0 && (
         <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
           <span className="text-xs font-medium text-text-secondary">Atananlar</span>
-          {exam.supervisors.map((item) => <Badge key={item.id} variant="secondary">{item.assistant.name}</Badge>)}
+          {exam.supervisors.map((item) => (
+            <Badge key={item.id} variant={item.status === 'accepted' ? 'secondary' : 'outline'} className="gap-1">
+              {item.status === 'accepted' ? <CheckCircle2 className="size-3.5" aria-hidden="true" /> : <Clock3 className="size-3.5" aria-hidden="true" />}
+              {item.assistant.name} · {item.status === 'accepted' ? 'Kabul etti' : 'Yanıt bekleniyor'}
+            </Badge>
+          ))}
+        </div>
+      )}
+      {exam.declined.length > 0 && (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium text-text-secondary">Reddedenler</span>
+          {exam.declined.map((person) => <Badge key={person.id} variant="outline" className="border-destructive/40 text-destructive">{person.name}</Badge>)}
         </div>
       )}
 
       {exam.notes && <p className="mt-3 text-sm text-text-secondary">Not: {exam.notes}</p>}
       {canManage && gap > 0 && (
-        <Button type="button" variant="outline" className="mt-3 min-h-11 gap-2" disabled={assigning} onClick={() => onAssign(exam.id)}>
-          {assigning ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <Zap className="size-4" aria-hidden="true" />}
-          Uygun gözetmenleri ata
-        </Button>
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+          <Button type="button" variant="outline" className="min-h-11 gap-2" disabled={assigning} onClick={() => onAssign(exam.id)}>
+            {assigning ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <Zap className="size-4" aria-hidden="true" />}
+            Uygun gözetmenleri ata
+          </Button>
+          <div className="flex min-w-0 gap-2">
+            <select aria-label={`${exam.courseCode} için gözetmen seç`} value={candidate} onChange={(event) => setCandidate(event.target.value)} className="h-11 min-w-0 flex-1 rounded-md border border-input bg-background px-3 text-sm">
+              <option value="">Kişi seçin</option>
+              {candidates.map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}
+            </select>
+            <Button type="button" className="min-h-11 gap-2" disabled={!candidate || adding} onClick={() => { onAddSupervisor(exam.id, candidate); setCandidate('') }}>
+              {adding ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <Plus className="size-4" aria-hidden="true" />}Gözetmen ekle
+            </Button>
+          </div>
+        </div>
       )}
     </article>
   )
@@ -167,12 +194,13 @@ export function CalendarScreen() {
   const schedule = useWeeklySchedule(department)
   const [examDialog, setExamDialog] = useState(false)
   const [scheduleDialog, setScheduleDialog] = useState(false)
+  const [selectedExamId, setSelectedExamId] = useState<string | null>(null)
   const firstExamInput = useRef<HTMLInputElement>(null)
 
   const people = useQuery({
     queryKey: ['people', department, 'options'],
     queryFn: async () => mutationJson<PersonOption[]>(`/api/people?department=${department}&mode=options`, {}),
-    enabled: canManage && scheduleDialog,
+    enabled: canManage,
   })
 
   function replaceParams(changes: Record<string, string | null>) {
@@ -209,6 +237,22 @@ export function CalendarScreen() {
     onError: (error) => toast.error(error.message),
   })
 
+  const addSupervisor = useMutation({
+    mutationFn: (payload: { examId: string; assistantId: string }) => mutationJson<{ message: string }>('/api/exam-supervisors', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }),
+    onSuccess: async (data) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: calendarKeys.exams(department) }),
+        queryClient.invalidateQueries({ queryKey: ['tasks', department] }),
+      ])
+      toast.success(data.message)
+    },
+    onError: (error) => toast.error(error.message),
+  })
+
+  function renderExamCard(exam: CalendarExam) {
+    return <ExamCard key={exam.id} exam={exam} schedules={schedule.data || []} canManage={canManage} assigning={assign.isPending && assign.variables === exam.id} onAssign={assign.mutate} people={people.data || []} adding={addSupervisor.isPending && addSupervisor.variables?.examId === exam.id} onAddSupervisor={(examId, assistantId) => addSupervisor.mutate({ examId, assistantId })} />
+  }
+
   function submitExam(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const data = new FormData(event.currentTarget)
@@ -226,6 +270,7 @@ export function CalendarScreen() {
   }
 
   const sortedExams = useMemo(() => [...(exams.data || [])].sort((a, b) => a.date.localeCompare(b.date) || a.timeSlot.localeCompare(b.timeSlot)), [exams.data])
+  const selectedExam = sortedExams.find((exam) => exam.id === selectedExamId)
   const monthDays = useMemo(() => eachDayOfInterval({
     start: startOfWeek(startOfMonth(selectedDate), { weekStartsOn: 1 }),
     end: endOfWeek(endOfMonth(selectedDate), { weekStartsOn: 1 }),
@@ -315,19 +360,25 @@ export function CalendarScreen() {
                 <div className="grid grid-cols-7 border-b border-border bg-surface-muted">{Object.values(DAY_NAMES).map((day) => <div key={day} className="px-2 py-2 text-center text-xs font-medium text-text-secondary">{day}</div>)}</div>
                 <div className="grid grid-cols-7">{monthDays.map((day) => {
                   const dayExams = sortedExams.filter((exam) => isSameDay(parseISO(exam.date), day))
-                  return <div key={day.toISOString()} className="min-h-28 border-b border-r border-border p-2 last:border-r-0"><span className={isSameMonth(day, selectedDate) ? 'text-sm font-medium' : 'text-sm text-text-secondary'}>{format(day, 'd')}</span><div className="mt-2 space-y-1">{dayExams.slice(0, 3).map((exam) => <div key={exam.id} className="rounded-md bg-department-soft px-2 py-1 text-xs text-department"><span className="font-semibold">{exam.timeSlot.split('-')[0]}</span> {exam.courseCode}</div>)}{dayExams.length > 3 && <p className="px-1 text-xs text-text-secondary">+{dayExams.length - 3} sınav</p>}</div></div>
+                  return <div key={day.toISOString()} className="min-h-28 border-b border-r border-border p-2 last:border-r-0"><span className={isSameMonth(day, selectedDate) ? 'text-sm font-medium' : 'text-sm text-text-secondary'}>{format(day, 'd')}</span><div className="mt-2 space-y-1">{dayExams.slice(0, 3).map((exam) => <button type="button" key={exam.id} onClick={() => setSelectedExamId(exam.id)} aria-label={`${exam.courseCode} sınav ayrıntıları`} className="block w-full truncate rounded-md bg-department-soft px-2 py-1 text-left text-xs text-department hover:ring-1 hover:ring-department"><span className="font-semibold">{exam.timeSlot.split('-')[0]}</span> {exam.courseCode} <span className="opacity-80">{exam.supervisors.length}/{exam.requiredSupervisors}</span></button>)}{dayExams.length > 3 && <p className="px-1 text-xs text-text-secondary">+{dayExams.length - 3} sınav</p>}</div></div>
                 })}</div>
               </div>
-              <div className="space-y-3 md:hidden">{visibleAgenda.length ? visibleAgenda.map((exam) => <ExamCard key={exam.id} exam={exam} schedules={schedule.data || []} canManage={canManage} assigning={assign.isPending && assign.variables === exam.id} onAssign={assign.mutate} />) : <EmptyState domain="exams" />}</div>
+              <div className="space-y-3 md:hidden">{visibleAgenda.length ? visibleAgenda.map(renderExamCard) : <EmptyState domain="exams" />}</div>
             </>
           ) : view === 'week' ? (
             <>
-              <div className="hidden grid-cols-7 gap-2 lg:grid">{weekDays.map((day) => { const items = sortedExams.filter((exam) => isSameDay(parseISO(exam.date), day)); return <section key={day.toISOString()} className="min-w-0 rounded-xl border border-border bg-surface p-3"><h3 className="text-sm font-semibold capitalize">{format(day, 'EEE d', { locale: tr })}</h3><div className="mt-3 space-y-2">{items.map((exam) => <div key={exam.id} className="rounded-lg bg-surface-muted p-2 text-xs"><p className="font-semibold text-text-primary">{exam.courseCode}</p><p className="mt-1 text-text-secondary">{exam.timeSlot}</p>{exam.classroom && <p className="text-text-secondary">{exam.classroom}</p>}</div>)}{items.length === 0 && <p className="text-xs text-text-secondary">Sınav yok</p>}</div></section> })}</div>
-              <div className="space-y-3 lg:hidden">{visibleAgenda.length ? visibleAgenda.map((exam) => <ExamCard key={exam.id} exam={exam} schedules={schedule.data || []} canManage={canManage} assigning={assign.isPending && assign.variables === exam.id} onAssign={assign.mutate} />) : <EmptyState domain="exams" />}</div>
+              <div className="hidden grid-cols-7 gap-2 lg:grid">{weekDays.map((day) => { const items = sortedExams.filter((exam) => isSameDay(parseISO(exam.date), day)); return <section key={day.toISOString()} className="min-w-0 rounded-xl border border-border bg-surface p-3"><h3 className="text-sm font-semibold capitalize">{format(day, 'EEE d', { locale: tr })}</h3><div className="mt-3 space-y-2">{items.map((exam) => <button type="button" key={exam.id} onClick={() => setSelectedExamId(exam.id)} aria-label={`${exam.courseCode} sınav ayrıntıları`} className="block w-full rounded-lg bg-surface-muted p-2 text-left text-xs hover:ring-1 hover:ring-department"><p className="font-semibold text-text-primary">{exam.courseCode}</p><p className="mt-1 text-text-secondary">{exam.timeSlot}</p>{exam.classroom && <p className="text-text-secondary">{exam.classroom}</p>}<p className="mt-1 text-text-secondary">{exam.supervisors.length}/{exam.requiredSupervisors} gözetmen</p></button>)}{items.length === 0 && <p className="text-xs text-text-secondary">Sınav yok</p>}</div></section> })}</div>
+              <div className="space-y-3 lg:hidden">{visibleAgenda.length ? visibleAgenda.map(renderExamCard) : <EmptyState domain="exams" />}</div>
             </>
           ) : (
-            <div className="space-y-3">{visibleAgenda.length ? visibleAgenda.map((exam) => <ExamCard key={exam.id} exam={exam} schedules={schedule.data || []} canManage={canManage} assigning={assign.isPending && assign.variables === exam.id} onAssign={assign.mutate} />) : <EmptyState domain="exams" />}</div>
+            <div className="space-y-3">{visibleAgenda.length ? visibleAgenda.map(renderExamCard) : <EmptyState domain="exams" />}</div>
           )}
+          <Dialog open={Boolean(selectedExam)} onOpenChange={(open) => { if (!open) setSelectedExamId(null) }}>
+            <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
+              <DialogHeader><DialogTitle>Sınav ayrıntıları</DialogTitle><DialogDescription>Gözetmenler ve yanıt durumları</DialogDescription></DialogHeader>
+              {selectedExam ? renderExamCard(selectedExam) : null}
+            </DialogContent>
+          </Dialog>
           {schedule.isError && <Alert><AlertTriangle className="size-4" /><AlertTitle>Çakışma bilgisi eksik olabilir</AlertTitle><AlertDescription>Haftalık program alınamadığı için sınav çakışmaları gösterilemiyor.</AlertDescription></Alert>}
         </>
       ) : schedule.isLoading ? <div role="status" aria-label="Haftalık program yükleniyor" className="space-y-3"><Skeleton className="h-24 w-full" /><Skeleton className="h-24 w-full" /></div> : schedule.isError ? (

@@ -1,6 +1,7 @@
 import type { Prisma, Task } from '@prisma/client'
 import { db } from '@/lib/db'
 import { sendEmail } from '@/lib/email'
+import { linkedExamId } from '@/features/calendar/server/supervision'
 import type { SessionUser } from '@/lib/auth/session-repository'
 import { assertDepartmentAccess } from '@/lib/authorization/department'
 import { TaskServiceError } from './errors'
@@ -266,6 +267,10 @@ export async function respondToTask(input: {
     if (updated.count !== 1) {
       throw new TaskServiceError('CONFLICT', 'Bu görev zaten yanıtlanmış')
     }
+    const examId = linkedExamId(task.notes)
+    if (input.action === 'reject' && examId) {
+      await tx.examSupervisor.deleteMany({ where: { examId, assistantId: task.assistantId } })
+    }
 
     if (input.action === 'accept' && task.points > 0) {
       await tx.researchAssistant.update({
@@ -334,6 +339,10 @@ export async function deleteTask(input: { taskId: string; requester: SessionUser
     const deleted = await tx.task.deleteMany({ where: { id: input.taskId } })
     if (deleted.count !== 1) {
       throw new TaskServiceError('CONFLICT', 'Görev silinemedi')
+    }
+    const examId = linkedExamId(task.notes)
+    if (examId) {
+      await tx.examSupervisor.deleteMany({ where: { examId, assistantId: task.assistantId } })
     }
 
     await tx.notification.create({

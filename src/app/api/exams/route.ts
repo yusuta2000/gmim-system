@@ -7,6 +7,7 @@ import { AuthorizationError } from '@/lib/authorization/errors';
 import { requireRole } from '@/lib/authorization/roles';
 import { z } from 'zod';
 import { createExamSchema, departmentSchema } from '@/features/calendar/schemas';
+import { examMarker, linkedExamId } from '@/features/calendar/server/supervision';
 
 const examSelect = {
   id: true,
@@ -39,7 +40,25 @@ export async function GET(request: Request) {
       orderBy: { date: 'asc' },
       select: examSelect,
     });
-    return NextResponse.json(exams);
+    // Supervision tasks tell whether each supervisor accepted; duties from before acceptance existed count as accepted.
+    const tasks = exams.length ? await db.task.findMany({
+      where: { source: 'auto_assigned', OR: exams.map((exam) => ({ notes: { startsWith: examMarker(exam.id) } })) },
+      select: { assistantId: true, status: true, notes: true, assistant: { select: { id: true, name: true } } },
+    }) : [];
+    return NextResponse.json(exams.map((exam) => {
+      const examTasks = tasks.filter((task) => linkedExamId(task.notes) === exam.id);
+      const supervisorIds = exam.supervisors.map((supervisor) => supervisor.assistantId);
+      return {
+        ...exam,
+        supervisors: exam.supervisors.map((supervisor) => ({
+          ...supervisor,
+          status: examTasks.some((task) => task.assistantId === supervisor.assistantId && task.status === 'assigned') ? 'pending' : 'accepted',
+        })),
+        declined: examTasks
+          .filter((task) => task.status === 'rejected' && !supervisorIds.includes(task.assistantId))
+          .map((task) => task.assistant),
+      };
+    }));
   } catch (error) {
     if (error instanceof UnauthenticatedError) {
       return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });

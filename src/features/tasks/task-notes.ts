@@ -5,7 +5,9 @@ export function appendRejectionReason(notes: string | null, rejectionReason: str
   return notes?.trim() ? `${notes.trim()}${REJECTION_REASON_MARKER}${reason}` : `[RET_SEBEBI]\n${reason}`
 }
 
-export function splitTaskNotes(notes: string | null) {
+export function splitTaskNotes(rawNotes: string | null) {
+  // The exam link of a supervision task is internal and never shown.
+  const notes = rawNotes?.replace(/\[SINAV\] \S+/, '').trim() || null
   if (!notes) return { notes: null, rejectionReason: null }
 
   const markerIndex = notes.indexOf(REJECTION_REASON_MARKER)

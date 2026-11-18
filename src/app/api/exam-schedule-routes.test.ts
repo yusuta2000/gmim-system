@@ -26,6 +26,7 @@ vi.mock('@/lib/db', () => ({
     },
     task: {
       findFirst: vi.fn(),
+      findMany: vi.fn(),
       create: vi.fn(),
     },
     notification: {
@@ -33,6 +34,8 @@ vi.mock('@/lib/db', () => ({
     },
   },
 }))
+
+vi.mock('@/lib/email', () => ({ sendEmail: vi.fn() }))
 
 vi.mock('@/lib/auth/session', () => {
   class UnauthenticatedError extends Error {
@@ -52,6 +55,7 @@ import { requireSession, UnauthenticatedError } from '@/lib/auth/session'
 import { GET as getExams, POST as createExam } from '@/app/api/exams/route'
 import { GET as getSchedules, POST as createSchedule, DELETE as deleteSchedule } from '@/app/api/weekly-schedule/route'
 import { POST as assignSupervisors } from '@/app/api/supervisor-assign/route'
+import { POST as addSupervisor } from '@/app/api/exam-supervisors/route'
 import type { SessionUser } from '@/lib/auth/session-repository'
 
 const exam = db.exam as unknown as {
@@ -72,13 +76,13 @@ const researchAssistant = db.researchAssistant as unknown as {
 }
 const examSupervisor = db.examSupervisor as unknown as { create: ReturnType<typeof vi.fn> }
 const pointCategory = db.pointCategory as unknown as { findFirst: ReturnType<typeof vi.fn> }
-const task = db.task as unknown as { findFirst: ReturnType<typeof vi.fn>; create: ReturnType<typeof vi.fn> }
+const task = db.task as unknown as { findFirst: ReturnType<typeof vi.fn>; findMany: ReturnType<typeof vi.fn>; create: ReturnType<typeof vi.fn> }
 const notification = db.notification as unknown as { create: ReturnType<typeof vi.fn> }
 const requireSessionMock = requireSession as unknown as ReturnType<typeof vi.fn>
 
 const adminUser: SessionUser = { id: 'admin-1', role: 'admin', department: 'GMIM' }
 const regularUser: SessionUser = { id: 'user-1', role: 'user', department: 'GMIM' }
-const assistant = { id: 'assistant-1', name: 'Assistant', department: 'GMIM', totalPoints: 0 }
+const assistant = { id: 'assistant-1', name: 'Assistant', email: 'assistant@example.com', role: 'user', isActive: true, department: 'GMIM', totalPoints: 0 }
 const examRecord = {
   id: 'exam-1',
   department: 'GMIM',
@@ -122,6 +126,7 @@ describe('exam and schedule routes', () => {
     examSupervisor.create.mockResolvedValue({ id: 'assignment-1', assistant })
     pointCategory.findFirst.mockResolvedValue({ id: 'cat-1', points: 4 })
     task.findFirst.mockResolvedValue({ number: 2 })
+    task.findMany.mockResolvedValue([])
     task.create.mockResolvedValue({})
     notification.create.mockResolvedValue({})
   })
@@ -230,16 +235,59 @@ describe('exam and schedule routes', () => {
     expect(examSupervisor.create).not.toHaveBeenCalled()
   })
 
-  it('supervisor assignment creates assignments for an authorized exam', async () => {
+  it('supervisor assignment waits for the assistant to accept before adding points', async () => {
     const response = await assignSupervisors(jsonRequest('/api/supervisor-assign', { examId: 'exam-1' }))
 
     expect(response.status).toBe(200)
     expect(examSupervisor.create).toHaveBeenCalledWith(expect.objectContaining({
       data: { examId: 'exam-1', assistantId: 'assistant-1' },
     }))
-    expect(researchAssistant.update).toHaveBeenCalledWith({
-      where: { id: 'assistant-1' },
-      data: { totalPoints: { increment: 4 } },
+    expect(task.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ assistantId: 'assistant-1', status: 'assigned', points: 4, notes: '[SINAV] exam-1' }),
     })
+    expect(researchAssistant.update).not.toHaveBeenCalled()
+  })
+
+  it('supervisor assignment does not pick someone who declined this exam', async () => {
+    task.findMany.mockResolvedValue([{ assistantId: 'assistant-1' }])
+
+    await assignSupervisors(jsonRequest('/api/supervisor-assign', { examId: 'exam-1' }))
+
+    expect(examSupervisor.create).not.toHaveBeenCalled()
+  })
+
+  it('exam GET reports each supervisor status and who declined', async () => {
+    exam.findMany.mockResolvedValue([{
+      ...examRecord,
+      supervisors: [{ id: 's-1', assistantId: 'assistant-1', assistant: { id: 'assistant-1', name: 'Assistant' } }],
+    }])
+    task.findMany.mockResolvedValue([
+      { assistantId: 'assistant-1', status: 'assigned', notes: '[SINAV] exam-1', assistant: { id: 'assistant-1', name: 'Assistant' } },
+      { assistantId: 'assistant-2', status: 'rejected', notes: '[SINAV] exam-1\n\n[RET_SEBEBI]\nRaporluyum', assistant: { id: 'assistant-2', name: 'Other' } },
+    ])
+
+    const data = await (await getExams(new Request('http://localhost/api/exams?department=GMIM'))).json()
+
+    expect(data[0].supervisors[0]).toMatchObject({ assistantId: 'assistant-1', status: 'pending' })
+    expect(data[0].declined).toEqual([{ id: 'assistant-2', name: 'Other' }])
+  })
+
+  it('managers can add a chosen supervisor, pending acceptance', async () => {
+    const response = await addSupervisor(jsonRequest('/api/exam-supervisors', { examId: 'exam-1', assistantId: 'assistant-1' }))
+
+    expect(response.status).toBe(201)
+    expect(examSupervisor.create).toHaveBeenCalledWith(expect.objectContaining({ data: { examId: 'exam-1', assistantId: 'assistant-1' } }))
+    expect(task.create).toHaveBeenCalledWith({ data: expect.objectContaining({ status: 'assigned', notes: '[SINAV] exam-1' }) })
+    expect(researchAssistant.update).not.toHaveBeenCalled()
+  })
+
+  it('manual supervisor add rejects assistants and other-department people', async () => {
+    requireSessionMock.mockResolvedValue(regularUser)
+    expect((await addSupervisor(jsonRequest('/api/exam-supervisors', { examId: 'exam-1', assistantId: 'assistant-1' }))).status).toBe(403)
+
+    requireSessionMock.mockResolvedValue(adminUser)
+    researchAssistant.findUnique.mockResolvedValue({ ...assistant, department: 'DUIM' })
+    expect((await addSupervisor(jsonRequest('/api/exam-supervisors', { examId: 'exam-1', assistantId: 'assistant-1' }))).status).toBe(400)
+    expect(examSupervisor.create).not.toHaveBeenCalled()
   })
 })

@@ -2,6 +2,7 @@ export type CalendarSupervisor = {
   id: string
   assistantId: string
   assistant: { id: string; name: string }
+  status: 'pending' | 'accepted'
 }
 
 export type CalendarExam = {
@@ -16,6 +17,7 @@ export type CalendarExam = {
   requiredSupervisors: number
   notes: string | null
   supervisors: CalendarSupervisor[]
+  declined: { id: string; name: string }[]
 }
 
 export type WeeklyScheduleEntry = {
