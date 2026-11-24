@@ -13,6 +13,8 @@ export type FixAction = {
   steps: string[]
   // Change to the person's total if the steps are followed and re-added duties are accepted.
   pointChange: number
+  // What the "apply" button does for this row.
+  fix: { type: 'delete' } | { type: 'setPoints'; expectedPoints: number; points: number; categoryId: string; categoryName: string }
 }
 export type FixPlan = {
   since: string
@@ -42,6 +44,7 @@ export function buildFixPlan(report: ExamSupervisionReport, since: string): FixP
           kept ? `${label(kept)} görevi kalır.` : 'Diğer görev kalır.',
         ],
         pointChange: approved ? -task.points : 0,
+        fix: { type: 'delete' },
       })
     }
   }
@@ -67,6 +70,7 @@ export function buildFixPlan(report: ExamSupervisionReport, since: string): FixP
             `Takvim'de ${exam}na tıklayın, "Puan baremi"nden "${row.suggested.name}" seçin ve ${row.assistantName} kişisini yeniden ekleyin. Kabul edince ${row.suggested.points} puan eklenir.`,
           ],
       pointChange: pending ? 0 : difference,
+      fix: { type: 'setPoints', expectedPoints: row.task.points, points: row.suggested.points, categoryId: row.suggested.id, categoryName: row.suggested.name },
     })
   }
 

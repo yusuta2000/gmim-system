@@ -16,10 +16,10 @@ export async function loadExamSupervisionReport(department: SessionUser['departm
   return buildExamSupervisionReport({ assistants, exams, categories, tasks })
 }
 
-// The fix plan page is personal: only this account (Y.Tarık MUTLU, GMİM temsilcisi) sees it.
-const FIX_PLAN_OWNER_EMAIL = 'ymutlu@itu.edu.tr'
+// The fix plan page is limited to these accounts: Y.Tarık MUTLU and Sinan COŞKUN (GMİM).
+const FIX_PLAN_OWNER_EMAILS = ['ymutlu@itu.edu.tr', 'coskunm19@itu.edu.tr']
 
 export async function isFixPlanOwner(userId: string) {
   const person = await db.researchAssistant.findUnique({ where: { id: userId }, select: { email: true } })
-  return person?.email?.trim().toLowerCase() === FIX_PLAN_OWNER_EMAIL
+  return FIX_PLAN_OWNER_EMAILS.includes(person?.email?.trim().toLowerCase() ?? '')
 }

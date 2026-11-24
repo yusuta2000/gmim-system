@@ -37,6 +37,11 @@ describe('GET /api/reports/fix-plan', () => {
     expect((await GET()).status).toBe(404)
   })
 
+  it('is also open to Sinan', async () => {
+    people.findUnique.mockResolvedValue({ email: 'coskunm19@itu.edu.tr' })
+    expect((await GET()).status).toBe(200)
+  })
+
   it('returns the plan since September 2026 to the owner account', async () => {
     people.findUnique.mockResolvedValue({ email: 'YMutlu@itu.edu.tr ' })
 

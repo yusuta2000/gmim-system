@@ -33,7 +33,7 @@ export type ReportMismatch = {
   day: string
   task: ReportTask
   exam: { courseCode: string; courseName: string; day: string; timeSlot: string }
-  suggested: { name: string; points: number }
+  suggested: { id: string; name: string; points: number }
 }
 export type ExamSupervisionReport = {
   checkedTasks: number
@@ -103,7 +103,7 @@ export function buildExamSupervisionReport(input: {
         day: dayKey(task.date),
         task: view(task),
         exam: { courseCode: exam.courseCode, courseName: exam.courseName ?? '', day: exam.day, timeSlot: exam.timeSlot },
-        suggested: { name: suggested.name, points: suggested.points },
+        suggested: { id: suggested.id, name: suggested.name, points: suggested.points },
       })
     }
   }

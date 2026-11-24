@@ -356,3 +356,54 @@ export async function deleteTask(input: { taskId: string; requester: SessionUser
     })
   })
 }
+
+// Corrects the points/barem of a supervision task found wrong by the fix plan. Approved tasks move the person's total by the difference.
+export async function correctTaskPoints(input: {
+  taskId: string
+  expectedPoints: number
+  points: number
+  categoryId: string | null
+  categoryName: string
+  requester: SessionUser & { name: string }
+}) {
+  if (!isManager(input.requester)) {
+    throw new TaskServiceError('FORBIDDEN', 'FORBIDDEN')
+  }
+
+  await db.$transaction(async (tx) => {
+    const task = await getTaskForMutation(tx, input.taskId)
+    assertTaskDepartment(input.requester, task)
+    await assertTaskPeriodOpen(input.taskId, tx)
+    if (!['approved', 'assigned', 'pending'].includes(task.status) || task.points !== input.expectedPoints) {
+      throw new TaskServiceError('CONFLICT', 'Görev bu arada değişmiş; liste yenilenmeli')
+    }
+
+    const today = new Date().toLocaleDateString('tr-TR')
+    const note = `Puan düzeltmesi (${today}, ${input.requester.name}): ${task.points} → ${input.points} puan, barem: ${input.categoryName}`
+    const updated = await tx.task.updateMany({
+      where: { id: task.id, points: input.expectedPoints, status: task.status },
+      data: { points: input.points, categoryId: input.categoryId, notes: task.notes ? `${task.notes}\n\n${note}` : note },
+    })
+    if (updated.count !== 1) {
+      throw new TaskServiceError('CONFLICT', 'Görev bu arada değişmiş; liste yenilenmeli')
+    }
+
+    const difference = input.points - task.points
+    if (task.status === 'approved' && difference !== 0) {
+      await tx.researchAssistant.update({
+        where: { id: task.assistantId },
+        data: { totalPoints: { increment: difference } },
+      })
+    }
+
+    await tx.notification.create({
+      data: {
+        title: 'Puan Düzeltildi',
+        message: `"${task.description}" görevinizin puanı baremine göre ${task.points} puandan ${input.points} puana düzeltildi (${input.categoryName}).${task.status === 'approved' ? '' : ' Görevi kabul ettiğinizde bu puan eklenecek.'}`,
+        type: 'warning',
+        assistantId: task.assistantId,
+        relatedId: task.id,
+      },
+    })
+  })
+}

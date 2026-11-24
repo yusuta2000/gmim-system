@@ -93,3 +93,15 @@ Sinan COŞKUN (GMİM temsilcisi) üç sorun bildirdi: Takvim'den gözetmen atan�
 - Erişim: hesap e-postası `ymutlu@itu.edu.tr` (repoda zaten seed dosyalarında var); başka herkese API 404, sekme render edilmez. Kişi adı/puanı repoya yazılmadı, plan canlı veriden hesaplanır.
 - Changelog'a kayıt eklenmedi: sekme yalnız bir hesaba görünür.
 - Doğrulama: `vitest` 220 test, `tsc --noEmit`, hedefli `eslint` geçti.
+
+### Düzeltme planı Sinan'a da açıldı (aynı gün)
+
+- `b4269a1` ile yayına alındı. Kullanıcı isteğiyle erişim Sinan COŞKUN'a da açıldı (e-posta `coskunm19@itu.edu.tr`, seed dosyasındaki değer; prod'daki e-posta farklıysa sekme görünmez, Sinan ile doğrulanmalı). Sekme adı "Düzeltme planı", metin iki kişiye göre düzenlendi.
+
+### Düzeltme planına "Seçilenleri düzelt" düğmesi (aynı gün)
+
+- Kullanıcı kararı: Sinan listeyi okuyup düğmeyle düzeltebilsin; Sinan erişimiyle birlikte yayına alınsın.
+- `correctTaskPoints` (task-service): yönetici + bölüm + açık dönem kontrolü; görev puanı beklenen değerden farklıysa CONFLICT (iyimser kilit `updateMany where points`); puan + barem güncellenir, not sonuna "Puan düzeltmesi (tarih, kişi): eski → yeni puan, barem" eklenir (`[SINAV]` işareti başta kalır); onaylı görevde toplam fark kadar değişir; kişiye "Puan Düzeltildi" bildirimi.
+- `/api/reports/fix-plan/apply`: yalnız iki hesap (diğerlerine 404); plan sunucuda yeniden hesaplanır, yalnız hâlâ listede olan seçili satırlar uygulanır; çift kayıtta mevcut `deleteTask`; uygulanamayanlar sebebiyle atlanır, kalanlar devam eder.
+- Ekran: her satırda onay kutusu (varsayılan hepsi seçili), "Düğme ne yapar" açıklaması, kişi bazında puan değişimi gösteren onay penceresi.
+- Doğrulama: `vitest` 230 test (yeni: `correct-task-points.test.ts` 5, `fix-plan/apply/route.test.ts` 4), `tsc --noEmit`, hedefli `eslint` geçti. Düğme gerçek veride çalıştırılmadı.

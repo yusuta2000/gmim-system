@@ -51,7 +51,7 @@ describe('buildExamSupervisionReport', () => {
     expect(report.checkedTasks).toBe(1)
     expect(report.mismatches).toEqual([expect.objectContaining({
       assistantName: 'Mehmet',
-      suggested: { name: 'Tuzla haftaiçi 1 sınav (havuz dersleri)', points: 2 },
+      suggested: { id: 'pool', name: 'Tuzla haftaiçi 1 sınav (havuz dersleri)', points: 2 },
       task: expect.objectContaining({ points: 4 }),
     })])
   })

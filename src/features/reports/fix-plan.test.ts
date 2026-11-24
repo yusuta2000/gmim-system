@@ -36,9 +36,9 @@ describe('buildFixPlan', () => {
       ...empty,
       duplicates: [{ assistantName: 'Ayşe', day: '2026-10-01', tasks: [calendarMat, manualMat], extraTaskIds: ['man'] }],
       mismatches: [
-        { assistantName: 'Ayşe', day: '2026-10-01', task: calendarMat, exam, suggested: { name: 'Tuzla haftaiçi 1 sınav (havuz dersleri)', points: 2 } },
-        { assistantName: 'Ayşe', day: '2026-10-01', task: manualMat, exam, suggested: { name: 'X', points: 1 } },
-        { assistantName: 'Mehmet', day: '2026-10-02', task: task({ id: 'pend', status: 'assigned', fromCalendar: true }), exam, suggested: { name: 'Y', points: 1 } },
+        { assistantName: 'Ayşe', day: '2026-10-01', task: calendarMat, exam, suggested: { id: 'pool', name: 'Tuzla haftaiçi 1 sınav (havuz dersleri)', points: 2 } },
+        { assistantName: 'Ayşe', day: '2026-10-01', task: manualMat, exam, suggested: { id: 'x', name: 'X', points: 1 } },
+        { assistantName: 'Mehmet', day: '2026-10-02', task: task({ id: 'pend', status: 'assigned', fromCalendar: true }), exam, suggested: { id: 'y', name: 'Y', points: 1 } },
       ],
     }, '2026-09-01')
 
@@ -47,6 +47,8 @@ describe('buildFixPlan', () => {
       ['cal', 'wrongPoints', -2],
       ['pend', 'wrongPointsPending', 0],
     ])
+    expect(plan.actions[1].fix).toEqual({ type: 'setPoints', expectedPoints: 4, points: 2, categoryId: 'pool', categoryName: 'Tuzla haftaiçi 1 sınav (havuz dersleri)' })
+    expect(plan.actions[0].fix).toEqual({ type: 'delete' })
     expect(plan.people).toEqual([
       { assistantName: 'Ayşe', pointChange: -4, actions: 2 },
       { assistantName: 'Mehmet', pointChange: 0, actions: 1 },
