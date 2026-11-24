@@ -26,7 +26,8 @@ export type ReportTask = {
   fromCalendar: boolean
   categoryName: string | null
 }
-export type ReportGroup = { assistantName: string; day: string; tasks: ReportTask[] }
+// extraTaskIds: tasks repeating a course already held that day (calendar-linked and older tasks count as the original).
+export type ReportGroup = { assistantName: string; day: string; tasks: ReportTask[]; extraTaskIds: string[] }
 export type ReportMismatch = {
   assistantName: string
   day: string
@@ -77,18 +78,18 @@ export function buildExamSupervisionReport(input: {
   }
   const duplicates: ReportGroup[] = []
   const sameDay: ReportGroup[] = []
-  for (const [key, items] of groups) {
-    if (items.length < 2) continue
+  for (const [key, unordered] of groups) {
+    if (unordered.length < 2) continue
     const [assistantId, day] = key.split('|')
+    const items = [...unordered].sort((a, b) => Number(Boolean(examIdOf(b.notes))) - Number(Boolean(examIdOf(a.notes))) || a.number - b.number)
     const seen = new Set<string>()
-    let duplicate = false
+    const extraTaskIds: string[] = []
     for (const task of items) {
-      for (const code of codesOf(task)) {
-        if (seen.has(code)) duplicate = true
-        seen.add(code)
-      }
+      const codes = [...codesOf(task)]
+      if (codes.some((code) => seen.has(code))) extraTaskIds.push(task.id)
+      codes.forEach((code) => seen.add(code))
     }
-    ;(duplicate ? duplicates : sameDay).push({ assistantName: names.get(assistantId) ?? assistantId, day, tasks: items.map(view) })
+    ;(extraTaskIds.length ? duplicates : sameDay).push({ assistantName: names.get(assistantId) ?? assistantId, day, tasks: items.map(view), extraTaskIds })
   }
 
   const mismatches: ReportMismatch[] = []

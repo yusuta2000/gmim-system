@@ -13,6 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CHANGELOG } from '@/features/reports/changelog'
 import type { ExamSupervisionReport, ReportGroup, ReportTask } from '@/features/reports/exam-supervision-report'
+import type { FixPlan } from '@/features/reports/fix-plan'
 
 const STATUS: Record<string, string> = { approved: 'Kabul edildi', assigned: 'Kişinin yanıtı bekleniyor', pending: 'Temsilci onayı bekleniyor' }
 const dateLabel = (day: string) => format(parseISO(day), 'd MMMM yyyy, EEEE', { locale: tr })
@@ -91,6 +92,73 @@ function SupervisionChecklist() {
   )
 }
 
+const KIND_LABEL: Record<string, string> = { duplicate: 'Çift kayıt', wrongPoints: 'Yanlış puan', wrongPointsPending: 'Yanlış puan (henüz kabul edilmedi)' }
+
+function FixPlanView() {
+  const plan = useQuery({
+    queryKey: ['reports', 'fix-plan'],
+    queryFn: async () => {
+      const response = await fetch('/api/reports/fix-plan')
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.message || data.error || 'Düzeltme planı alınamadı')
+      return data as FixPlan
+    },
+  })
+
+  if (plan.isLoading) return <div role="status" aria-label="Düzeltme planı yükleniyor" className="space-y-3"><Skeleton className="h-32 w-full" /><Skeleton className="h-32 w-full" /></div>
+  if (plan.isError) {
+    return <Alert variant="destructive"><AlertCircle className="size-4" /><AlertTitle>Düzeltme planı alınamadı</AlertTitle><AlertDescription className="flex items-center justify-between gap-3"><span>{plan.error.message}</span><Button variant="outline" className="gap-2" onClick={() => plan.refetch()}><RefreshCw className="size-4" />Yeniden dene</Button></AlertDescription></Alert>
+  }
+  const data = plan.data!
+  const signed = (value: number) => (value > 0 ? `+${value}` : `${value}`)
+  return (
+    <div className="space-y-4">
+      <Alert>
+        <AlertTitle>Bu sayfayı yalnız siz görüyorsunuz</AlertTitle>
+        <AlertDescription>
+          {dateLabel(data.since)} tarihinden bugüne kadar olan gözetmenlik kayıtlarına bakıldı. Burada, düzeltmeyi ben yapsaydım hangi kaydı neden ve nasıl değiştireceğim yazıyor. Hiçbir şey otomatik değişmez; adımları Görevler ve Takvim ekranlarından siz uygularsınız.
+          Sistemde iki hata vardı: Takvim'den atanan her gözetmenliğe sınav ne olursa olsun 4 puan yazılıyordu, ve aynı sınav hem Görevler ekranından hem Takvim'den girildiğinde kişi iki kez puan alabiliyordu.
+        </AlertDescription>
+      </Alert>
+      {data.actions.length === 0 ? (
+        <p className="text-sm text-text-secondary">Bu tarihten sonra düzeltilmesi gereken bir kayıt bulunmadı.</p>
+      ) : (
+        <>
+          <Card>
+            <CardHeader><CardTitle className="text-base">Kişi bazında özet</CardTitle><CardDescription>Tüm adımlar uygulanır ve yeniden eklenen görevler kabul edilirse kişinin toplam puanındaki değişim.</CardDescription></CardHeader>
+            <CardContent>
+              <ul className="divide-y divide-border text-sm">
+                {data.people.map((person) => (
+                  <li key={person.assistantName} className="flex items-center justify-between gap-3 py-2">
+                    <span className="font-medium">{person.assistantName}</span>
+                    <span className="text-text-secondary">{person.actions} düzeltme · <strong className="text-text-primary">{person.pointChange === 0 ? 'puan değişmez' : `${signed(person.pointChange)} puan`}</strong></span>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader><CardTitle className="text-base">Yapılacak düzeltmeler ({data.actions.length})</CardTitle><CardDescription>Her kayıt için sorun ve sırayla yapılacak adımlar.</CardDescription></CardHeader>
+            <CardContent className="space-y-3">
+              {data.actions.map((action) => (
+                <div key={action.taskId} className="rounded-lg border border-border p-3 text-sm">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-semibold">{action.assistantName} · {dateLabel(action.day)}</span>
+                    <Badge variant="outline">{KIND_LABEL[action.kind]}</Badge>
+                    <Badge variant="secondary">{action.pointChange === 0 ? 'puan değişmez' : `${signed(action.pointChange)} puan`}</Badge>
+                  </div>
+                  <p className="mt-2"><span className="font-medium">Sorun:</span> {action.problem}</p>
+                  <ol className="mt-2 list-decimal space-y-1 pl-5 text-text-secondary">{action.steps.map((step) => <li key={step}>{step}</li>)}</ol>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        </>
+      )}
+    </div>
+  )
+}
+
 function Changelog() {
   return (
     <div className="space-y-4">
@@ -120,7 +188,7 @@ function Changelog() {
   )
 }
 
-export function ReportsScreen() {
+export function ReportsScreen({ showFixPlan = false }: { showFixPlan?: boolean }) {
   return (
     <div className="space-y-5">
       <header>
@@ -131,9 +199,11 @@ export function ReportsScreen() {
         <TabsList className="min-h-11">
           <TabsTrigger value="changes">Değişiklikler</TabsTrigger>
           <TabsTrigger value="supervision">Gözetmenlik kontrol listesi</TabsTrigger>
+          {showFixPlan && <TabsTrigger value="fix-plan">Düzeltme planım</TabsTrigger>}
         </TabsList>
         <TabsContent value="changes" className="mt-4"><Changelog /></TabsContent>
         <TabsContent value="supervision" className="mt-4"><SupervisionChecklist /></TabsContent>
+        {showFixPlan && <TabsContent value="fix-plan" className="mt-4"><FixPlanView /></TabsContent>}
       </Tabs>
     </div>
   )

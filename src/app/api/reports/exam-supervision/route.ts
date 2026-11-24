@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server'
-import { db } from '@/lib/db'
 import { requireSession, UnauthenticatedError } from '@/lib/auth/session'
 import type { SessionUser } from '@/lib/auth/session-repository'
 import { assertDepartmentAccess } from '@/lib/authorization/department'
 import { AuthorizationError } from '@/lib/authorization/errors'
 import { requireRole } from '@/lib/authorization/roles'
 import { departmentSchema } from '@/features/calendar/schemas'
-import { buildExamSupervisionReport } from '@/features/reports/exam-supervision-report'
+import { loadExamSupervisionReport } from '@/features/reports/server/load-report'
 
 // Read-only supervision check list for managers; nothing is written.
 export async function GET(request: Request) {
@@ -16,16 +15,7 @@ export async function GET(request: Request) {
     const department = departmentSchema.parse(new URL(request.url).searchParams.get('department') || user.department) as SessionUser['department']
     assertDepartmentAccess(user, department)
 
-    const [assistants, exams, categories, tasks] = await Promise.all([
-      db.researchAssistant.findMany({ where: { department }, select: { id: true, name: true } }),
-      db.exam.findMany({ where: { department }, select: { id: true, courseCode: true, courseName: true, day: true, timeSlot: true, classroom: true, notes: true } }),
-      db.pointCategory.findMany({ where: { isActive: true }, select: { id: true, name: true, points: true } }),
-      db.task.findMany({
-        where: { assistant: { department }, status: { in: ['approved', 'assigned', 'pending'] } },
-        select: { id: true, number: true, assistantId: true, description: true, date: true, hoursWorked: true, points: true, status: true, notes: true, category: { select: { name: true } } },
-      }),
-    ])
-    return NextResponse.json(buildExamSupervisionReport({ assistants, exams, categories, tasks }))
+    return NextResponse.json(await loadExamSupervisionReport(department))
   } catch (error) {
     if (error instanceof UnauthenticatedError) {
       return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 })

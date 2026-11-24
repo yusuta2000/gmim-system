@@ -85,3 +85,11 @@ Sinan COŞKUN (GMİM temsilcisi) üç sorun bildirdi: Takvim'den gözetmen atan�
 - Kullanıcı kararı: Atatürk İlkeleri (ATA) da havuz dersi; `barem.ts` havuz listesine eklendi. Mesai dışı başlayan havuz sınavında iki kalem (havuz / mesai dışı, ikisi de 2 puan) önerilen olarak işaretlenir.
 - Kullanıcı kararı: Raporlar metinleri günlük dille, kod/teknik terim olmadan. Değişiklik günlüğü yeniden yazıldı; kontrol listesinden görev numarası kaldırıldı, ders kodu yerine ders adı gösteriliyor. CLAUDE.md ≡ AGENTS.md changelog kuralına sade dil şartı eklendi.
 - Doğrulama: `vitest` 214 test, `tsc --noEmit`, hedefli `eslint`, doküman kontrolü geçti.
+
+### Kişiye özel düzeltme planı (aynı gün)
+
+- Kullanıcı (Y.Tarık MUTLU) Eylül 2026'dan beri hataların ve "Claude düzeltseydi ne yapardı" listesinin yalnız kendi hesabında görünmesini istedi.
+- Raporlar → "Düzeltme planım": `buildFixPlan` (çift kayıtta takvime bağlı / eski görev kalır, tekrar eden silinir; yanlış barem puanında görev silinip doğru baremle yeniden eklenir; bekleyen görevlerde puan etkisi 0) ve kişi bazında net puan değişimi. Onaylı görevin puanını değiştiren bir ekran olmadığı için düzeltme yolu sil + yeniden ekle.
+- Erişim: hesap e-postası `ymutlu@itu.edu.tr` (repoda zaten seed dosyalarında var); başka herkese API 404, sekme render edilmez. Kişi adı/puanı repoya yazılmadı, plan canlı veriden hesaplanır.
+- Changelog'a kayıt eklenmedi: sekme yalnız bir hesaba görünür.
+- Doğrulama: `vitest` 220 test, `tsc --noEmit`, hedefli `eslint` geçti.

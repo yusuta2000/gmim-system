@@ -24,7 +24,8 @@ describe('buildExamSupervisionReport', () => {
 
     expect(report.duplicates).toHaveLength(1)
     expect(report.duplicates[0]).toMatchObject({ assistantName: 'Ayşe', day: '2026-11-10' })
-    expect(report.duplicates[0].tasks.map((item) => item.fromCalendar)).toEqual([false, true])
+    expect(report.duplicates[0].tasks.map((item) => item.fromCalendar)).toEqual([true, false])
+    expect(report.duplicates[0].extraTaskIds).toEqual(['manual'])
     expect(report.sameDay).toHaveLength(0)
   })
 
