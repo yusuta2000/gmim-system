@@ -50,7 +50,10 @@ Sinan COŞKUN (GMİM temsilcisi) üç sorun bildirdi: Takvim'den gözetmen atan�
 
 ## Commits and deployments
 
-- Bu kayıt yazılırken commit/push yapılmadı (kullanıcı onayı bekleniyor).
+- `600d80d` feat(calendar): barem choice for supervision, same-day warning, exam delete
+- `0116224` feat(reports): manager reports page with changelog and supervision check list
+- Kullanıcı onayıyla `main`e push edildi; production'da `/api/reports/exam-supervision` oturumsuz istekte 404 → 401 döndü (deploy canlı). Arayüz gerçek hesapla tarayıcıda denenmedi.
+- `scripts/report-exam-supervision.mjs` commit edilmedi (portal sayfasıyla aynı işi yapıyor; silinip silinmeyeceği kullanıcıda).
 
 ## Decisions created or superseded
 
