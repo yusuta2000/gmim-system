@@ -18,6 +18,7 @@ export type CalendarExam = {
   notes: string | null
   supervisors: CalendarSupervisor[]
   declined: { id: string; name: string }[]
+  categoryId: string | null
 }
 
 export type WeeklyScheduleEntry = {

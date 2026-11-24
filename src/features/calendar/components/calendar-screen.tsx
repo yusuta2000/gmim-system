@@ -54,18 +54,28 @@ import { toast } from 'sonner'
 import { calendarKeys } from '@/features/calendar/queries/calendar-keys'
 import { useCalendarExams, useWeeklySchedule } from '@/features/calendar/queries/use-calendar'
 import type { CalendarDomain, CalendarExam, CalendarView, WeeklyScheduleEntry } from '@/features/calendar/types'
+import { examBaremOptions, type BaremCategory } from '@/features/calendar/barem'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 
 const DAY_NAMES: Record<number, string> = { 1: 'Pazartesi', 2: 'Salı', 3: 'Çarşamba', 4: 'Perşembe', 5: 'Cuma', 6: 'Cumartesi', 7: 'Pazar' }
 const DAY_NUMBERS = Object.fromEntries(Object.entries(DAY_NAMES).map(([key, value]) => [value, Number(key)]))
 
 type PersonOption = { id: string; name: string; role: string; isActive: boolean }
 
+class RequestError extends Error {
+  constructor(message: string, readonly code?: string) {
+    super(message)
+  }
+}
+
 async function mutationJson<T>(url: string, init: RequestInit): Promise<T> {
   const response = await fetch(url, init)
   const data = await response.json()
-  if (!response.ok) throw new Error(data.message || data.error || 'İşlem tamamlanamadı')
+  if (!response.ok) throw new RequestError(data.message || data.error || 'İşlem tamamlanamadı', data.error)
   return data as T
 }
+
+type SupervisorPayload = { examId: string; assistantId: string; categoryId: string; confirm?: boolean }
 
 function parseSlot(value: string): [number, number] | null {
   const match = value.match(/(\d{1,2}):(\d{2})\s*[-–]\s*(\d{1,2}):(\d{2})/)
@@ -86,20 +96,25 @@ function examConflict(exam: CalendarExam, schedules: WeeklyScheduleEntry[]) {
   return schedules.some((entry) => supervisorIds.has(entry.assistantId) && entry.dayOfWeek === day && overlaps(exam.timeSlot, entry.timeSlot))
 }
 
-function ExamCard({ exam, schedules, canManage, assigning, onAssign, people, adding, onAddSupervisor }: {
+function ExamCard({ exam, schedules, canManage, assigning, onAssign, people, adding, onAddSupervisor, categories, onDelete }: {
   exam: CalendarExam
   schedules: WeeklyScheduleEntry[]
   canManage: boolean
   assigning: boolean
-  onAssign: (id: string) => void
+  onAssign: (examId: string, categoryId: string) => void
   people: PersonOption[]
   adding: boolean
-  onAddSupervisor: (examId: string, assistantId: string) => void
+  onAddSupervisor: (examId: string, assistantId: string, categoryId: string) => void
+  categories: BaremCategory[]
+  onDelete: (exam: CalendarExam) => void
 }) {
   const gap = Math.max(0, exam.requiredSupervisors - exam.supervisors.length)
   const conflict = examConflict(exam, schedules)
   const [candidate, setCandidate] = useState('')
   const candidates = people.filter((person) => person.isActive && ['user', 'admin'].includes(person.role) && !exam.supervisors.some((item) => item.assistantId === person.id))
+  const barem = useMemo(() => examBaremOptions(categories, exam), [categories, exam])
+  const [chosenCategory, setChosenCategory] = useState('')
+  const categoryId = chosenCategory || (exam.categoryId && barem.options.some((option) => option.id === exam.categoryId) ? exam.categoryId : barem.suggestedId) || ''
 
   return (
     <article className="rounded-xl border border-border bg-surface p-4">
@@ -147,8 +162,17 @@ function ExamCard({ exam, schedules, canManage, assigning, onAssign, people, add
 
       {exam.notes && <p className="mt-3 text-sm text-text-secondary">Not: {exam.notes}</p>}
       {canManage && gap > 0 && (
+        <div className="mt-3 space-y-1">
+          <Label htmlFor={`barem-${exam.id}`} className="text-xs font-medium text-text-secondary">Puan baremi (atanacak gözetmenlere yazılır)</Label>
+          <select id={`barem-${exam.id}`} value={categoryId} onChange={(event) => setChosenCategory(event.target.value)} className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm">
+            {!barem.options.length && <option value="">Barem bulunamadı</option>}
+            {barem.options.map((option) => <option key={option.id} value={option.id}>{option.name} · {option.points} puan{option.suggested ? ' (önerilen)' : ''}</option>)}
+          </select>
+        </div>
+      )}
+      {canManage && gap > 0 && (
         <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-          <Button type="button" variant="outline" className="min-h-11 gap-2" disabled={assigning} onClick={() => onAssign(exam.id)}>
+          <Button type="button" variant="outline" className="min-h-11 gap-2" disabled={assigning || !categoryId} onClick={() => onAssign(exam.id, categoryId)}>
             {assigning ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <Zap className="size-4" aria-hidden="true" />}
             Uygun gözetmenleri ata
           </Button>
@@ -157,10 +181,15 @@ function ExamCard({ exam, schedules, canManage, assigning, onAssign, people, add
               <option value="">Kişi seçin</option>
               {candidates.map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}
             </select>
-            <Button type="button" className="min-h-11 gap-2" disabled={!candidate || adding} onClick={() => { onAddSupervisor(exam.id, candidate); setCandidate('') }}>
+            <Button type="button" className="min-h-11 gap-2" disabled={!candidate || !categoryId || adding} onClick={() => { onAddSupervisor(exam.id, candidate, categoryId); setCandidate('') }}>
               {adding ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <Plus className="size-4" aria-hidden="true" />}Gözetmen ekle
             </Button>
           </div>
+        </div>
+      )}
+      {canManage && (
+        <div className="mt-3 flex justify-end">
+          <Button type="button" variant="ghost" className="min-h-11 gap-2 text-destructive" onClick={() => onDelete(exam)}><Trash2 className="size-4" aria-hidden="true" />Sınavı sil</Button>
         </div>
       )}
     </article>
@@ -224,8 +253,17 @@ export function CalendarScreen() {
     onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: calendarKeys.schedule(department) }); toast.success('Program kaydı silindi') },
     onError: (error) => toast.error(error.message),
   })
+  const categories = useQuery({
+    queryKey: ['calendar', 'categories'],
+    queryFn: async () => mutationJson<(BaremCategory & { isActive: boolean })[]>('/api/categories', {}),
+    select: (items) => items.filter((item) => item.isActive),
+    enabled: canManage,
+  })
+  const [confirmSupervisor, setConfirmSupervisor] = useState<{ payload: SupervisorPayload; message: string } | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<CalendarExam | null>(null)
+
   const assign = useMutation({
-    mutationFn: (examId: string) => mutationJson<{ message: string }>('/api/supervisor-assign', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ examId }) }),
+    mutationFn: (payload: { examId: string; categoryId: string }) => mutationJson<{ message: string }>('/api/supervisor-assign', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }),
     onSuccess: async (data) => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: calendarKeys.exams(department) }),
@@ -238,8 +276,29 @@ export function CalendarScreen() {
   })
 
   const addSupervisor = useMutation({
-    mutationFn: (payload: { examId: string; assistantId: string }) => mutationJson<{ message: string }>('/api/exam-supervisors', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }),
+    mutationFn: (payload: SupervisorPayload) => mutationJson<{ message: string }>('/api/exam-supervisors', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }),
     onSuccess: async (data) => {
+      setConfirmSupervisor(null)
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: calendarKeys.exams(department) }),
+        queryClient.invalidateQueries({ queryKey: ['tasks', department] }),
+      ])
+      toast.success(data.message)
+    },
+    onError: (error, payload) => {
+      if (error instanceof RequestError && error.code === 'CONFIRM_REQUIRED') {
+        setConfirmSupervisor({ payload, message: error.message })
+        return
+      }
+      toast.error(error.message)
+    },
+  })
+
+  const deleteExam = useMutation({
+    mutationFn: (id: string) => mutationJson<{ message: string }>(`/api/exams?id=${id}`, { method: 'DELETE' }),
+    onSuccess: async (data) => {
+      setDeleteTarget(null)
+      setSelectedExamId(null)
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: calendarKeys.exams(department) }),
         queryClient.invalidateQueries({ queryKey: ['tasks', department] }),
@@ -250,8 +309,11 @@ export function CalendarScreen() {
   })
 
   function renderExamCard(exam: CalendarExam) {
-    return <ExamCard key={exam.id} exam={exam} schedules={schedule.data || []} canManage={canManage} assigning={assign.isPending && assign.variables === exam.id} onAssign={assign.mutate} people={people.data || []} adding={addSupervisor.isPending && addSupervisor.variables?.examId === exam.id} onAddSupervisor={(examId, assistantId) => addSupervisor.mutate({ examId, assistantId })} />
+    return <ExamCard key={exam.id} exam={exam} schedules={schedule.data || []} canManage={canManage} assigning={assign.isPending && assign.variables?.examId === exam.id} onAssign={(examId, categoryId) => assign.mutate({ examId, categoryId })} people={people.data || []} adding={addSupervisor.isPending && addSupervisor.variables?.examId === exam.id} onAddSupervisor={(examId, assistantId, categoryId) => addSupervisor.mutate({ examId, assistantId, categoryId })} categories={categories.data || []} onDelete={setDeleteTarget} />
   }
+
+  const deletePending = deleteTarget?.supervisors.filter((item) => item.status === 'pending').length ?? 0
+  const deleteAccepted = deleteTarget?.supervisors.filter((item) => item.status === 'accepted').length ?? 0
 
   function submitExam(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -379,6 +441,8 @@ export function CalendarScreen() {
               {selectedExam ? renderExamCard(selectedExam) : null}
             </DialogContent>
           </Dialog>
+          <AlertDialog open={Boolean(confirmSupervisor)} onOpenChange={(open) => !open && setConfirmSupervisor(null)}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Aynı gün başka sınav</AlertDialogTitle><AlertDialogDescription>{confirmSupervisor?.message}</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Vazgeç</AlertDialogCancel><AlertDialogAction disabled={addSupervisor.isPending} onClick={(event) => { event.preventDefault(); if (confirmSupervisor) addSupervisor.mutate({ ...confirmSupervisor.payload, confirm: true }) }}>{addSupervisor.isPending && <LoaderCircle className="size-4 animate-spin" />}Yine de ata</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+          <AlertDialog open={Boolean(deleteTarget)} onOpenChange={(open) => !open && setDeleteTarget(null)}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Sınavı sil?</AlertDialogTitle><AlertDialogDescription>{deleteTarget?.courseCode} · {deleteTarget?.courseName} takvimden silinecek. {deletePending ? `${deletePending} bekleyen gözetmenlik görevi kaldırılacak (puan verilmemişti). ` : ''}{deleteAccepted ? `${deleteAccepted} kabul edilmiş görev ve puanı korunacak; puanı düşürmek gerekiyorsa görevi Görevler ekranından ayrıca silin.` : ''}</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Vazgeç</AlertDialogCancel><AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" disabled={deleteExam.isPending} onClick={(event) => { event.preventDefault(); if (deleteTarget) deleteExam.mutate(deleteTarget.id) }}>{deleteExam.isPending && <LoaderCircle className="size-4 animate-spin" />}Sınavı sil</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
           {schedule.isError && <Alert><AlertTriangle className="size-4" /><AlertTitle>Çakışma bilgisi eksik olabilir</AlertTitle><AlertDescription>Haftalık program alınamadığı için sınav çakışmaları gösterilemiyor.</AlertDescription></Alert>}
         </>
       ) : schedule.isLoading ? <div role="status" aria-label="Haftalık program yükleniyor" className="space-y-3"><Skeleton className="h-24 w-full" /><Skeleton className="h-24 w-full" /></div> : schedule.isError ? (

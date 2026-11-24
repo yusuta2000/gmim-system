@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('@/lib/db', () => ({
-  db: {
+vi.mock('@/lib/db', () => {
+  const db = {
     exam: {
       findMany: vi.fn(),
       findUnique: vi.fn(),
       create: vi.fn(),
+      delete: vi.fn(),
     },
     weeklySchedule: {
       findMany: vi.fn(),
@@ -20,20 +21,27 @@ vi.mock('@/lib/db', () => ({
     },
     examSupervisor: {
       create: vi.fn(),
+      deleteMany: vi.fn(),
     },
     pointCategory: {
       findFirst: vi.fn(),
+      findMany: vi.fn(),
     },
     task: {
       findFirst: vi.fn(),
       findMany: vi.fn(),
       create: vi.fn(),
+      deleteMany: vi.fn(),
     },
     notification: {
       create: vi.fn(),
+      createMany: vi.fn(),
     },
-  },
-}))
+    $transaction: vi.fn(),
+  }
+  db.$transaction.mockImplementation(async (fn: (tx: typeof db) => unknown) => fn(db))
+  return { db }
+})
 
 vi.mock('@/lib/email', () => ({ sendEmail: vi.fn() }))
 
@@ -52,7 +60,7 @@ vi.mock('@/lib/auth/session', () => {
 
 import { db } from '@/lib/db'
 import { requireSession, UnauthenticatedError } from '@/lib/auth/session'
-import { GET as getExams, POST as createExam } from '@/app/api/exams/route'
+import { GET as getExams, POST as createExam, DELETE as deleteExamRoute } from '@/app/api/exams/route'
 import { GET as getSchedules, POST as createSchedule, DELETE as deleteSchedule } from '@/app/api/weekly-schedule/route'
 import { POST as assignSupervisors } from '@/app/api/supervisor-assign/route'
 import { POST as addSupervisor } from '@/app/api/exam-supervisors/route'
@@ -62,6 +70,7 @@ const exam = db.exam as unknown as {
   findMany: ReturnType<typeof vi.fn>
   findUnique: ReturnType<typeof vi.fn>
   create: ReturnType<typeof vi.fn>
+  delete: ReturnType<typeof vi.fn>
 }
 const weeklySchedule = db.weeklySchedule as unknown as {
   findMany: ReturnType<typeof vi.fn>
@@ -74,10 +83,15 @@ const researchAssistant = db.researchAssistant as unknown as {
   findMany: ReturnType<typeof vi.fn>
   update: ReturnType<typeof vi.fn>
 }
-const examSupervisor = db.examSupervisor as unknown as { create: ReturnType<typeof vi.fn> }
-const pointCategory = db.pointCategory as unknown as { findFirst: ReturnType<typeof vi.fn> }
-const task = db.task as unknown as { findFirst: ReturnType<typeof vi.fn>; findMany: ReturnType<typeof vi.fn>; create: ReturnType<typeof vi.fn> }
-const notification = db.notification as unknown as { create: ReturnType<typeof vi.fn> }
+const examSupervisor = db.examSupervisor as unknown as { create: ReturnType<typeof vi.fn>; deleteMany: ReturnType<typeof vi.fn> }
+const pointCategory = db.pointCategory as unknown as { findFirst: ReturnType<typeof vi.fn>; findMany: ReturnType<typeof vi.fn> }
+const task = db.task as unknown as { findFirst: ReturnType<typeof vi.fn>; findMany: ReturnType<typeof vi.fn>; create: ReturnType<typeof vi.fn>; deleteMany: ReturnType<typeof vi.fn> }
+const notification = db.notification as unknown as { create: ReturnType<typeof vi.fn>; createMany: ReturnType<typeof vi.fn> }
+const baremCategories = [
+  { id: 'cat-weekday', name: 'Gözetmenlik (1 sınav)', points: 4 },
+  { id: 'cat-weekend', name: 'Haftasonu sınavı', points: 5 },
+  { id: 'cat-other', name: 'MÜDEK', points: 4 },
+]
 const requireSessionMock = requireSession as unknown as ReturnType<typeof vi.fn>
 
 const adminUser: SessionUser = { id: 'admin-1', role: 'admin', department: 'GMIM' }
@@ -125,6 +139,7 @@ describe('exam and schedule routes', () => {
     researchAssistant.update.mockResolvedValue({})
     examSupervisor.create.mockResolvedValue({ id: 'assignment-1', assistant })
     pointCategory.findFirst.mockResolvedValue({ id: 'cat-1', points: 4 })
+    pointCategory.findMany.mockResolvedValue(baremCategories)
     task.findFirst.mockResolvedValue({ number: 2 })
     task.findMany.mockResolvedValue([])
     task.create.mockResolvedValue({})
@@ -289,5 +304,85 @@ describe('exam and schedule routes', () => {
     researchAssistant.findUnique.mockResolvedValue({ ...assistant, department: 'DUIM' })
     expect((await addSupervisor(jsonRequest('/api/exam-supervisors', { examId: 'exam-1', assistantId: 'assistant-1' }))).status).toBe(400)
     expect(examSupervisor.create).not.toHaveBeenCalled()
+  })
+
+  it('supervisor points come from the chosen barem, not the first matching category', async () => {
+    const response = await addSupervisor(jsonRequest('/api/exam-supervisors', { examId: 'exam-1', assistantId: 'assistant-1', categoryId: 'cat-weekend' }))
+
+    expect(response.status).toBe(201)
+    expect(task.create).toHaveBeenCalledWith({ data: expect.objectContaining({ points: 5, categoryId: 'cat-weekend' }) })
+  })
+
+  it('without a chosen barem, a weekend exam gets the weekend category', async () => {
+    exam.findUnique.mockResolvedValue({ ...examRecord, day: 'Cumartesi' })
+
+    await assignSupervisors(jsonRequest('/api/supervisor-assign', { examId: 'exam-1' }))
+
+    expect(task.create).toHaveBeenCalledWith({ data: expect.objectContaining({ points: 5, categoryId: 'cat-weekend' }) })
+  })
+
+  it('an unknown barem is rejected', async () => {
+    const response = await addSupervisor(jsonRequest('/api/exam-supervisors', { examId: 'exam-1', assistantId: 'assistant-1', categoryId: 'missing' }))
+
+    expect(response.status).toBe(400)
+    expect(task.create).not.toHaveBeenCalled()
+  })
+
+  it('asks for confirmation when the person already has an exam that day, then assigns on confirm', async () => {
+    task.findMany.mockResolvedValue([{ assistantId: 'assistant-1', description: 'Gözetmenlik: FIZ101 - Fizik', hoursWorked: '13:00-15:00', notes: '[SINAV] exam-9', category: null }])
+
+    const first = await addSupervisor(jsonRequest('/api/exam-supervisors', { examId: 'exam-1', assistantId: 'assistant-1', categoryId: 'cat-weekday' }))
+    expect(first.status).toBe(409)
+    const body = await first.json()
+    expect(body).toMatchObject({ error: 'CONFIRM_REQUIRED', sameCourse: false })
+    expect(body.message).toContain('2. sınavı')
+    expect(examSupervisor.create).not.toHaveBeenCalled()
+
+    const confirmed = await addSupervisor(jsonRequest('/api/exam-supervisors', { examId: 'exam-1', assistantId: 'assistant-1', categoryId: 'cat-weekday', confirm: true }))
+    expect(confirmed.status).toBe(201)
+  })
+
+  it('flags the same course on the same day as a likely double entry', async () => {
+    task.findMany.mockResolvedValue([{ assistantId: 'assistant-1', description: 'ABC sınav gözetmenliği', hoursWorked: null, notes: null, category: null }])
+
+    const response = await addSupervisor(jsonRequest('/api/exam-supervisors', { examId: 'exam-1', assistantId: 'assistant-1' }))
+
+    expect(response.status).toBe(409)
+    expect(await response.json()).toMatchObject({ sameCourse: true })
+  })
+
+  it('auto assignment skips someone who already has the same course that day', async () => {
+    task.findMany.mockResolvedValue([{ assistantId: 'assistant-1', description: 'ABC gözetmenlik', hoursWorked: null, notes: null, category: null }])
+
+    await assignSupervisors(jsonRequest('/api/supervisor-assign', { examId: 'exam-1' }))
+
+    expect(examSupervisor.create).not.toHaveBeenCalled()
+  })
+
+  it('deleting an exam removes pending duties but keeps accepted ones and their points', async () => {
+    task.findMany.mockResolvedValue([
+      { id: 't-pending', assistantId: 'assistant-1', status: 'assigned', notes: '[SINAV] exam-1' },
+      { id: 't-accepted', assistantId: 'assistant-2', status: 'approved', notes: '[SINAV] exam-1' },
+      { id: 't-other', assistantId: 'assistant-3', status: 'assigned', notes: '[SINAV] exam-10' },
+    ])
+
+    const response = await deleteExamRoute(new Request('http://localhost/api/exams?id=exam-1', { method: 'DELETE' }))
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({ removedPending: 1, keptAccepted: 1 })
+    expect(task.deleteMany).toHaveBeenCalledWith({ where: { id: { in: ['t-pending'] }, status: 'assigned' } })
+    expect(researchAssistant.update).not.toHaveBeenCalled()
+    expect(examSupervisor.deleteMany).toHaveBeenCalledWith({ where: { examId: 'exam-1' } })
+    expect(exam.delete).toHaveBeenCalledWith({ where: { id: 'exam-1' } })
+  })
+
+  it('exam DELETE requires a manager of the exam department', async () => {
+    requireSessionMock.mockResolvedValue(regularUser)
+    expect((await deleteExamRoute(new Request('http://localhost/api/exams?id=exam-1', { method: 'DELETE' }))).status).toBe(403)
+
+    requireSessionMock.mockResolvedValue(adminUser)
+    exam.findUnique.mockResolvedValue({ ...examRecord, department: 'DUIM' })
+    expect((await deleteExamRoute(new Request('http://localhost/api/exams?id=exam-1', { method: 'DELETE' }))).status).toBe(403)
+    expect(exam.delete).not.toHaveBeenCalled()
   })
 })

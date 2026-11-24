@@ -6,9 +6,14 @@ import type { SessionUser } from '@/lib/auth/session-repository';
 import { assertDepartmentAccess } from '@/lib/authorization/department';
 import { AuthorizationError } from '@/lib/authorization/errors';
 import { requireRole } from '@/lib/authorization/roles';
-import { addSupervisor, mailSupervisor } from '@/features/calendar/server/supervision';
+import { addSupervisor, mailSupervisor, resolveExamCategory, sameDayExamDuties } from '@/features/calendar/server/supervision';
 
-const bodySchema = z.object({ examId: z.string().min(1), assistantId: z.string().min(1) });
+const bodySchema = z.object({
+  examId: z.string().min(1),
+  assistantId: z.string().min(1),
+  categoryId: z.string().min(1).optional(),
+  confirm: z.boolean().optional(),
+});
 
 // Manager picks a specific supervisor for an exam; the duty waits for that person's acceptance.
 export async function POST(request: Request) {
@@ -34,7 +39,25 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'CONFLICT', message: `${assistant.name} zaten bu sınavın gözetmeni` }, { status: 409 });
     }
 
-    const message = await addSupervisor({ exam, assistant, actorId: user.id });
+    const category = await resolveExamCategory(exam, parsed.data.categoryId);
+    if (parsed.data.categoryId && !category) {
+      return NextResponse.json({ error: 'BAD_REQUEST', message: 'Seçilen barem bulunamadı' }, { status: 400 });
+    }
+
+    // Warn before giving someone a second (or third) exam on the same day; same course twice is likely a double entry.
+    if (!parsed.data.confirm) {
+      const duties = await sameDayExamDuties(exam, [assistant.id]);
+      if (duties.length) {
+        const sameCourse = duties.find((duty) => duty.sameCourse);
+        const list = duties.map((duty) => `"${duty.description}"${duty.hoursWorked ? ` (${duty.hoursWorked})` : ''}`).join(', ');
+        const message = sameCourse
+          ? `${assistant.name} bu gün ${exam.courseCode} için zaten bir görev almış: "${sameCourse.description}". Aynı sınav iki kez puanlanabilir. Yine de atansın mı?`
+          : `Bu, ${assistant.name} için bu günün ${duties.length + 1}. sınavı olacak (mevcut: ${list}). Yine de atansın mı?`;
+        return NextResponse.json({ error: 'CONFIRM_REQUIRED', message, sameCourse: Boolean(sameCourse) }, { status: 409 });
+      }
+    }
+
+    const message = await addSupervisor({ exam, assistant, actorId: user.id, category });
     await mailSupervisor(assistant, message);
     return NextResponse.json({ message: `${assistant.name} gözetmen olarak eklendi; kabul etmesi bekleniyor` }, { status: 201 });
   } catch (error) {

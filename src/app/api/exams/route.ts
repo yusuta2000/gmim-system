@@ -43,7 +43,7 @@ export async function GET(request: Request) {
     // Supervision tasks tell whether each supervisor accepted; duties from before acceptance existed count as accepted.
     const tasks = exams.length ? await db.task.findMany({
       where: { source: 'auto_assigned', OR: exams.map((exam) => ({ notes: { startsWith: examMarker(exam.id) } })) },
-      select: { assistantId: true, status: true, notes: true, assistant: { select: { id: true, name: true } } },
+      select: { assistantId: true, status: true, notes: true, categoryId: true, assistant: { select: { id: true, name: true } } },
     }) : [];
     return NextResponse.json(exams.map((exam) => {
       const examTasks = tasks.filter((task) => linkedExamId(task.notes) === exam.id);
@@ -57,6 +57,8 @@ export async function GET(request: Request) {
         declined: examTasks
           .filter((task) => task.status === 'rejected' && !supervisorIds.includes(task.assistantId))
           .map((task) => task.assistant),
+        // Barem already used for this exam's supervisors, so the next assignment defaults to the same one.
+        categoryId: examTasks.find((task) => task.status !== 'rejected' && task.categoryId)?.categoryId ?? null,
       };
     }));
   } catch (error) {
@@ -113,5 +115,60 @@ export async function POST(request: Request) {
 
     console.error('Error creating exam:', error);
     return NextResponse.json({ error: 'Failed to create exam' }, { status: 500 });
+  }
+}
+
+// Deleting an exam removes pending supervision duties (no points were given yet) but keeps accepted ones and their points.
+export async function DELETE(request: Request) {
+  try {
+    const user = await requireSession();
+    requireRole(user, ['admin', 'dekan', 'baskan']);
+    const id = new URL(request.url).searchParams.get('id');
+    if (!id) {
+      return NextResponse.json({ error: 'BAD_REQUEST', message: 'Sınav seçin' }, { status: 400 });
+    }
+    const exam = await db.exam.findUnique({ where: { id } });
+    if (!exam) {
+      return NextResponse.json({ error: 'NOT_FOUND', message: 'Sınav bulunamadı' }, { status: 404 });
+    }
+    assertDepartmentAccess(user, exam.department as SessionUser['department']);
+
+    const result = await db.$transaction(async (tx) => {
+      const tasks = await tx.task.findMany({
+        where: { source: 'auto_assigned', notes: { startsWith: examMarker(exam.id) } },
+        select: { id: true, assistantId: true, status: true, notes: true },
+      });
+      const linked = tasks.filter((task) => linkedExamId(task.notes) === exam.id);
+      const pending = linked.filter((task) => task.status === 'assigned');
+      if (pending.length) {
+        await tx.task.deleteMany({ where: { id: { in: pending.map((task) => task.id) }, status: 'assigned' } });
+        await tx.notification.createMany({
+          data: pending.map((task) => ({
+            title: 'Gözetmenlik İptal Edildi',
+            message: `${exam.courseCode} - ${exam.courseName} sınavı takvimden silindi; bekleyen gözetmenlik göreviniz kaldırıldı.`,
+            type: 'warning',
+            assistantId: task.assistantId,
+            relatedId: null,
+          })),
+        });
+      }
+      await tx.examSupervisor.deleteMany({ where: { examId: exam.id } });
+      await tx.exam.delete({ where: { id: exam.id } });
+      return { removedPending: pending.length, keptAccepted: linked.filter((task) => task.status === 'approved').length };
+    });
+
+    return NextResponse.json({
+      ...result,
+      message: `Sınav silindi. ${result.removedPending} bekleyen görev kaldırıldı${result.keptAccepted ? `, ${result.keptAccepted} kabul edilmiş görev ve puanı korundu` : ''}.`,
+    });
+  } catch (error) {
+    if (error instanceof UnauthenticatedError) {
+      return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
+    }
+    if (error instanceof AuthorizationError) {
+      return NextResponse.json({ error: error.code }, { status: 403 });
+    }
+    console.error('Error deleting exam:', error);
+    return NextResponse.json({ error: 'Sınav silinemedi' }, { status: 500 });
   }
 }
