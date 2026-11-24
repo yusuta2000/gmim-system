@@ -28,6 +28,7 @@ describe('role-aware navigation', () => {
     expect(hrefs).toContain('/management/categories')
     expect(hrefs).toContain('/management/periods')
     expect(hrefs).toContain('/management/absence')
+    expect(hrefs).toContain('/management/reports')
   })
 
   it('limits the mobile bar to the three primary routes before the More control', () => {

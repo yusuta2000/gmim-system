@@ -36,6 +36,9 @@ const PAGE_HELP: Record<string, PageHelp> = {
       '"Sınav ekle" ile ders, tarih, saat ve gerekli gözetmen sayısını girin.',
       'Sınava tıklayınca ayrıntı penceresi açılır: gözetmenler ve durumları (Kabul etti / Yanıt bekleniyor) ile reddedenler.',
       'Pencerede kişiyi seçip "Gözetmen ekle" deyin. "Uygun gözetmenleri ata" en düşük puanlı ve programı müsait kişileri otomatik seçer.',
+      'Atamadan önce "Puan baremi"ni kontrol edin. Sistem sınavın gününe, saatine ve dersine göre bir barem önerir (hafta sonu, mesai dışı, havuz dersleri, yeterlik, Maslak/Tuzla); listeden değiştirebilirsiniz.',
+      'Kişinin aynı gün başka sınav görevi varsa onay istenir; aynı ders aynı gün ikinci kez atanıyorsa çift puan uyarısı çıkar.',
+      '"Sınavı sil" bekleyen gözetmenlik görevlerini kaldırır; kabul edilmiş görevler ve puanları korunur.',
       'Gözetmenlik puanı kişi Görevler ekranında kabul edince eklenir; reddederse sınavdan çıkar ve açık yeniden oluşur.',
       '"Program ekle" ile ar.görlerin ders saatlerini girin; otomatik atama çakışan kişiyi seçmez.',
     ],
@@ -92,6 +95,14 @@ const PAGE_HELP: Record<string, PageHelp> = {
       'Dönen kişiyi ve gidiş/dönüş tarihlerini seçip "Hesapla" deyin; diğerlerinin o aralıktaki puanları listelenir ve en düşüğü bulunur.',
       'Kendisi de yurtdışında olan veya aralık içinde eklenen kişiler otomatik hariç tutulur; işaretleri elle değiştirebilirsiniz.',
       '"Telafi puanını ekle" puanı onaylı görev olarak ekler. Aynı aralık iki kez eklenemez.',
+    ],
+  },
+  '/management/reports': {
+    title: 'Raporlar',
+    items: [
+      '"Değişiklikler" sekmesi sistemde yapılan her değişikliği anlatır: ne eklendi, eskiden hangi sorun vardı, şimdi nasıl kullanılır.',
+      '"Gözetmenlik kontrol listesi" geçmiş gözetmenlik kayıtlarını tarar: olası çift kayıtlar, barem önerisinden farklı puanlar ve aynı gün birden fazla sınav.',
+      'Liste hiçbir kaydı değiştirmez. Düzeltmeyi Görevler ekranından elle yapın.',
     ],
   },
 }

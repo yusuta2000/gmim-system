@@ -147,6 +147,7 @@ docs/archive/             superseded tarihsel belgeler
 ### Kapanış
 1. Değişiklikle orantılı test/build/browser doğrulamasını çalıştır.
 2. Anlamlı oturum için `docs/logbook/YYYY/` altında append-only kayıt oluştur.
+   - Kullanıcıya görünen her değişiklikte (özellik, hata düzeltme, arayüz) `src/features/reports/changelog.ts` dizisinin **en üstüne** yeni kayıt ekle: tarih, `major`/`minor`, eklenenler, "eskiden → şimdi" düzeltmeler ve kullanım talimatı. Yöneticiler bunu portalda Raporlar → Değişiklikler sayfasında okur. Metni yöneticinin anlayacağı günlük Türkçeyle yaz: dosya adı, kod, alan adı veya teknik terim kullanma.
 3. Güncel gerçek değiştiyse `docs/status/CURRENT.md`; belge eklendi/taşındıysa `docs/INDEX.md` güncelle.
 4. Commit/push/deploy, veri ve güvenlik etkisini ve kalan engelleri doğru kaydet.
 5. `AGENTS.md` ile `CLAUDE.md` dosyalarının byte düzeyinde aynı olduğunu ve secret/geçici artifact stage edilmediğini doğrula.

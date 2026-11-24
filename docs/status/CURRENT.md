@@ -29,8 +29,9 @@ Bu dosya projenin tek güncel durum panosudur. Logbook ve archive kayıtları ta
 - E-posta bildirimleri (Gmail SMTP, `src/lib/email.ts`): görev ataması ve gözetmenlik → atanan kişi; kabul/ret ve onay bekleyen görev → bölüm temsilcileri; görev onayı → görev sahibi; duyuru → bölümün tüm aktif ar.gör/temsilcileri (BCC). İşlemi yapan dahil; başkan/dekan mail almaz. Başarılı gönderim Vercel Logs'ta `E-posta gönderildi`. Ayar yalnız production Vercel projesinde (`GMAIL_USER`, `GMAIL_APP_PASSWORD`); staging mail atmaz.
 - Yurtdışı Telafisi (`/management/absence`): dönen kişiye, aralıkta tüm süre bulunanlardan en az puan alanın puanı temsilci onayıyla eklenir.
 - Puanı temsilci belirlesin: ar.gör puansız kayıt bildirebilir; Onaylar ekranında temsilci puanı girer/düzeltir ve onaylar.
-- Gözetmenlik: Takvim'de sınava tıklayınca ayrıntı penceresi (gözetmen durumları, reddedenler, "Gözetmen ekle"). Gözetmenlik `assigned` görevdir; puan kabulde eklenir, ret/silme kişiyi sınavdan çıkarır (bağ: görev notunda `[SINAV] <examId>`).
+- Gözetmenlik: Takvim'de sınava tıklayınca ayrıntı penceresi (gözetmen durumları, reddedenler, "Gözetmen ekle"). Gözetmenlik `assigned` görevdir; puan kabulde eklenir, ret/silme kişiyi sınavdan çıkarır (bağ: görev notunda `[SINAV] <examId>`). Puan, atamada seçilen barem kategorisinden gelir (öneri: `features/calendar/barem.ts`, gün/saate göre); aynı gün ikinci sınavda onay, aynı derste çift puan uyarısı; "Sınavı sil" bekleyenleri kaldırır, kabul edilenleri korur.
 - Yöneticilere her ekranda "?" kullanım yardımı (`components/app-shell/page-help-content.ts`).
+- Raporlar (`/management/reports`, yalnız yöneticiler): "Değişiklikler" (`src/features/reports/changelog.ts`; her kullanıcıya görünen değişiklikte en üste kayıt eklenir) ve "Gözetmenlik kontrol listesi" (`/api/reports/exam-supervision`).
 
 ## Son doğrulama kanıtı
 
@@ -52,6 +53,7 @@ Bu dosya projenin tek güncel durum panosudur. Logbook ve archive kayıtları ta
 - Telafi aracı, araç öncesi elle eklenen telafileri tanımaz (Tarık 13.07–09.10.2026 için tekrar "ekle" yapılmamalı).
 - Temsilcinin kendi bildirdiği görevi onaylaması engellenmiyor; kural kararı bekliyor.
 - MAT sınavının elle açılmış gözetmenlik görevleri sınava bağlı değil (0/4); temsilci arayüzden silip "Gözetmen ekle" ile yeniden ekleyecek.
+- Geçmiş gözetmenlik puanları (çift kayıt, eski sabit 4 puan): portalda Raporlar → "Gözetmenlik kontrol listesi" (salt okunur); düzeltmeyi temsilci (Sinan) Görevler ekranından elle yapacak.
 - `SISTEM_DOKUMANTASYONU.md` Bölüm 10 güvenlik açıkları listesi eskimiş (Argon2/session/auth tamamlandı); güncellenmeli.
 - Workbook senkron prod'a deploy edildi; kalan: gerçek hesapla UI'da önizleme→commit tam dumanı ve DUİM için ilk senkron.
 - Portal senkron ucuna (script'teki gibi) DB-tarafı yedek/rollback eklenmesi değerlendirmesi.
@@ -74,6 +76,7 @@ Bu dosya projenin tek güncel durum panosudur. Logbook ve archive kayıtları ta
 
 ## İlgili kanıt ve prosedürler
 
+- Gözetmenlik baremi seçimi, aynı gün uyarısı, sınav silme: [`2026-11-24-exam-barem-same-day-warning-and-delete.md`](../logbook/2026/2026-11-24-exam-barem-same-day-warning-and-delete.md)
 - Sınav ayrıntıları, kabul tabanlı gözetmenlik ve yönetici yardımı: [`2026-11-18-exam-supervision-and-page-help.md`](../logbook/2026/2026-11-18-exam-supervision-and-page-help.md)
 - Yurtdışı telafisi, puanı temsilcinin belirlemesi ve mail akışları: [`2026-10-28-absence-compensation-and-mail-flows.md`](../logbook/2026/2026-10-28-absence-compensation-and-mail-flows.md)
 - Yönetici görev yanıtı ve e-posta bildirimleri: [`2026-10-21-manager-task-response-and-email-notifications.md`](../logbook/2026/2026-10-21-manager-task-response-and-email-notifications.md)

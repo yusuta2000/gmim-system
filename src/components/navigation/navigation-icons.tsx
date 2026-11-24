@@ -8,6 +8,7 @@ import {
   Megaphone,
   Plane,
   RotateCcw,
+  ScrollText,
   TableProperties,
   Users,
   type LucideIcon,
@@ -26,4 +27,5 @@ export const navigationIcons: Record<NavigationIcon, LucideIcon> = {
   categories: Award,
   periods: RotateCcw,
   absence: Plane,
+  reports: ScrollText,
 }
