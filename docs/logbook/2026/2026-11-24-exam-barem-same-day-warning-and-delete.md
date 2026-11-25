@@ -105,3 +105,11 @@ Sinan COŞKUN (GMİM temsilcisi) üç sorun bildirdi: Takvim'den gözetmen atan�
 - `/api/reports/fix-plan/apply`: yalnız iki hesap (diğerlerine 404); plan sunucuda yeniden hesaplanır, yalnız hâlâ listede olan seçili satırlar uygulanır; çift kayıtta mevcut `deleteTask`; uygulanamayanlar sebebiyle atlanır, kalanlar devam eder.
 - Ekran: her satırda onay kutusu (varsayılan hepsi seçili), "Düğme ne yapar" açıklaması, kişi bazında puan değişimi gösteren onay penceresi.
 - Doğrulama: `vitest` 230 test (yeni: `correct-task-points.test.ts` 5, `fix-plan/apply/route.test.ts` 4), `tsc --noEmit`, hedefli `eslint` geçti. Düğme gerçek veride çalıştırılmadı.
+
+### 2026-11-25 — Canlı kontrol ve farklı tarihli çift kayıt
+
+- Canlı veri salt okunur incelendi; veri yazılmadı. Neon parola rotasyonu önerilir (mevcut açık iş).
+- Bulunan eksik: Görevler ekranından girilen bir gözetmenlik görevi sınav tarihi yerine giriş tarihiyle kaydedildiğinde, aynı sınavın takvim görevi farklı günde kaldığı için aynı gün grubu çift kaydı yakalamıyordu.
+- `buildExamSupervisionReport` artık aynı kişi + aynı ders için takvim görevi ile Görevler ekranı girişini 31 gün içinde farklı tarihte olsa da `crossDate` çift kayıt olarak işaretler; düzeltme planında `duplicateDifferentDate`, `needsReview` (düğmede varsayılan işaretsiz, "Kontrol edin" etiketi).
+- Canlı planda düzeltme sayısı 24 → 26 oldu.
+- Doğrulama: `vitest` 232 test, `tsc --noEmit`, hedefli `eslint`, `next build`.

@@ -55,4 +55,18 @@ describe('buildExamSupervisionReport', () => {
       task: expect.objectContaining({ points: 4 }),
     })])
   })
+
+  it('flags a Tasks-screen entry of the same course on another date than its calendar duty', () => {
+    const report = buildExamSupervisionReport({
+      assistants, exams, categories,
+      tasks: [
+        task({ id: 'manual', number: 1, description: 'MAT 101E Gözetmenlik', date: new Date('2026-11-12T00:00:00Z'), points: 3 }),
+        task({ id: 'calendar', number: 2, description: 'Gözetmenlik: MAT101E - Matematik I', notes: '[SINAV] exam-mat', date: new Date('2026-11-28T00:00:00Z') }),
+        task({ id: 'far', number: 3, description: 'MAT101E gözetmenlik', date: new Date('2026-05-01T00:00:00Z') }),
+      ],
+    })
+
+    expect(report.duplicates).toEqual([expect.objectContaining({ day: '2026-11-28', extraTaskIds: ['manual'], crossDate: true })])
+    expect(report.duplicates[0].tasks[1]).toMatchObject({ id: 'manual', date: '2026-11-12' })
+  })
 })

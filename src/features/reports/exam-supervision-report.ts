@@ -25,9 +25,11 @@ export type ReportTask = {
   status: string
   fromCalendar: boolean
   categoryName: string | null
+  date?: string
 }
 // extraTaskIds: tasks repeating a course already held that day (calendar-linked and older tasks count as the original).
-export type ReportGroup = { assistantName: string; day: string; tasks: ReportTask[]; extraTaskIds: string[] }
+// crossDate: a Tasks-screen entry and a calendar duty of the same course on different dates; likely one exam, needs a human check.
+export type ReportGroup = { assistantName: string; day: string; tasks: ReportTask[]; extraTaskIds: string[]; crossDate: boolean }
 export type ReportMismatch = {
   assistantName: string
   day: string
@@ -44,6 +46,7 @@ export type ExamSupervisionReport = {
 
 const examIdOf = (notes: string | null) => notes?.match(/\[SINAV\] (\S+)/)?.[1] ?? null
 const dayKey = (date: Date) => date.toISOString().slice(0, 10)
+const CROSS_DATE_WINDOW_DAYS = 31
 
 export function buildExamSupervisionReport(input: {
   assistants: { id: string; name: string }[]
@@ -89,7 +92,22 @@ export function buildExamSupervisionReport(input: {
       if (codes.some((code) => seen.has(code))) extraTaskIds.push(task.id)
       codes.forEach((code) => seen.add(code))
     }
-    ;(extraTaskIds.length ? duplicates : sameDay).push({ assistantName: names.get(assistantId) ?? assistantId, day, tasks: items.map(view), extraTaskIds })
+    ;(extraTaskIds.length ? duplicates : sameDay).push({ assistantName: names.get(assistantId) ?? assistantId, day, tasks: items.map(view), extraTaskIds, crossDate: false })
+  }
+
+  // A course entered on the Tasks screen with another date (e.g. the entry date) than its calendar duty.
+  const alreadyExtra = new Set(duplicates.flatMap((group) => group.extraTaskIds))
+  const calendarTasks = tasks.filter((task) => examIdOf(task.notes))
+  for (const manual of tasks.filter((task) => !examIdOf(task.notes) && !alreadyExtra.has(task.id))) {
+    const codes = codesOf(manual)
+    const twin = calendarTasks.find((calendar) =>
+      calendar.assistantId === manual.assistantId &&
+      dayKey(calendar.date) !== dayKey(manual.date) &&
+      Math.abs(calendar.date.getTime() - manual.date.getTime()) <= CROSS_DATE_WINDOW_DAYS * 24 * 60 * 60 * 1000 &&
+      [...codesOf(calendar)].some((code) => codes.has(code)))
+    if (twin) {
+      duplicates.push({ assistantName: names.get(manual.assistantId) ?? manual.assistantId, day: dayKey(twin.date), tasks: [view(twin), { ...view(manual), date: dayKey(manual.date) }], extraTaskIds: [manual.id], crossDate: true })
+    }
   }
 
   const mismatches: ReportMismatch[] = []

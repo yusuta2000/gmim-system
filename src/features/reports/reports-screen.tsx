@@ -16,7 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CHANGELOG } from '@/features/reports/changelog'
 import type { ExamSupervisionReport, ReportGroup, ReportTask } from '@/features/reports/exam-supervision-report'
-import type { FixPlan } from '@/features/reports/fix-plan'
+import type { FixAction, FixPlan } from '@/features/reports/fix-plan'
 import { pointsKeys } from '@/features/points/queries/use-points'
 import { invalidateTaskRelatedQueries } from '@/features/tasks/queries/task-keys'
 
@@ -42,7 +42,7 @@ function Groups({ groups, empty }: { groups: ReportGroup[]; empty: string }) {
     <div className="space-y-3">
       {groups.map((group) => (
         <div key={`${group.assistantName}-${group.day}`} className="rounded-lg border border-border p-3">
-          <p className="mb-2 text-sm font-semibold">{group.assistantName} · {dateLabel(group.day)}</p>
+          <p className="mb-2 text-sm font-semibold">{group.assistantName} · {dateLabel(group.day)}{group.crossDate && ' · aynı ders farklı tarihle de girilmiş'}</p>
           <ul className="space-y-2">{group.tasks.map((task) => <TaskLine key={task.id} task={task} />)}</ul>
         </div>
       ))}
@@ -97,12 +97,12 @@ function SupervisionChecklist() {
   )
 }
 
-const KIND_LABEL: Record<string, string> = { duplicate: 'Çift kayıt', wrongPoints: 'Yanlış puan', wrongPointsPending: 'Yanlış puan (henüz kabul edilmedi)' }
+const KIND_LABEL: Record<string, string> = { duplicate: 'Çift kayıt', duplicateDifferentDate: 'Olası çift kayıt (tarihler farklı)', wrongPoints: 'Yanlış puan', wrongPointsPending: 'Yanlış puan (henüz kabul edilmedi)' }
 
 function FixPlanView() {
   const { department } = usePortalContext()
   const queryClient = useQueryClient()
-  const [unchecked, setUnchecked] = useState<Set<string>>(new Set())
+  const [choices, setChoices] = useState<Map<string, boolean>>(new Map())
   const [confirming, setConfirming] = useState(false)
   const plan = useQuery({
     queryKey: ['reports', 'fix-plan'],
@@ -122,7 +122,7 @@ function FixPlanView() {
     },
     onSuccess: async (data) => {
       setConfirming(false)
-      setUnchecked(new Set())
+      setChoices(new Map())
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['reports'] }),
         queryClient.invalidateQueries({ queryKey: pointsKeys.department(department) }),
@@ -141,14 +141,12 @@ function FixPlanView() {
   const data = plan.data!
   const signed = (value: number) => (value > 0 ? `+${value}` : `${value}`)
   const pointsLabel = (value: number) => (value === 0 ? 'puan değişmez' : `${signed(value)} puan`)
-  const selected = data.actions.filter((action) => !unchecked.has(action.taskId))
+  // Rows that need a human check start unselected; a click overrides the default.
+  const isChecked = (action: FixAction) => choices.get(action.taskId) ?? !action.needsReview
+  const selected = data.actions.filter(isChecked)
   const selectedPeople = [...selected.reduce((map, action) => map.set(action.assistantName, (map.get(action.assistantName) ?? 0) + action.pointChange), new Map<string, number>())]
-  const toggle = (taskId: string) => setUnchecked((current) => {
-    const next = new Set(current)
-    if (next.has(taskId)) next.delete(taskId)
-    else next.add(taskId)
-    return next
-  })
+  const toggle = (action: FixAction) => setChoices((current) => new Map(current).set(action.taskId, !isChecked(action)))
+  const reviewCount = data.actions.filter((action) => action.needsReview).length
 
   return (
     <div className="space-y-4">
@@ -157,6 +155,7 @@ function FixPlanView() {
         <AlertDescription>
           {dateLabel(data.since)} tarihinden bugüne kadar olan gözetmenlik kayıtlarına bakıldı. Sistemde iki hata vardı: Takvim&apos;den atanan her gözetmenliğe sınav ne olursa olsun 4 puan yazılıyordu, ve aynı sınav hem Görevler ekranından hem Takvim&apos;den girildiğinde kişi iki kez puan alabiliyordu.
           Aşağıda her hatalı kayıt için sorun ve önerilen düzeltme yazıyor. Doğru bulduğunuz satırları işaretli bırakıp &quot;Seçilenleri düzelt&quot; düğmesine basarsanız sistem bunları sizin yerinize uygular; yanlış bulduğunuz satırın işaretini kaldırın. Puanı düzeltilen kişiye bildirim gider ve görevin notuna kimin, ne zaman, kaç puandan kaç puana düzelttiği yazılır.
+          {reviewCount > 0 && <> &quot;Kontrol edin&quot; etiketli {reviewCount} satır işaretsiz gelir: aynı ders iki farklı tarihle girilmiş, büyük olasılıkla aynı sınav ama emin olmak için bakmanız gerekir. Aynı sınavsa işaretleyin.</>}
         </AlertDescription>
       </Alert>
       {data.actions.length === 0 ? (
@@ -182,18 +181,19 @@ function FixPlanView() {
               <CardDescription>Her kayıt için sorun ve düğmenin ne yapacağı. Elle yapmak isterseniz adımları sırayla izleyebilirsiniz.</CardDescription>
               <div className="flex flex-wrap items-center gap-2 pt-2">
                 <Button type="button" className="min-h-11 gap-2" disabled={!selected.length || apply.isPending} onClick={() => setConfirming(true)}><Wrench className="size-4" aria-hidden="true" />Seçilenleri düzelt ({selected.length})</Button>
-                <Button type="button" variant="outline" className="min-h-11" onClick={() => setUnchecked(new Set())}>Hepsini seç</Button>
-                <Button type="button" variant="ghost" className="min-h-11" onClick={() => setUnchecked(new Set(data.actions.map((action) => action.taskId)))}>Seçimi kaldır</Button>
+                <Button type="button" variant="outline" className="min-h-11" onClick={() => setChoices(new Map(data.actions.map((action) => [action.taskId, true])))}>Hepsini seç</Button>
+                <Button type="button" variant="ghost" className="min-h-11" onClick={() => setChoices(new Map(data.actions.map((action) => [action.taskId, false])))}>Seçimi kaldır</Button>
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
               {data.actions.map((action) => (
                 <label key={action.taskId} className="flex cursor-pointer gap-3 rounded-lg border border-border p-3 text-sm">
-                  <input type="checkbox" className="mt-1 size-4 shrink-0" checked={!unchecked.has(action.taskId)} onChange={() => toggle(action.taskId)} aria-label={`${action.assistantName} ${dateLabel(action.day)} düzeltmesini seç`} />
+                  <input type="checkbox" className="mt-1 size-4 shrink-0" checked={isChecked(action)} onChange={() => toggle(action)} aria-label={`${action.assistantName} ${dateLabel(action.day)} düzeltmesini seç`} />
                   <span className="min-w-0 flex-1">
                     <span className="flex flex-wrap items-center gap-2">
                       <span className="font-semibold">{action.assistantName} · {dateLabel(action.day)}</span>
                       <Badge variant="outline">{KIND_LABEL[action.kind]}</Badge>
+                      {action.needsReview && <Badge variant="destructive">Kontrol edin</Badge>}
                       <Badge variant="secondary">{pointsLabel(action.pointChange)}</Badge>
                     </span>
                     <span className="mt-2 block"><span className="font-medium">Sorun:</span> {action.problem}</span>

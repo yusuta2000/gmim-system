@@ -8,7 +8,9 @@ export type FixAction = {
   taskId: string
   assistantName: string
   day: string
-  kind: 'duplicate' | 'wrongPoints' | 'wrongPointsPending'
+  kind: 'duplicate' | 'duplicateDifferentDate' | 'wrongPoints' | 'wrongPointsPending'
+  // Not certain enough to apply without a person checking it; the button leaves it unselected.
+  needsReview: boolean
   problem: string
   steps: string[]
   // Change to the person's total if the steps are followed and re-added duties are accepted.
@@ -23,6 +25,7 @@ export type FixPlan = {
 }
 
 const label = (task: ReportTask) => `"${task.description}"`
+const longDate = (day: string) => new Date(`${day}T00:00:00Z`).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', timeZone: 'UTC' })
 
 export function buildFixPlan(report: ExamSupervisionReport, since: string): FixPlan {
   const actions: FixAction[] = []
@@ -37,8 +40,11 @@ export function buildFixPlan(report: ExamSupervisionReport, since: string): FixP
         taskId: task.id,
         assistantName: group.assistantName,
         day: group.day,
-        kind: 'duplicate',
-        problem: `Aynı sınav iki kez girilmiş: ${label(task)}${kept ? `, ${label(kept)} ile aynı sınav` : ''}.`,
+        kind: group.crossDate ? 'duplicateDifferentDate' : 'duplicate',
+        needsReview: group.crossDate,
+        problem: group.crossDate && kept && task.date
+          ? `Aynı sınav iki kez girilmiş olabilir: Görevler ekranından ${label(task)} ${longDate(task.date)} tarihiyle, Takvim'den ${label(kept)} ${longDate(group.day)} tarihiyle girilmiş. Tarihler farklı olduğu için kontrol edin; aynı sınavsa Görevler ekranından girilen fazladır.`
+          : `Aynı sınav iki kez girilmiş: ${label(task)}${kept ? `, ${label(kept)} ile aynı sınav` : ''}.`,
         steps: [
           `Görevler ekranında ${group.assistantName} kişisinin ${label(task)} görevini silin.${approved ? ` ${task.points} puan düşer.` : ' Bu görev henüz onaylanmadığı için puan düşmez; onaylansaydı aynı sınav için ikinci kez puan verilmiş olurdu.'}`,
           kept ? `${label(kept)} görevi kalır.` : 'Diğer görev kalır.',
@@ -70,6 +76,7 @@ export function buildFixPlan(report: ExamSupervisionReport, since: string): FixP
             `Takvim'de ${exam}na tıklayın, "Puan baremi"nden "${row.suggested.name}" seçin ve ${row.assistantName} kişisini yeniden ekleyin. Kabul edince ${row.suggested.points} puan eklenir.`,
           ],
       pointChange: pending ? 0 : difference,
+      needsReview: false,
       fix: { type: 'setPoints', expectedPoints: row.task.points, points: row.suggested.points, categoryId: row.suggested.id, categoryName: row.suggested.name },
     })
   }

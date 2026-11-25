@@ -13,7 +13,7 @@ describe('buildFixPlan', () => {
   it('removes the repeated task, keeps the calendar one and counts the lost points', () => {
     const plan = buildFixPlan({
       ...empty,
-      duplicates: [{ assistantName: 'Ayşe', day: '2026-10-01', tasks: [calendarMat, manualMat], extraTaskIds: ['man'] }],
+      duplicates: [{ assistantName: 'Ayşe', day: '2026-10-01', tasks: [calendarMat, manualMat], extraTaskIds: ['man'], crossDate: false }],
     }, '2026-09-01')
 
     expect(plan.actions).toEqual([expect.objectContaining({ taskId: 'man', kind: 'duplicate', pointChange: -2 })])
@@ -24,7 +24,7 @@ describe('buildFixPlan', () => {
   it('does not count points for a repeated task that was never approved', () => {
     const plan = buildFixPlan({
       ...empty,
-      duplicates: [{ assistantName: 'Ayşe', day: '2026-10-01', tasks: [calendarMat, { ...manualMat, status: 'pending' }], extraTaskIds: ['man'] }],
+      duplicates: [{ assistantName: 'Ayşe', day: '2026-10-01', tasks: [calendarMat, { ...manualMat, status: 'pending' }], extraTaskIds: ['man'], crossDate: false }],
     }, '2026-09-01')
 
     expect(plan.actions[0].pointChange).toBe(0)
@@ -34,7 +34,7 @@ describe('buildFixPlan', () => {
     const exam = { courseCode: 'MAT101E', courseName: 'Matematik I', day: 'Salı', timeSlot: '10:00-12:00' }
     const plan = buildFixPlan({
       ...empty,
-      duplicates: [{ assistantName: 'Ayşe', day: '2026-10-01', tasks: [calendarMat, manualMat], extraTaskIds: ['man'] }],
+      duplicates: [{ assistantName: 'Ayşe', day: '2026-10-01', tasks: [calendarMat, manualMat], extraTaskIds: ['man'], crossDate: false }],
       mismatches: [
         { assistantName: 'Ayşe', day: '2026-10-01', task: calendarMat, exam, suggested: { id: 'pool', name: 'Tuzla haftaiçi 1 sınav (havuz dersleri)', points: 2 } },
         { assistantName: 'Ayşe', day: '2026-10-01', task: manualMat, exam, suggested: { id: 'x', name: 'X', points: 1 } },
@@ -58,9 +58,20 @@ describe('buildFixPlan', () => {
   it('ignores anything before the start date', () => {
     const plan = buildFixPlan({
       ...empty,
-      duplicates: [{ assistantName: 'Ayşe', day: '2026-08-31', tasks: [calendarMat, manualMat], extraTaskIds: ['man'] }],
+      duplicates: [{ assistantName: 'Ayşe', day: '2026-08-31', tasks: [calendarMat, manualMat], extraTaskIds: ['man'], crossDate: false }],
     }, '2026-09-01')
 
     expect(plan.actions).toHaveLength(0)
+  })
+
+  it('marks a different-date duplicate as needing a check and explains both dates', () => {
+    const plan = buildFixPlan({
+      ...empty,
+      duplicates: [{ assistantName: 'Cenk', day: '2026-11-28', tasks: [calendarMat, { ...manualMat, date: '2026-11-12', points: 3 }], extraTaskIds: ['man'], crossDate: true }],
+    }, '2026-09-01')
+
+    expect(plan.actions[0]).toMatchObject({ kind: 'duplicateDifferentDate', needsReview: true, pointChange: -3, fix: { type: 'delete' } })
+    expect(plan.actions[0].problem).toContain('12 Kasım')
+    expect(plan.actions[0].problem).toContain('28 Kasım')
   })
 })
